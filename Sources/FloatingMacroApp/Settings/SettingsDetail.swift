@@ -54,6 +54,7 @@ struct SettingsDetail: View {
             icon: new.icon != old.icon ? .some(new.icon) : nil,
             iconText: new.iconText != old.iconText ? .some(new.iconText) : nil,
             backgroundColor: new.backgroundColor != old.backgroundColor ? .some(new.backgroundColor) : nil,
+            textColor: new.textColor != old.textColor ? .some(new.textColor) : nil,
             width: new.width != old.width ? .some(new.width) : nil,
             height: new.height != old.height ? .some(new.height) : nil,
             action: new.action != old.action ? new.action : nil
@@ -73,9 +74,13 @@ struct ButtonEditor: View {
     @State private var iconText: String = ""
     @State private var iconPath: String = ""
     @State private var showingSFSymbolPicker: Bool = false
+    @State private var confirmingDelete: Bool = false
     @State private var backgroundColor: Color = .clear
     @State private var backgroundHex: String = ""
     @State private var useBackgroundColor: Bool = false
+    @State private var textColor: Color = .white
+    @State private var textHex: String = ""
+    @State private var useTextColor: Bool = false
     @State private var width: String = ""
     @State private var height: String = ""
     @State private var actionType: String = "text"
@@ -86,7 +91,9 @@ struct ButtonEditor: View {
             HStack {
                 Text("ボタン: \(button.id)").font(.caption).foregroundColor(.secondary)
                 Spacer()
-                Button(role: .destructive, action: onDelete) {
+                Button(role: .destructive) {
+                    confirmingDelete = true
+                } label: {
                     Label("削除", systemImage: "trash")
                 }
             }
@@ -127,6 +134,26 @@ struct ButtonEditor: View {
                             TextField("#RRGGBB", text: $backgroundHex)
                                 .textFieldStyle(.roundedBorder)
                                 .frame(width: 110)
+                        }
+                    }
+                }
+
+                labeled("文字色") {
+                    HStack {
+                        Toggle("有効", isOn: $useTextColor)
+                        if useTextColor {
+                            ColorPicker("", selection: $textColor)
+                                .labelsHidden()
+                                .onChange(of: textColor) { newValue in
+                                    textHex = Self.hexFromColor(newValue)
+                                }
+                            TextField("#RRGGBB", text: $textHex)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 110)
+                        } else {
+                            Text("(自動: 背景色があれば白、なければ システム既定)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
                     }
                 }
@@ -201,6 +228,16 @@ struct ButtonEditor: View {
                 onClose: { showingSFSymbolPicker = false }
             )
         }
+        .confirmationDialog(
+            "このボタンを削除しますか?",
+            isPresented: $confirmingDelete,
+            titleVisibility: .visible
+        ) {
+            Button("「\(button.label)」を削除", role: .destructive, action: onDelete)
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("この操作は元に戻せません。")
+        }
     }
 
     // MARK: - Mapping between state and model
@@ -216,6 +253,14 @@ struct ButtonEditor: View {
         } else {
             useBackgroundColor = false
             backgroundHex = ""
+        }
+        if let hex = button.textColor, let color = Color(hex: hex) {
+            textColor = color
+            textHex = hex
+            useTextColor = true
+        } else {
+            useTextColor = false
+            textHex = ""
         }
         width  = button.width.map { String(Int($0)) } ?? ""
         height = button.height.map { String(Int($0)) } ?? ""
@@ -262,6 +307,9 @@ struct ButtonEditor: View {
             iconText: iconText.isEmpty ? nil : iconText,
             backgroundColor: useBackgroundColor
                 ? (backgroundHex.isEmpty ? Self.hexFromColor(backgroundColor) : backgroundHex)
+                : nil,
+            textColor: useTextColor
+                ? (textHex.isEmpty ? Self.hexFromColor(textColor) : textHex)
                 : nil,
             width: widthVal,
             height: heightVal,

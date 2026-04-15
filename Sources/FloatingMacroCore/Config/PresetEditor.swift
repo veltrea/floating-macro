@@ -163,6 +163,7 @@ public extension ButtonDefinition {
                         icon: String?? = nil,
                         iconText: String?? = nil,
                         backgroundColor: String?? = nil,
+                        textColor: String?? = nil,
                         width: Double?? = nil,
                         height: Double?? = nil,
                         action: Action? = nil) {
@@ -170,6 +171,7 @@ public extension ButtonDefinition {
         if let icon = icon { self.icon = icon }
         if let iconText = iconText { self.iconText = iconText }
         if let backgroundColor = backgroundColor { self.backgroundColor = backgroundColor }
+        if let textColor = textColor { self.textColor = textColor }
         if let width = width { self.width = width }
         if let height = height { self.height = height }
         if let action = action { self.action = action }

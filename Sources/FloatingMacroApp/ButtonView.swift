@@ -5,8 +5,15 @@ import FloatingMacroCore
 struct MacroButtonView: View {
     let button: ButtonDefinition
     let onTap: () -> Void
+    /// Optional: "Edit…" — opens Settings window focused on this button.
+    var onEdit: (() -> Void)? = nil
+    /// Optional: "Duplicate" — clone into the same group.
+    var onDuplicate: (() -> Void)? = nil
+    /// Optional: "Delete" — caller should confirm before actually deleting.
+    var onDelete: (() -> Void)? = nil
 
     @State private var isHovering = false
+    @State private var confirmingDelete = false
 
     /// Attempt to synthesize an icon. Priority:
     ///   1. explicit `icon` (file path / bundle id)
@@ -28,6 +35,17 @@ struct MacroButtonView: View {
         return Color(hex: hex)
     }
 
+    /// Decide the text/icon color. Priority:
+    ///   1. explicit `textColor` (parsed as hex)
+    ///   2. white if a background color is set (fits Stitch / colorful buttons)
+    ///   3. system primary otherwise (respects Dark/Light)
+    private var resolvedForeground: Color {
+        if let hex = button.textColor, let c = Color(hex: hex) {
+            return c
+        }
+        return button.backgroundColor != nil ? .white : .primary
+    }
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 6) {
@@ -39,10 +57,12 @@ struct MacroButtonView: View {
                 } else if let iconText = button.iconText, !iconText.isEmpty {
                     Text(iconText)
                         .font(.system(size: 14))
+                        .foregroundColor(resolvedForeground)
                 }
                 Text(button.label)
                     .font(.system(size: 12, weight: .medium))
                     .lineLimit(1)
+                    .foregroundColor(resolvedForeground)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 10)
@@ -58,6 +78,42 @@ struct MacroButtonView: View {
         .onHover { hovering in
             isHovering = hovering
         }
+        .contextMenu {
+            if let onEdit = onEdit {
+                Button {
+                    onEdit()
+                } label: {
+                    Label("編集...", systemImage: "pencil")
+                }
+            }
+            if let onDuplicate = onDuplicate {
+                Button {
+                    onDuplicate()
+                } label: {
+                    Label("複製", systemImage: "plus.square.on.square")
+                }
+            }
+            if onDelete != nil {
+                Divider()
+                Button(role: .destructive) {
+                    confirmingDelete = true
+                } label: {
+                    Label("削除...", systemImage: "trash")
+                }
+            }
+        }
+        .confirmationDialog(
+            "このボタンを削除しますか?",
+            isPresented: $confirmingDelete,
+            titleVisibility: .visible
+        ) {
+            Button("「\(button.label)」を削除", role: .destructive) {
+                onDelete?()
+            }
+            Button("キャンセル", role: .cancel) {}
+        } message: {
+            Text("この操作は元に戻せません。")
+        }
     }
 
     private var backgroundFill: Color {
@@ -71,12 +127,22 @@ struct MacroButtonView: View {
 struct GroupView: View {
     let group: ButtonGroup
     let onButtonTap: (ButtonDefinition) -> Void
+    var onButtonEdit: ((ButtonDefinition) -> Void)? = nil
+    var onButtonDuplicate: ((ButtonDefinition) -> Void)? = nil
+    var onButtonDelete: ((ButtonDefinition) -> Void)? = nil
 
     @State private var collapsed: Bool
 
-    init(group: ButtonGroup, onButtonTap: @escaping (ButtonDefinition) -> Void) {
+    init(group: ButtonGroup,
+         onButtonTap: @escaping (ButtonDefinition) -> Void,
+         onButtonEdit: ((ButtonDefinition) -> Void)? = nil,
+         onButtonDuplicate: ((ButtonDefinition) -> Void)? = nil,
+         onButtonDelete: ((ButtonDefinition) -> Void)? = nil) {
         self.group = group
         self.onButtonTap = onButtonTap
+        self.onButtonEdit = onButtonEdit
+        self.onButtonDuplicate = onButtonDuplicate
+        self.onButtonDelete = onButtonDelete
         self._collapsed = State(initialValue: group.collapsed)
     }
 
@@ -101,9 +167,13 @@ struct GroupView: View {
 
             if !collapsed {
                 ForEach(group.buttons, id: \.id) { btn in
-                    MacroButtonView(button: btn) {
-                        onButtonTap(btn)
-                    }
+                    MacroButtonView(
+                        button: btn,
+                        onTap: { onButtonTap(btn) },
+                        onEdit:      onButtonEdit.map      { cb in { cb(btn) } },
+                        onDuplicate: onButtonDuplicate.map { cb in { cb(btn) } },
+                        onDelete:    onButtonDelete.map    { cb in { cb(btn) } }
+                    )
                 }
             }
         }
@@ -113,11 +183,20 @@ struct GroupView: View {
 struct PresetView: View {
     let preset: Preset
     let onButtonTap: (ButtonDefinition) -> Void
+    var onButtonEdit: ((ButtonDefinition) -> Void)? = nil
+    var onButtonDuplicate: ((ButtonDefinition) -> Void)? = nil
+    var onButtonDelete: ((ButtonDefinition) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             ForEach(preset.groups, id: \.id) { group in
-                GroupView(group: group, onButtonTap: onButtonTap)
+                GroupView(
+                    group: group,
+                    onButtonTap: onButtonTap,
+                    onButtonEdit: onButtonEdit,
+                    onButtonDuplicate: onButtonDuplicate,
+                    onButtonDelete: onButtonDelete
+                )
             }
         }
         .padding(8)

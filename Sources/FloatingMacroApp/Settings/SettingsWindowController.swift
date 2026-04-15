@@ -8,7 +8,7 @@ final class SettingsWindowController: NSWindowController {
 
     static let shared = SettingsWindowController()
 
-    func show(presetManager: PresetManager) {
+    func show(presetManager: PresetManager, selectButtonId: String? = nil) {
         if window == nil {
             let hosting = NSHostingView(
                 rootView: SettingsView(presetManager: presetManager)
@@ -27,5 +27,12 @@ final class SettingsWindowController: NSWindowController {
         }
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+
+        // Ask SettingsView to jump to this button after the window mounts.
+        if let id = selectButtonId {
+            DispatchQueue.main.async {
+                presetManager.externalSelectButtonRequest = id
+            }
+        }
     }
 }

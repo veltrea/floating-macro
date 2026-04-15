@@ -2,6 +2,35 @@ import XCTest
 @testable import FloatingMacroCore
 
 final class ConfigLoaderTests: XCTestCase {
+    func testButtonDefinitionRoundTripIncludesTextColor() throws {
+        let btn = ButtonDefinition(
+            id: "b-tc", label: "with colors",
+            iconText: "🧠",
+            backgroundColor: "#FF6B00",
+            textColor: "#222222",
+            width: 140, height: 36,
+            action: .key(combo: "cmd+a")
+        )
+        let data = try JSONEncoder().encode(btn)
+        let decoded = try JSONDecoder().decode(ButtonDefinition.self, from: data)
+        XCTAssertEqual(decoded, btn)
+        XCTAssertEqual(decoded.textColor, "#222222")
+    }
+
+    func testButtonDefinitionLegacyJSONWithoutTextColor() throws {
+        // Pre-textColor configs must still decode (backward compat via decodeIfPresent).
+        let json = #"""
+        {
+          "id": "legacy",
+          "label": "old",
+          "action": { "type": "key", "combo": "cmd+v" }
+        }
+        """#.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(ButtonDefinition.self, from: json)
+        XCTAssertNil(decoded.textColor)
+        XCTAssertNil(decoded.backgroundColor)
+    }
+
     func testActionRoundTrip() throws {
         let actions: [Action] = [
             .key(combo: "cmd+v"),

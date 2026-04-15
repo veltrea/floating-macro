@@ -4,6 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "FloatingMacro",
+    defaultLocalization: "en",
     platforms: [
         .macOS(.v13)
     ],
@@ -28,6 +29,11 @@ let package = Package(
             path: "Sources/FloatingMacroApp",
             resources: [
                 .copy("Resources/lucide"),
+                // .lproj directories declare to macOS that this app supports
+                // these languages, so system-provided menus (Cut/Copy/Paste,
+                // text substitutions, etc.) are localized to match.
+                .process("Resources/en.lproj"),
+                .process("Resources/ja.lproj"),
             ]
         ),
         .testTarget(

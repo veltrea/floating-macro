@@ -27,6 +27,12 @@ struct SettingsView: View {
         }
         .frame(minWidth: 640, minHeight: 480)
         .onAppear { selectFirstButtonIfNeeded() }
+        .onChange(of: presetManager.externalSelectButtonRequest) { requestedId in
+            guard let id = requestedId else { return }
+            applyExternalSelection(id)
+            // Consume the request so the same id can be requested twice.
+            presetManager.externalSelectButtonRequest = nil
+        }
     }
 
     /// On open, auto-select the first button in the first non-empty group so
@@ -39,6 +45,19 @@ struct SettingsView: View {
             if let first = group.buttons.first {
                 selectedGroupId = group.id
                 selectedButtonId = first.id
+                return
+            }
+        }
+    }
+
+    /// Jump selection to the given button id (usually from a right-click
+    /// "Edit…" on the floating panel).
+    private func applyExternalSelection(_ id: String) {
+        guard let preset = presetManager.currentPreset else { return }
+        for group in preset.groups {
+            if group.buttons.contains(where: { $0.id == id }) {
+                selectedGroupId = group.id
+                selectedButtonId = id
                 return
             }
         }

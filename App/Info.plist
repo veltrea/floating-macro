@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Identity -->
+    <key>CFBundleIdentifier</key>
+    <string>com.veltrea.FloatingMacro</string>
+    <key>CFBundleName</key>
+    <string>FloatingMacro</string>
+    <key>CFBundleDisplayName</key>
+    <string>FloatingMacro</string>
+    <key>CFBundleExecutable</key>
+    <string>FloatingMacro</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1</string>
+    <key>CFBundleSignature</key>
+    <string>????</string>
+
+    <!-- Icon -->
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
+
+    <!-- Minimum system & display -->
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+
+    <!-- Localization: declare which languages the app supports so system
+         menus (Cut/Copy/Paste, text substitutions, etc.) get localized to
+         match the user's macOS language setting. -->
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>en</string>
+        <string>ja</string>
+    </array>
+
+    <!-- Accessory app: no Dock icon, no standard application menu.
+         This is the key reason we want a real .app bundle instead of `swift run`. -->
+    <key>LSUIElement</key>
+    <true/>
+
+    <!-- Permission rationale strings. macOS shows these to the user when it
+         prompts for Accessibility / Automation. -->
+    <key>NSAppleEventsUsageDescription</key>
+    <string>FloatingMacro sends AppleScript to Terminal.app and iTerm2 to run the commands you configured in a button's macro.</string>
+    <key>NSAccessibilityUsageDescription</key>
+    <string>FloatingMacro synthesizes keyboard shortcuts and pastes text through the system key event tap when you click one of your buttons.</string>
+</dict>
+</plist>

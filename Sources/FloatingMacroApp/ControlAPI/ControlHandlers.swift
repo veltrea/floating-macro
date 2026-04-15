@@ -540,6 +540,7 @@ final class ControlHandlers {
         let icon: String??      = dict.keys.contains("icon") ? (dict["icon"] as? String) : nil
         let iconText: String??  = dict.keys.contains("iconText") ? (dict["iconText"] as? String) : nil
         let bg: String??        = dict.keys.contains("backgroundColor") ? (dict["backgroundColor"] as? String) : nil
+        let tc: String??        = dict.keys.contains("textColor") ? (dict["textColor"] as? String) : nil
         let width: Double??     = dict.keys.contains("width")  ? ((dict["width"]  as? NSNumber)?.doubleValue) : nil
         let height: Double??    = dict.keys.contains("height") ? ((dict["height"] as? NSNumber)?.doubleValue) : nil
 
@@ -555,7 +556,8 @@ final class ControlHandlers {
 
         let ok = presetManager.updateButton(
             id: id, label: label,
-            icon: icon, iconText: iconText, backgroundColor: bg,
+            icon: icon, iconText: iconText,
+            backgroundColor: bg, textColor: tc,
             width: width, height: height, action: action
         )
         return HTTPResponse.json(["ok": ok])

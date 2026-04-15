@@ -252,9 +252,24 @@ struct ContentHostView: View {
             // ボタン一覧
             if let preset = presetManager.currentPreset {
                 ScrollView(.vertical, showsIndicators: false) {
-                    PresetView(preset: preset) { button in
-                        presetManager.executeButton(button)
-                    }
+                    PresetView(
+                        preset: preset,
+                        onButtonTap: { button in
+                            presetManager.executeButton(button)
+                        },
+                        onButtonEdit: { button in
+                            SettingsWindowController.shared.show(
+                                presetManager: presetManager,
+                                selectButtonId: button.id
+                            )
+                        },
+                        onButtonDuplicate: { button in
+                            _ = presetManager.duplicateButton(id: button.id)
+                        },
+                        onButtonDelete: { button in
+                            _ = presetManager.deleteButton(id: button.id)
+                        }
+                    )
                 }
             } else {
                 VStack {

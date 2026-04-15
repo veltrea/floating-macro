@@ -10,6 +10,12 @@ final class PresetManager: ObservableObject {
     /// react observes this and opens the picker on value change.
     @Published var sfPickerRequestNonce: Int = 0
 
+    /// Request the SettingsView to programmatically select a button. Set by
+    /// SettingsWindowController.show(selectButtonId:) or by code paths that
+    /// want to jump straight to "edit this particular button". Consumed by
+    /// SettingsView, which clears it back to nil.
+    @Published var externalSelectButtonRequest: String? = nil
+
     private let loader: ConfigLoader
     private let writer: ConfigWriter
 
@@ -127,6 +133,7 @@ final class PresetManager: ObservableObject {
                       icon: String??,
                       iconText: String??,
                       backgroundColor: String??,
+                      textColor: String??,
                       width: Double??,
                       height: Double??,
                       action: Action?) -> Bool {
@@ -136,6 +143,7 @@ final class PresetManager: ObservableObject {
                         icon: icon,
                         iconText: iconText,
                         backgroundColor: backgroundColor,
+                        textColor: textColor,
                         width: width,
                         height: height,
                         action: action)
@@ -145,6 +153,39 @@ final class PresetManager: ObservableObject {
 
     func deleteButton(id: String) -> Bool {
         editActivePreset { try PresetEditor.deleteButton(buttonId: id, from: $0) }
+    }
+
+    /// Duplicate a button in-place. The copy is appended to the same group,
+    /// gets a fresh id, and has " copy" appended to the label. Returns the
+    /// new button's id if the operation succeeded, nil otherwise.
+    @discardableResult
+    func duplicateButton(id: String) -> String? {
+        guard let preset = currentPreset else { return nil }
+        // Find the source button and its group.
+        var sourceGroup: ButtonGroup?
+        var sourceButton: ButtonDefinition?
+        for group in preset.groups {
+            if let b = group.buttons.first(where: { $0.id == id }) {
+                sourceGroup = group
+                sourceButton = b
+                break
+            }
+        }
+        guard let group = sourceGroup, let src = sourceButton else { return nil }
+
+        let newId = "b-\(Int.random(in: 10000...99999))"
+        let copy = ButtonDefinition(
+            id: newId,
+            label: "\(src.label) のコピー",
+            icon: src.icon,
+            iconText: src.iconText,
+            backgroundColor: src.backgroundColor,
+            width: src.width,
+            height: src.height,
+            action: src.action
+        )
+        let ok = addButton(copy, toGroupId: group.id)
+        return ok ? newId : nil
     }
 
     func reorderButtons(ids: [String], inGroupId: String) -> Bool {

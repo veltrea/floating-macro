@@ -95,6 +95,23 @@ final class PresetEditorTests: XCTestCase {
         XCTAssertNil(btn.height) // not touched
     }
 
+    func testPatchCanSetAndClearTextColor() {
+        var btn = ButtonDefinition(id: "x", label: "L",
+                                   backgroundColor: "#FF6B00",
+                                   textColor: "#FFFFFF",
+                                   action: .key(combo: "a"))
+        // Set a new text color
+        btn.patch(textColor: Optional<String?>.some("#111111"))
+        XCTAssertEqual(btn.textColor, "#111111")
+        // Clear it
+        btn.patch(textColor: Optional<String?>.some(nil))
+        XCTAssertNil(btn.textColor)
+        // Leaving it off the patch keeps the existing value
+        btn.textColor = "#AAAAAA"
+        btn.patch(label: "updated")
+        XCTAssertEqual(btn.textColor, "#AAAAAA")
+    }
+
     func testUpdateButtonNotFound() {
         XCTAssertThrowsError(
             try PresetEditor.updateButton(buttonId: "nope", in: samplePreset()) { _ in }

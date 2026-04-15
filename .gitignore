@@ -28,3 +28,6 @@ DerivedData/
 
 # Stitch raw project dump (ephemeral, keep out of history)
 fm_stitch_project.json
+
+# .app bundle output from scripts/build-app.sh
+build/

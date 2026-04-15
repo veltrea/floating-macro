@@ -37,14 +37,14 @@ curl -s 'http://127.0.0.1:17430/log/tail?since=1m&level=info' | jq
 
 ## 1. What you should know about this app
 
-FloatingMacro is a macOS floating macro launcher. The primary user has
-visual and left-side physical limitations, and delegates operation to AI
-whenever possible.
+FloatingMacro is a macOS floating macro launcher designed so that an AI
+agent is treated as a first-class user. You are expected to drive the app
+end-to-end via this API rather than asking a human to operate the GUI.
 
 **Expected behavior from the AI**:
 
-- Do not ask the user to run commands or click things themselves — use the
-  HTTP API instead.
+- Prefer calling the HTTP API over asking the user to run commands or click
+  things themselves.
 - Run the loop "observe → decide → execute → re-observe" autonomously.
 - When in doubt, call the `help` tool to re-read the manifest.
 

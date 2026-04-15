@@ -19,8 +19,12 @@ dialects (MCP / A2A / OpenAI function calling / Anthropic tool use / plain
 REST with OpenAPI), so **AI agents can observe, configure, and drive the app
 with no additional glue**.
 
-It was built for someone who cannot rely on fine motor control and wanted
-their AI assistant to act as their hands.
+This is a small experiment in what AI-oriented macOS software might look
+like. Rather than bolting AI onto an existing app, the question is:
+*what happens when you treat an AI agent as a first-class user from day
+one* — able to observe, configure, and drive the app without any
+extra integration layer? FloatingMacro is one attempt at an answer in the
+scope of a tiny utility.
 
 ---
 

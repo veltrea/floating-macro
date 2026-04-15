@@ -1,178 +1,187 @@
-# FloatingMacro — 手動テスト チェックリスト
+# FloatingMacro — Manual Test Checklist
 
-このチェックリストは **自動テストで網羅できない部分** を人の目と手で確認するためのものです。
-自動テスト（`swift test`・`scripts/fmcli_smoke.sh`）が全て緑になってから、この手順を実施してください。
+This checklist covers items **not reachable by the automated test suite**:
+things that require Accessibility / Automation permissions, real window
+behavior, or human visual judgment.
 
-## 自動テストでカバー済み（このドキュメントで再確認不要）
+Run through this after `swift test`, `fmcli_smoke.sh` and
+`control_api_smoke.sh` are all green.
 
-- `FloatingMacroCore` のロジック全般（Action JSON、KeyCombo パーサ、各 Executor のフロー、MacroRunner）
-- Clipboard の save/restore 正確性
-- Config の読み書きと既定値生成
-- CLI (`fmcli`) の permission-free サブコマンド（help / config / preset list / launch shell: / permissions check / エラー exit コード）
-
-## このドキュメントでカバーする部分
-
-1. 実際の **キーイベント / テキスト注入 / ターミナル起動** の挙動（macOS Accessibility & Automation 権限が必要）
-2. **NSPanel / SwiftUI の UI** の見た目と操作性（自動化しづらい）
-3. **クリップボード復元** の視覚確認
+> 日本語版: [manual_test.ja.md](manual_test.ja.md)
 
 ---
 
-## 事前準備
+## What the automated tests already cover (skip here)
 
-1. `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build` が成功すること
-2. 以下のどちらかの方法でビルド成果物を用意:
-   - **CLI のみ使う場合**: `swift build --product fmcli`
-   - **GUI を含めて確認する場合**: `swift build --product FloatingMacro` でその場ビルド、または `swift run FloatingMacro`
-3. Accessibility 権限（`fmcli` または `FloatingMacro` バイナリに対して）
-   - システム設定 → プライバシーとセキュリティ → アクセシビリティ で該当バイナリを ON
-4. 設定ディレクトリを汚したくない場合は、ターミナルで次のように環境変数を設定してから起動:
+- `FloatingMacroCore` logic (actions, key combos, executors, macro runner)
+- Clipboard save/restore fidelity
+- Config read/write + defaults generation
+- `fmcli` permission-free surface (help, config, preset list, launch shell:, log tail, error exit codes)
+- Control API (REST + `/tools/call` + `/mcp`) against a real GUI process
+
+## What this document covers
+
+1. Real **key synthesis / text paste / terminal launch** behavior (requires macOS permissions)
+2. **NSPanel / SwiftUI** window look and feel (hard to automate)
+3. **Clipboard restoration** — visual confirmation
+
+---
+
+## Pre-flight
+
+1. `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build` must succeed.
+2. Build the product:
+   - **CLI only**: `swift build --product fmcli`
+   - **GUI included**: `swift build --product FloatingMacro` or `swift run FloatingMacro`
+3. Accessibility permission granted to the binary (System Settings → Privacy & Security → Accessibility).
+4. To keep your real config directory untouched, export a temp path before launching:
    ```
    export FLOATINGMACRO_CONFIG_DIR=/tmp/fmtest-$$
    ```
-   （`$$` はシェルが自動的に PID に置換するので、実行するだけでユニークな一時パスになる）
 
 ---
 
-## 1. CLI: `fmcli action` シリーズ（Accessibility 要）
+## 1. CLI: `fmcli action` series (Accessibility required)
 
-テキストエディタ（例: TextEdit）を開き、空の新規ドキュメントにカーソルを置いた状態で以下を実施。
+Open a text editor (for example TextEdit) with an empty document and the caret active.
 
 ### 1-1. `fmcli action key`
 
-| 手順 | 期待 |
+| Step | Expected |
 |---|---|
-| `fmcli action key "cmd+shift+4"` を実行 | スクリーンショット撮影のレチクルが出る |
-| `fmcli action key "f5"` を実行 | F5 が押されたのと同じ挙動になる |
-| `fmcli action key "cmd+space"` を実行 | Spotlight が開く（環境依存） |
+| Run `fmcli action key "cmd+shift+4"` | Screenshot reticle appears |
+| Run `fmcli action key "f5"` | Same behavior as pressing F5 |
+| Run `fmcli action key "cmd+space"` | Spotlight opens (environment-dependent) |
 
 ### 1-2. `fmcli action text`
 
-| 手順 | 期待 |
+| Step | Expected |
 |---|---|
-| TextEdit に何か適当な文字列をコピー（例: "PRE-TEST"）しておく | クリップボードに "PRE-TEST" が入る |
-| `fmcli action text "こんにちは 🌏"` を実行 | カーソル位置に「こんにちは 🌏」が貼り付けられる |
-| Cmd+V をもう一度押す | **"PRE-TEST"** が出る（クリップボード復元確認） |
-| `fmcli action text "line1\nline2"` を実行（※シェル上では `printf` 等で改行を渡す） | 2行に分かれて貼り付けられる |
+| Copy some arbitrary text (e.g. "PRE-TEST") | Clipboard contains "PRE-TEST" |
+| Run `fmcli action text "Hello 🌏"` | The text appears at the caret |
+| Press Cmd+V again | **"PRE-TEST"** is pasted (confirming clipboard restoration) |
+| Run `fmcli action text "line1\nline2"` (escape the newline properly in your shell) | Two separate lines are pasted |
 
 ### 1-3. `fmcli action terminal`
 
-| 手順 | 期待 |
+| Step | Expected |
 |---|---|
-| `fmcli action terminal --app Terminal --command "echo hello"` | Terminal.app が開き "echo hello" が実行されて "hello" が表示される |
-| `fmcli action terminal --app iTerm --command "ls ~"` | iTerm2 がインストールされていれば、新規ウィンドウで `ls ~` が実行される |
-| `fmcli action terminal --app Terminal --command "date" --no-execute` | Terminal に "date" が入力されるが **Enter は押されない**（カーソル末尾で停止） |
+| `fmcli action terminal --app Terminal --command "echo hello"` | Terminal.app opens and runs `echo hello` |
+| `fmcli action terminal --app iTerm --command "ls ~"` | iTerm2 (if installed) opens a new window and runs `ls ~` |
+| `fmcli action terminal --app Terminal --command "date" --no-execute` | `date` is typed into Terminal but Enter is NOT pressed |
 
 ### 1-4. `fmcli preset run`
 
-`fmcli config init` で既定プリセットを作成後:
+After `fmcli config init` creates the default preset:
 
-| 手順 | 期待 |
+| Step | Expected |
 |---|---|
-| TextEdit にフォーカス | — |
-| `fmcli preset run default btn-ultrathink` | "ultrathink で次のタスクに取り組んでください。" が貼り付けられる |
-| `fmcli preset run default btn-stop-loop` | 「止まって」系の定型文が貼り付けられる |
+| Focus TextEdit | — |
+| `fmcli preset run default btn-ultrathink` | The default AI prompt text is pasted |
+| `fmcli preset run default btn-stop-loop` | The "pause" prompt text is pasted |
 
 ---
 
-## 2. GUI: フローティングパネル
+## 2. GUI: Floating panel
 
-`swift run FloatingMacro` でアプリを起動。
+Launch with `swift run FloatingMacro`.
 
-### 2-1. 初回起動 / 権限
+### 2-1. First launch / permissions
 
-- [ ] 起動後、Dock にアイコンが出ない（`LSUIElement = YES` 相当）
-- [ ] メニューバーに `command.square` SF Symbol のアイコンが表示される
-- [ ] Accessibility 権限が未許可の場合、モーダルが出る
-- [ ] モーダルの「システム設定を開く」でプライバシーパネルが開く
+- [ ] No Dock icon appears (LSUIElement-like behavior via `NSApp.setActivationPolicy(.accessory)`)
+- [ ] A `command.square` SF Symbol appears in the menu bar
+- [ ] If Accessibility is not granted, a modal pops up
+- [ ] The modal's "Open System Settings" button opens the Privacy pane
 
-### 2-2. ウィンドウの基本挙動
+### 2-2. Window basics
 
-- [ ] フローティングパネルが画面に現れる（既定位置 x=100, y=100）
-- [ ] 他のアプリをクリックしても **パネルは前面に残る**（`.floating` レベル）
-- [ ] パネルをクリックしても **現在アクティブなアプリのフォーカスが奪われない**（`.nonactivatingPanel`）
-  - 確認方法: TextEdit をアクティブにしてカーソルを置く → パネルをクリック → TextEdit に文字入力できる
+- [ ] The floating panel appears at the configured origin
+- [ ] Clicking another app keeps the panel in front (`.floating` level)
+- [ ] Clicking the panel does **not** steal focus from the active app
+  - Verification: focus TextEdit with caret → click panel → type into TextEdit → text appears
 
-### 2-3. ドラッグ
+### 2-3. Drag
 
-- [ ] パネルの空白（ボタン以外）を掴んで画面内で自由に動かせる
-- [ ] 画面端を超えて移動できない（macOS 標準挙動）
-- [ ] アプリ再起動後、最後の位置が保持される（`setFrameAutosaveName` による）
+- [ ] Drag by empty space inside the panel moves it freely on-screen
+- [ ] Cannot be dragged past the screen edge (standard macOS behavior)
+- [ ] After relaunch, the panel appears at the previous location (config is written on `applicationWillTerminate`)
 
-### 2-4. ボタン操作
+### 2-4. Button behavior
 
-- [ ] 既定プリセットの「ultrathink」ボタンが表示される
-- [ ] ホバーすると背景色がうっすら変わる
-- [ ] TextEdit にフォーカスを置いて「ultrathink」を押すと定型文が貼り付けられる
-- [ ] グループヘッダ（「AI」）をクリックすると折りたたみ / 展開される
+- [ ] The default preset's "ultrathink" button is visible
+- [ ] Hovering slightly tints the background
+- [ ] With TextEdit focused, clicking "ultrathink" pastes the default prompt
+- [ ] Clicking a group header ("AI") collapses / expands the group
 
-### 2-5. メニューバー
+### 2-5. Menu bar
 
-- [ ] アイコンをクリックすると「表示/非表示」「プリセット切替」「設定フォルダを開く」「再読み込み」「終了」が表示
-- [ ] 「表示/非表示」で パネルの可視状態が切り替わる
-- [ ] 「設定フォルダを開く」で `~/Library/Application Support/FloatingMacro` が Finder で開く
-- [ ] 「終了」でアプリが正しく終了する
+- [ ] Clicking the menu bar icon shows: "Show / Hide", "Preset", "Button Edit…", "Open config folder", "Reload", "Quit"
+- [ ] "Show / Hide" toggles panel visibility
+- [ ] "Open config folder" opens `~/Library/Application Support/FloatingMacro` in Finder
+- [ ] "Button Edit…" (or `⌘E`) opens the settings window
+- [ ] "Quit" terminates the app cleanly
 
-### 2-6. プリセット切替
+### 2-6. Preset switching
 
-1. `~/Library/Application Support/FloatingMacro/presets/` に次の内容で `writing.json` を作成:
+1. Create `~/Library/Application Support/FloatingMacro/presets/writing.json` with:
    ```json
    {
      "version": 1,
      "name": "writing",
-     "displayName": "執筆",
+     "displayName": "Writing",
      "groups": [
-       { "id": "g1", "label": "素材", "buttons": [
-         { "id": "b1", "label": "挨拶", "iconText": "✍️",
-           "action": { "type": "text", "content": "こんにちは、今日もよろしくお願いします。" }
+       { "id": "g1", "label": "Snippets", "buttons": [
+         { "id": "b1", "label": "Hello", "iconText": "✍️",
+           "action": { "type": "text", "content": "Hello, and thanks." }
          }
        ]}
      ]
    }
    ```
-2. メニューバー → 「再読み込み」を押す
-3. メニューバー → 「プリセット」→「writing」を選択
-- [ ] パネルの表示が「執筆」に切り替わり、「挨拶」ボタンだけになる
-- [ ] 「default」に戻すと元のボタン群が復帰する
+2. Menu bar → "Reload"
+3. Menu bar → "Preset" → "writing"
+- [ ] Panel updates to show the Writing preset
+- [ ] Switching back to "default" restores the original buttons
 
-### 2-7. エラーバナー
+### 2-7. Error banner
 
-1. プリセットに存在しないキーコンボ（例: `{"type":"key","combo":"cmd+xyz"}`）を書いたボタンを追加
-2. 再読み込み → そのボタンをクリック
-- [ ] 赤いエラーバナーが出る
-- [ ] 3 秒後にバナーが自動的に消える
-
----
-
-## 3. セキュリティ確認（重要）
-
-- [ ] `fmcli action text "$(cat /etc/hostname)"` のようにクリップボード経由でテキスト注入 → 完了後に `pbpaste` で元の内容が戻っていることを確認
-- [ ] シークレット（パスワード、APIキー）をクリップボードに入れた状態で `fmcli action text "dummy"` を実行 → シークレットが復元されることを視覚確認
+1. Add a button whose action is a bad key combo (e.g. `{"type":"key","combo":"cmd+xyz"}`).
+2. Reload and click that button.
+- [ ] A red banner appears below the buttons
+- [ ] The banner auto-dismisses after ~3 seconds
 
 ---
 
-## 4. 回帰リスクの高い部分（リリース前に毎回確認）
+## 3. Security sanity checks (important)
 
-- [ ] IME が ON の状態で `fmcli action text "あいう"` が正しく貼り付けられる（キーシンセサイザ経由ではなくクリップボード経由であるため IME の影響を受けない想定）
-- [ ] 複数モニタ環境でパネルが片方のモニタで操作可能
-- [ ] スペース（仮想デスクトップ）を跨いでもパネルが追従（`.canJoinAllSpaces`）
-- [ ] Full Screen アプリを使用中もパネルが表示される（`.fullScreenAuxiliary`）
+- [ ] After running `fmcli action text "$(cat /etc/hostname)"`, `pbpaste` returns the original clipboard content (clipboard fully restored).
+- [ ] Put a secret (a password, API key) on the clipboard, run `fmcli action text "dummy"`, then paste elsewhere — the original secret is back, not the dummy.
 
 ---
 
-## 5. よくある問題と切り分け
+## 4. High-risk regressions (verify per release)
 
-| 症状 | 原因候補 | 確認手順 |
+- [ ] IME-on state: `fmcli action text "あいう"` pastes correctly (the design avoids the keycode synthesizer, so IME state should not matter).
+- [ ] Panel remains usable across both monitors in a multi-display setup.
+- [ ] Panel follows the user across Spaces (`.canJoinAllSpaces`).
+- [ ] Panel remains visible over a full-screen app (`.fullScreenAuxiliary`).
+
+---
+
+## 5. Troubleshooting table
+
+| Symptom | Likely cause | Check |
 |---|---|---|
-| キーが反応しない | Accessibility 未許可 | `fmcli permissions check` で確認 |
-| `action terminal` が開かない | Automation 未許可 / Terminal/iTerm 未インストール | システム設定 → オートメーション / `ls /Applications/` |
-| テキストが文字化け | `type` 経由になっていないか（cmdline の quoting ミス） | JSON 定義を直接見直す |
-| クリップボードが戻らない | `restoreClipboard: false` 指定 or 直前に `TextActionExecutor` がクラッシュ | ログを確認 |
-| パネルが消えた | メニューバー → 「表示/非表示」で復帰 | — |
+| Keys are not registered | Accessibility not granted | `fmcli permissions check` |
+| `action terminal` does nothing | Automation not granted / Terminal / iTerm not installed | System Settings → Automation, `ls /Applications/` |
+| Text corruption | Probably quoting issues at the shell | Inspect the JSON definition directly |
+| Clipboard not restored | `restoreClipboard: false`, or `TextActionExecutor` crashed mid-flight | Check logs |
+| Panel vanished | User hid it from the menu bar | Menu bar → "Show / Hide" |
 
 ---
 
-## 6. 完了条件
+## 6. Passing criteria
 
-すべての ✅ 可能項目が緑のときに、「手動テスト合格」とする。
-問題があった場合は、**自動テストに落とし込める表現に言い換えて追加**することで、次回から手動項目を減らしていく方針。
+Consider manual testing complete when all ☑ items above are ticked.
+Any failure caught here should be filed as an automated test if it is
+reproducible in isolation, so the manual checklist keeps shrinking over time.

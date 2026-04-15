@@ -1,63 +1,71 @@
-# FloatingMacro — AI エージェント接続マニュアル
+# FloatingMacro — AI Agent Protocol Manual
 
-**対象読者**: Claude / Gemini / GPT 等の AI エージェント、またはそれらをホストする開発者。
+**Audience**: AI agents (Claude / Gemini / GPT etc.) and the developers who
+host them. Human-facing design docs live in `SPEC.md`. Manual QA items live
+in `docs/manual_test.md`.
 
-このドキュメントは **AI がこのアプリを操作するためのプロトコル仕様** である。人間向け仕様書は `SPEC.md`、手動テスト手順は `docs/manual_test.md` を参照。
+> 日本語版: [AI_PROTOCOL.ja.md](AI_PROTOCOL.ja.md)
 
 ---
 
-## 0. TL;DR — AI はまず何をすればいい?
+## 0. TL;DR — what should an AI do first?
 
 ```bash
-# 1. アプリを起動 (まだなら)
-#    controlAPI.enabled=true の config を用意してから FloatingMacro を起動する。
+# 1. Make sure FloatingMacro is running with controlAPI.enabled = true
+#    in its config.json.
 
-# 2. サーバーが生きているか確認
+# 2. Check liveness
 curl http://127.0.0.1:17430/ping
 
-# 3. 最初に必ず /manifest を読む (自己紹介 + 全ツール一覧が一度に返る)
+# 3. Always read /manifest first. It returns the system prompt + tool
+#    catalog + quick start in one round trip.
 curl -s http://127.0.0.1:17430/manifest | jq
 
-# 4. 現状を把握
+# 4. Inspect state
 curl -s http://127.0.0.1:17430/state | jq
 
-# 5. ツールを呼ぶ (統一エンドポイント経由)
+# 5. Invoke a tool through the unified dispatch
 curl -X POST http://127.0.0.1:17430/tools/call \
     -H 'Content-Type: application/json' \
     -d '{"name":"window_opacity","arguments":{"value":0.7}}'
 
-# 6. 結果を確認
+# 6. Verify via logs
 curl -s 'http://127.0.0.1:17430/log/tail?since=1m&level=info' | jq
 ```
 
 ---
 
-## 1. このアプリについて知っておくべきこと
+## 1. What you should know about this app
 
-**FloatingMacro** は macOS 用のフローティングマクロランチャー。ユーザーが身体的困難 (視覚・左半身の動作) を抱えており、AI にテストと操作を委譲する設計を重視している。
+FloatingMacro is a macOS floating macro launcher. The primary user has
+visual and left-side physical limitations, and delegates operation to AI
+whenever possible.
 
-**AI の期待される行動**:
-- ユーザーに「コマンドを打ってください」と依頼しない。自分で HTTP API を叩く
-- 操作 → ログ確認 → 判断、のループを自律的に回す
-- 不明な点は `help` ツールで manifest を再読み込みする
+**Expected behavior from the AI**:
+
+- Do not ask the user to run commands or click things themselves — use the
+  HTTP API instead.
+- Run the loop "observe → decide → execute → re-observe" autonomously.
+- When in doubt, call the `help` tool to re-read the manifest.
 
 ---
 
-## 2. 接続方法
+## 2. How to connect
 
-### 2.1 HTTP (推奨、ACP スタイル)
+### 2.1 HTTP (preferred — ACP style)
 
 ```
 Base URL: http://127.0.0.1:17430
 ```
 
-- TCP ソケット、loopback のみにバインド (外部からは不可)
-- 認証なし
-- HTTP/1.1、`Content-Type: application/json` 前提
-- Keep-Alive なし (1 接続 1 リクエスト)
-- ポートは衝突時 +1 ずつ最大 10 回 fallback → 実ポートは `GET /state` の `.port` では返さず、起動ログ (`ControlServer Started on 127.0.0.1:NNNNN`) に記録される
+- TCP socket, bound to loopback only (unreachable from other hosts)
+- No auth (localhost-only)
+- HTTP/1.1, `Content-Type: application/json` expected
+- No keep-alive (one request per connection)
+- Port falls through `port+1..port+9` on collision. The actual bound port
+  appears in startup logs as `ControlServer Started on 127.0.0.1:NNNNN`.
 
-### 2.2 MCP (Anthropic 標準)
+### 2.2 MCP (Anthropic standard)
 
 ```
 POST http://127.0.0.1:17430/mcp
@@ -66,33 +74,34 @@ Content-Type: application/json
 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}
 ```
 
-Claude Desktop / Claude Code の MCP 設定に `http://127.0.0.1:17430/mcp` を指定するだけで、全ツールが tool use として使えるようになる。
+Register `http://127.0.0.1:17430/mcp` in Claude Desktop / Claude Code's MCP
+config and every tool becomes available as native tool use.
 
 ### 2.3 OpenAI function calling / Anthropic tool use
 
-ツール定義を LLM に渡したい場合、次の URL を GET して LLM の `tools` パラメータにそのまま貼り付ける:
+To inject the tool catalog into an LLM call, fetch and paste:
 
 ```
 GET /tools?format=openai     # OpenAI Chat Completions "tools"
 GET /tools?format=anthropic  # Anthropic Messages "tools"
-GET /tools?format=mcp        # MCP (デフォルト)
+GET /tools?format=mcp        # MCP (default)
 ```
 
 ---
 
-## 3. 最初に絶対にやること — `GET /manifest`
+## 3. First thing you must do — `GET /manifest`
 
 ```bash
 curl -s http://127.0.0.1:17430/manifest
 ```
 
-返り値には以下がすべて含まれる (1 回のリクエストで bootstrap 完了):
+The response contains everything needed to bootstrap in one round trip:
 
 ```json
 {
   "product": "FloatingMacro",
   "version": "0.1",
-  "systemPrompt": "...AI 向けの行動指針...",
+  "systemPrompt": "...behavioral guidance for AI agents...",
   "quickStart": ["GET /manifest", "GET /state", ...],
   "endpoints": [{ "method": "GET", "path": "/manifest", "desc": "..." }, ...],
   "dialects": {
@@ -111,7 +120,8 @@ curl -s http://127.0.0.1:17430/manifest
 }
 ```
 
-**迷ったら `help` ツールを呼ぶ** (= `GET /manifest` と同じ):
+**When in doubt, call the `help` tool** (identical to `GET /manifest`):
+
 ```json
 POST /tools/call
 {"name": "help", "arguments": {}}
@@ -119,20 +129,19 @@ POST /tools/call
 
 ---
 
-## 4. ツール呼び出しの 3 つの方法
+## 4. Three ways to invoke tools
 
-同じ機能に 3 つの入り口がある。用途に応じて選ぶ。
+The same functionality has three entry points. Pick per use case.
 
-### 4.1 REST 直叩き (最も軽い)
+### 4.1 Direct REST (lightest)
 
 ```bash
-# 個別エンドポイントに POST/GET する
 curl -X POST http://127.0.0.1:17430/window/move \
     -H 'Content-Type: application/json' \
     -d '{"x": 100, "y": 200}'
 ```
 
-### 4.2 統一ディスパッチ `/tools/call` (推奨、宣言的)
+### 4.2 Unified dispatch via `/tools/call` (recommended, declarative)
 
 ```bash
 curl -X POST http://127.0.0.1:17430/tools/call \
@@ -140,7 +149,8 @@ curl -X POST http://127.0.0.1:17430/tools/call \
     -d '{"name":"window_move","arguments":{"x":100,"y":200}}'
 ```
 
-レスポンスは封筒形式:
+Response envelope:
+
 ```json
 {
   "name":   "window_move",
@@ -149,7 +159,7 @@ curl -X POST http://127.0.0.1:17430/tools/call \
 }
 ```
 
-### 4.3 MCP JSON-RPC 2.0 `/mcp` (Claude ネイティブ)
+### 4.3 MCP JSON-RPC 2.0 via `/mcp` (Claude-native)
 
 ```bash
 curl -X POST http://127.0.0.1:17430/mcp \
@@ -157,7 +167,8 @@ curl -X POST http://127.0.0.1:17430/mcp \
     -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"window_move","arguments":{"x":100,"y":200}}}'
 ```
 
-レスポンス (MCP `tools/call` 仕様):
+Response (per MCP `tools/call` spec):
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -171,24 +182,24 @@ curl -X POST http://127.0.0.1:17430/mcp \
 
 ---
 
-## 5. ツール・カタログ (要約)
+## 5. Tool catalog summary
 
-**全定義は `GET /tools` で取得する**。ここは代表的なもののみ一覧。
+**The full definitions come from `GET /tools`.** This section is a summary.
 
-### ディスカバリ
-- `help` / `manifest` — マニフェスト再取得
+### Discovery
+- `help` / `manifest` — re-fetch the manifest
 
-### ヘルスとステート
-- `ping` — 生存確認
-- `get_state` — パネル可視性 / アクティブプリセット / ウィンドウ座標
+### Health / state
+- `ping` — liveness probe
+- `get_state` — panel visibility, active preset, window geometry
 
-### ウィンドウ
+### Window
 - `window_show` / `window_hide` / `window_toggle`
 - `window_opacity` `{value: 0.25..1.0}`
 - `window_move` `{x, y}`
 - `window_resize` `{width, height}` (width ≥ 120, height ≥ 80)
 
-### プリセット
+### Preset
 - `preset_list` / `preset_current`
 - `preset_switch` `{name}`
 - `preset_reload`
@@ -196,50 +207,50 @@ curl -X POST http://127.0.0.1:17430/mcp \
 - `preset_rename` `{name, displayName}`
 - `preset_delete` `{name}`
 
-### グループ
+### Group
 - `group_add` `{id, label, collapsed?}`
 - `group_update` `{id, label?, collapsed?}`
 - `group_delete` `{id}`
 
-### ボタン
+### Button
 - `button_add` `{groupId, button: ButtonDefinition}`
 - `button_update` `{id, label?, icon?, iconText?, backgroundColor?, width?, height?, action?}`
 - `button_delete` `{id}`
 - `button_reorder` `{groupId, ids: [String]}`
 - `button_move` `{id, toGroupId, position?}`
 
-### アクション実行
-- `run_action` — Action JSON を送って即実行 (返却は 202 Accepted、結果はログで確認)
+### Action execution
+- `run_action` — run an Action JSON immediately (returns 202; inspect logs)
 
-### 観察
-- `log_tail` `{level?, since?, limit?}` — JSON 1 行 1 イベント
+### Observation
+- `log_tail` `{level?, since?, limit?}` — JSON one event per line
 - `icon_for_app` `{bundleId? | path?}` — base64 PNG
 
 ---
 
-## 6. Action JSON の形状
+## 6. Action JSON shape
 
-`run_action` ツール (および `button_add` / `button_update` の `action` フィールド) で使う:
+Used by `run_action` and by the `action` field of `button_add` / `button_update`:
 
 ```json
-// キーコンボ
+// Key combo
 { "type": "key", "combo": "cmd+shift+v" }
 
-// テキスト貼り付け (クリップボード経由)
+// Text paste (via clipboard, always restored)
 {
   "type": "text",
-  "content": "ultrathink で考えて",
+  "content": "ultrathink",
   "pasteDelayMs": 120,
   "restoreClipboard": true
 }
 
-// アプリ / URL / shell 起動
+// App / URL / shell launch
 { "type": "launch", "target": "/Applications/Slack.app" }
 { "type": "launch", "target": "com.tinyspeck.slackmacgap" }
 { "type": "launch", "target": "https://claude.ai/code" }
 { "type": "launch", "target": "shell:open ~/Downloads" }
 
-// ターミナル + コマンド
+// Terminal + command
 {
   "type": "terminal",
   "app": "iTerm",
@@ -248,10 +259,10 @@ curl -X POST http://127.0.0.1:17430/mcp \
   "execute": true
 }
 
-// 待機 (マクロ内でのみ意味を持つ)
+// Delay (only meaningful inside a macro)
 { "type": "delay", "ms": 500 }
 
-// マクロ (ネスト禁止)
+// Macro (nesting disallowed)
 {
   "type": "macro",
   "actions": [
@@ -265,19 +276,21 @@ curl -X POST http://127.0.0.1:17430/mcp \
 
 ---
 
-## 7. ログの読み方 — AI 最重要
+## 7. How to read the logs — essential for AI
 
-アプリの内部状態とすべての失敗は構造化ログに出る。**AI はアクション実行後に必ずログを確認すべき**。
+Internal state and every failure goes into the structured log. **The AI
+should check logs after every action.**
 
 ```bash
-# 最近 5 分のエラーだけ
+# Warnings and above in the last 5 minutes
 curl -s 'http://127.0.0.1:17430/log/tail?level=warn&since=5m' | jq
 
-# 最新 20 件を全レベル
+# Most recent 20 events of any level
 curl -s 'http://127.0.0.1:17430/log/tail?limit=20' | jq
 ```
 
-イベントの形:
+Event shape:
+
 ```json
 {
   "timestamp": "2026-04-16T00:30:00.123Z",
@@ -291,59 +304,60 @@ curl -s 'http://127.0.0.1:17430/log/tail?limit=20' | jq
 }
 ```
 
-### カテゴリ一覧
-- `MacroRunner` — マクロ全体の進行
-- `KeyAction` / `TextAction` / `LaunchAction` / `TerminalAction` — 各 Executor
-- `ConfigLoader` — 設定読み書き
-- `ControlServer` — HTTP サーバー
-- `ControlAPI` — 個別エンドポイントからの投入
+### Categories
+
+- `MacroRunner` — macro progression
+- `KeyAction` / `TextAction` / `LaunchAction` / `TerminalAction` — per executor
+- `ConfigLoader` — config IO
+- `ControlServer` — HTTP server
+- `ControlAPI` — individual endpoints
 
 ---
 
-## 8. エラーハンドリング
+## 8. Error handling
 
-### 8.1 REST / /tools/call のエラー
+### 8.1 REST / `/tools/call` errors
 
-HTTP ステータスコード + JSON ボディ:
+HTTP status + JSON body:
 
 ```json
 { "error": "unknown tool", "name": "no_such_tool" }  // 404
 { "error": "body must contain {id: String}" }         // 400
 ```
 
-### 8.2 MCP のエラー
+### 8.2 MCP errors
 
-JSON-RPC 2.0 エラーコード:
+Standard JSON-RPC 2.0 codes:
 
-| コード | 意味 | このサーバーでの発生条件 |
+| Code | Meaning | When this server emits it |
 |---|---|---|
-| -32700 | Parse error | JSON が壊れている |
-| -32600 | Invalid Request | `jsonrpc:2.0` or `method` がない |
-| -32601 | Method not found | 未知の method / 未知の tool |
-| -32602 | Invalid params | `name` がない等 |
-| -32603 | Internal error | サーバー内部エラー |
-| -32000 | Tool failed | 配下の REST ハンドラが非 2xx を返した (data に詳細) |
+| -32700 | Parse error | Malformed JSON |
+| -32600 | Invalid Request | Missing `jsonrpc:2.0` or `method` |
+| -32601 | Method not found | Unknown method / unknown tool |
+| -32602 | Invalid params | Missing `name`, etc. |
+| -32603 | Internal error | Server-side failure |
+| -32000 | Tool failed | The underlying REST handler returned non-2xx (details in `data`) |
 
-### 8.3 典型的な失敗と対処
+### 8.3 Common failures and fixes
 
-| 症状 | 原因 | 対処 |
+| Symptom | Cause | Fix |
 |---|---|---|
-| `GET /ping` がタイムアウト | controlAPI が有効でない or ポート衝突 | `config.json` の `controlAPI.enabled` 確認、`/log` で起動時のバインド結果を確認 |
-| `run_action { key }` が無反応 | Accessibility 権限未許可 | `/log/tail?level=error` で `accessibilityDenied` 確認。**AI では権限を付与できない** ため、ユーザーに依頼 |
-| `button_update` が失敗 | `id` が存在しない | `preset_current` で現在のプリセット全体を取得して正しい id を確認 |
-| `preset_switch` 後に画面が変わらない | パネル再描画のタイミング | `preset_reload` を呼ぶと確実 |
+| `GET /ping` times out | controlAPI disabled or port collision | Check `config.json` `controlAPI.enabled`, inspect startup logs |
+| `run_action { key }` is silent | Accessibility permission not granted | `log/tail?level=error` shows `accessibilityDenied`. AI cannot grant this — ask user |
+| `button_update` fails | Unknown `id` | Fetch `preset_current` to see real ids |
+| Screen doesn't update after `preset_switch` | Redraw timing | Call `preset_reload` to force |
 
 ---
 
-## 9. 典型的なワークフロー
+## 9. Typical workflows
 
-### 9.1 Slack 起動ボタンを追加する
+### 9.1 Add a Slack-launcher button
 
 ```bash
-# 1. 現在のプリセットの構造を把握
+# 1. Inspect current preset shape
 curl -s http://127.0.0.1:17430/preset/current | jq
 
-# 2. グループ id を確認して、ボタンを追加
+# 2. Add the button
 curl -X POST http://127.0.0.1:17430/tools/call \
     -H 'Content-Type: application/json' \
     -d '{
@@ -365,66 +379,73 @@ curl -X POST http://127.0.0.1:17430/tools/call \
       }
     }'
 
-# 3. 追加できたか確認
-curl -s http://127.0.0.1:17430/preset/current | jq '.preset.groups[0].buttons[] | select(.id=="btn-slack")'
+# 3. Verify
+curl -s http://127.0.0.1:17430/preset/current \
+    | jq '.preset.groups[0].buttons[] | select(.id=="btn-slack")'
 
-# 4. エラーがなかったかログで確認
+# 4. Check for warnings
 curl -s 'http://127.0.0.1:17430/log/tail?since=1m&level=warn' | jq
 ```
 
-### 9.2 ウィンドウを画面右上に固定
+### 9.2 Pin the panel to top-right
 
 ```bash
 curl -X POST http://127.0.0.1:17430/window/resize -d '{"width":180,"height":400}'
 curl -X POST http://127.0.0.1:17430/window/move   -d '{"x":1700,"y":900}'
 ```
 
-次回起動時も同じ位置/サイズで復元される (`applicationWillTerminate` で config.json に書き戻し)。
+Geometry is persisted, so next launch reopens in the same place.
 
-### 9.3 テスト実行ループ (AI が自律判定)
+### 9.3 Autonomous test loop
 
 ```bash
-# アクション実行
+# Run an action
 curl -X POST http://127.0.0.1:17430/tools/call \
     -d '{"name":"run_action","arguments":{"type":"text","content":"test"}}'
 
-# 直後にログから結果判定
+# Immediately inspect warnings
 RESULT=$(curl -s 'http://127.0.0.1:17430/log/tail?since=10s&level=warn' | jq '.events | length')
 if [ "$RESULT" -gt 0 ]; then
-    # warn 以上が出ている → 失敗。詳細を取得して次の手を考える
     curl -s 'http://127.0.0.1:17430/log/tail?since=10s&level=warn' | jq
 fi
 ```
 
 ---
 
-## 10. セキュリティと制限
+## 10. Security & constraints
 
-- **loopback のみ** (`127.0.0.1`) にバインドされる。他ホストから到達不可
-- **認証なし**。同一マシンの任意プロセスが到達可能
-- 危険なシェルコマンド (`rm -rf` 等) を `run_action { launch: "shell:..." }` で送る場合は、**送る前にユーザーに確認** するのが望ましい
-- `run_action { terminal }` で `execute: false` を使うと Enter を押さずにコマンドを入力だけしておける (ユーザー確認を挟める)
-- パスワードや API キーをテキスト貼付する場合、**クリップボードは必ず復元される** (`restoreClipboard: true` が既定、失敗時も `defer` で復元される)
+- Server binds `127.0.0.1` only; other hosts cannot reach it.
+- No auth — any local process can reach it.
+- Destructive shell commands via `run_action { launch: "shell:..." }` should be
+  confirmed with the user first.
+- For `run_action { terminal }`, `execute: false` types the command but does
+  not press Enter, allowing human confirmation.
+- When pasting text, **the clipboard is always restored** (including on
+  failure, thanks to a `defer`-guarded path).
 
 ---
 
-## 11. プロトコル互換性早見表
+## 11. Protocol compatibility matrix
 
-| AI クライアント / エコシステム | 推奨エンドポイント | 方言 |
+| AI client / ecosystem | Recommended endpoint | Dialect |
 |---|---|---|
 | Claude Code / Claude Desktop | `POST /mcp` | MCP JSON-RPC 2.0 |
-| Google ADK / A2A Client | `GET /.well-known/agent.json` + `POST /tools/call` | A2A Agent Card + REST |
-| OpenAI Assistants / Responses API | `GET /tools?format=openai` をプロンプトに注入 | OpenAI function calling |
-| Anthropic Messages API | `GET /tools?format=anthropic` をプロンプトに注入 | Anthropic tool use |
-| curl / LangChain / 独自実装 | `GET /openapi.json` から生成 | ACP / REST |
+| Google ADK / A2A client | `GET /.well-known/agent.json` + `POST /tools/call` | A2A Agent Card + REST |
+| OpenAI Assistants / Responses API | inject `GET /tools?format=openai` | OpenAI function calling |
+| Anthropic Messages API | inject `GET /tools?format=anthropic` | Anthropic tool use |
+| curl / LangChain / custom | generate from `GET /openapi.json` | ACP / REST |
 
 ---
 
-## 12. バージョニング
+## 12. Versioning
 
-現在 `version: "0.1"`。破壊的変更が入る場合は `/manifest` の `version` が更新される。AI クライアントは接続時に version を読み、互換性のない変更があったら挙動を調整するのが望ましい。
+Current version: `0.1`. Breaking changes bump the `version` in `/manifest`.
+AI clients should read the version on connect and adjust behavior if an
+incompatible change has landed.
 
-この仕様書 (`AI_PROTOCOL.md`) は常に最新実装に追従する。`/manifest` のレスポンスも同様に **実装から自動生成** されているため、ここが真実:
+This document (`AI_PROTOCOL.md`) always tracks the latest implementation.
+The `/manifest` response is **auto-generated from the implementation**, so
+that is the source of truth:
 
 ```bash
 curl -s http://127.0.0.1:17430/manifest
@@ -432,11 +453,11 @@ curl -s http://127.0.0.1:17430/manifest
 
 ---
 
-## 13. 参考 — 関連プロトコル
+## 13. See also — related protocols
 
-- **MCP (Model Context Protocol)** — Anthropic: https://modelcontextprotocol.io/
-- **A2A (Agent-to-Agent)** — Google: https://a2aproject.github.io/A2A/
-- **OpenAI Function Calling**: https://platform.openai.com/docs/guides/function-calling
-- **Anthropic Tool Use**: https://docs.anthropic.com/en/docs/tool-use
-- **JSON-RPC 2.0**: https://www.jsonrpc.org/specification
-- **OpenAPI 3.1**: https://spec.openapis.org/oas/v3.1.0
+- **MCP (Model Context Protocol)** — Anthropic: <https://modelcontextprotocol.io/>
+- **A2A (Agent-to-Agent)** — Google: <https://a2aproject.github.io/A2A/>
+- **OpenAI function calling**: <https://platform.openai.com/docs/guides/function-calling>
+- **Anthropic tool use**: <https://docs.anthropic.com/en/docs/tool-use>
+- **JSON-RPC 2.0**: <https://www.jsonrpc.org/specification>
+- **OpenAPI 3.1**: <https://spec.openapis.org/oas/v3.1.0>

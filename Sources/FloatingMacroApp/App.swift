@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Combine
 import FloatingMacroCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -10,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controlServer: ControlServer?
     private var controlHandlers: ControlHandlers?
     private var collapseObserver: NSObjectProtocol?
+    private var controlAPICancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Dock アイコンを非表示
@@ -48,6 +50,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if presetManager.appConfig?.controlAPI.enabled ?? false {
             startControlServer()
         }
+
+        // Settings 画面での enabled/port 変更をリアルタイムに反映する。
+        // dropFirst() で起動時の初期値を読み飛ばし、変化があったときだけ再起動する。
+        controlAPICancellable = presetManager.$appConfig
+            .compactMap { $0?.controlAPI }
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] newConfig in
+                self?.restartControlServer(config: newConfig)
+            }
     }
 
     private func configureLogging() {
@@ -61,6 +74,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // ログが開けなくても起動は継続する
             NSLog("FloatingMacro: log init failed: \(error)")
         }
+    }
+
+    private func restartControlServer(config: ControlAPIConfig) {
+        controlServer?.stop()
+        controlServer = nil
+        controlHandlers = nil
+        guard config.enabled else { return }
+        startControlServer()
     }
 
     private func startControlServer() {
@@ -314,19 +335,6 @@ struct ContentHostView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // ヘッダー
-            HStack {
-                Text(presetManager.currentPreset?.displayName ?? "FloatingMacro")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(.secondary)
-                Spacer()
-            }
-            .padding(.horizontal, 10)
-            .padding(.top, 6)
-            .padding(.bottom, 4)
-
-            Divider()
-
             // ボタン一覧
             if let preset = presetManager.currentPreset {
                 ScrollView(.vertical, showsIndicators: false) {

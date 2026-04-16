@@ -237,6 +237,112 @@ public enum ToolCatalog {
                   "bundleId": stringSchema(description: "e.g. com.apple.Safari"),
                   "path":     stringSchema(description: "Absolute path to an .app bundle"),
               ])),
+
+        // MARK: - Settings window
+        .init(name: "settings_open",
+              description: "Open the Settings window.",
+              method: "POST", path: "/settings/open",
+              inputSchema: emptyObject()),
+
+        .init(name: "settings_close",
+              description: "Close the Settings window.",
+              method: "POST", path: "/settings/close",
+              inputSchema: emptyObject()),
+
+        .init(name: "settings_open_sf_picker",
+              description: "Open the Settings window (if not already open) and show the SF Symbol picker sheet. Convenience for AI screenshot workflows.",
+              method: "POST", path: "/settings/open-sf-picker",
+              inputSchema: emptyObject()),
+
+        // MARK: - Settings window — test automation
+        .init(name: "settings_select_button",
+              description: "Select a button in the Settings window by id. Opens Settings if not already open.",
+              method: "POST", path: "/settings/select-button",
+              inputSchema: object(["id": stringSchema()], required: ["id"])),
+
+        .init(name: "settings_select_group",
+              description: "Select a group in the Settings window by id.",
+              method: "POST", path: "/settings/select-group",
+              inputSchema: object(["id": stringSchema()], required: ["id"])),
+
+        .init(name: "settings_open_app_icon_picker",
+              description: "Open the app icon picker sheet in the Settings window (opens Settings if needed).",
+              method: "POST", path: "/settings/open-app-icon-picker",
+              inputSchema: emptyObject()),
+
+        .init(name: "settings_dismiss_picker",
+              description: "Dismiss (close) any open picker sheet in the Settings window (app icon picker or SF Symbol picker).",
+              method: "POST", path: "/settings/dismiss-picker",
+              inputSchema: emptyObject()),
+
+        .init(name: "settings_clear_selection",
+              description: "Deselect the current button/group in the Settings window, closing the ButtonEditor or GroupEditor detail pane.",
+              method: "POST", path: "/settings/clear-selection",
+              inputSchema: emptyObject()),
+
+        .init(name: "settings_commit",
+              description: "Press the Save button in the active ButtonEditor or GroupEditor, persisting all pending changes.",
+              method: "POST", path: "/settings/commit",
+              inputSchema: emptyObject()),
+
+        .init(name: "settings_set_background_color",
+              description: "Enable and set the background color in the active editor. Pass {\"enabled\":false} to disable.",
+              method: "POST", path: "/settings/set-background-color",
+              inputSchema: object([
+                  "color":   stringSchema(description: "#RRGGBB hex color (omit to disable)"),
+                  "enabled": ["type": "boolean"] as [String: Any],
+              ], required: [])),
+
+        .init(name: "settings_set_text_color",
+              description: "Enable and set the text color in the active editor. Pass {\"enabled\":false} to disable.",
+              method: "POST", path: "/settings/set-text-color",
+              inputSchema: object([
+                  "color":   stringSchema(description: "#RRGGBB hex color (omit to disable)"),
+                  "enabled": ["type": "boolean"] as [String: Any],
+              ], required: [])),
+
+        .init(name: "settings_move",
+              description: "Move the Settings window to the given screen coordinates (macOS origin = bottom-left).",
+              method: "POST", path: "/settings/move",
+              inputSchema: object([
+                  "x": numberSchema(description: "Screen X (bottom-left origin)"),
+                  "y": numberSchema(description: "Screen Y (bottom-left origin)"),
+              ], required: ["x", "y"])),
+
+        .init(name: "arrange",
+              description: "Tile the floating panel and Settings window so they don't overlap. Pass open_settings:true to also open the Settings window.",
+              method: "POST", path: "/arrange",
+              inputSchema: object([
+                  "open_settings": ["type": "boolean",
+                                    "description": "Open the Settings window before arranging (default false)"],
+              ], required: [])),
+
+        .init(name: "settings_set_action_type",
+              description: "Switch the action type tab in the button editor. type: text | key | launch | terminal",
+              method: "POST", path: "/settings/set-action-type",
+              inputSchema: object([
+                  "type": stringSchema(description: "text | key | launch | terminal")
+              ], required: ["type"])),
+
+        .init(name: "settings_set_key_combo",
+              description: "Set the key combo in the button editor's key-action fields. Accepts either a combo string (\"combo\": \"cmd+shift+v\") or explicit modifier flags + key. Switches the action type tab to 'key' automatically.",
+              method: "POST", path: "/settings/set-key-combo",
+              inputSchema: object([
+                  "combo":  stringSchema(description: "Full combo string, e.g. cmd+shift+v. If provided, other fields are ignored."),
+                  "cmd":    boolSchema(description: "Command (⌘) modifier"),
+                  "shift":  boolSchema(description: "Shift (⇧) modifier"),
+                  "option": boolSchema(description: "Option (⌥) modifier"),
+                  "ctrl":   boolSchema(description: "Control (⌃) modifier"),
+                  "key":    stringSchema(description: "Base key: a-z, 0-9, space, return, esc, f1-f20, left, right, up, down, etc."),
+              ], required: [])),
+
+        .init(name: "settings_set_action_value",
+              description: "Set the value field for the active action type in the button editor (text content, launch target, or terminal command). Also switches the action type tab to match.",
+              method: "POST", path: "/settings/set-action-value",
+              inputSchema: object([
+                  "type":  stringSchema(description: "text | launch | terminal"),
+                  "value": stringSchema(description: "The value to set (paste content, app path/URL/bundle-id, or shell command)"),
+              ], required: ["type", "value"])),
     ]
 
     // MARK: - Lookup

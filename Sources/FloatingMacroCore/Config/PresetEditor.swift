@@ -166,6 +166,7 @@ public extension ButtonDefinition {
                         textColor: String?? = nil,
                         width: Double?? = nil,
                         height: Double?? = nil,
+                        tooltip: String?? = nil,
                         action: Action? = nil) {
         if let label = label { self.label = label }
         if let icon = icon { self.icon = icon }
@@ -174,13 +175,25 @@ public extension ButtonDefinition {
         if let textColor = textColor { self.textColor = textColor }
         if let width = width { self.width = width }
         if let height = height { self.height = height }
+        if let tooltip = tooltip { self.tooltip = tooltip }
         if let action = action { self.action = action }
     }
 }
 
 public extension ButtonGroup {
-    mutating func patch(label: String? = nil, collapsed: Bool? = nil) {
+    mutating func patch(label: String? = nil,
+                        icon: String?? = nil,
+                        iconText: String?? = nil,
+                        backgroundColor: String?? = nil,
+                        textColor: String?? = nil,
+                        tooltip: String?? = nil,
+                        collapsed: Bool? = nil) {
         if let label = label { self.label = label }
+        if let icon = icon { self.icon = icon }
+        if let iconText = iconText { self.iconText = iconText }
+        if let backgroundColor = backgroundColor { self.backgroundColor = backgroundColor }
+        if let textColor = textColor { self.textColor = textColor }
+        if let tooltip = tooltip { self.tooltip = tooltip }
         if let collapsed = collapsed { self.collapsed = collapsed }
     }
 }

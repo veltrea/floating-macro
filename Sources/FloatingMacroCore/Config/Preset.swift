@@ -3,14 +3,51 @@ import Foundation
 public struct ButtonGroup: Codable, Equatable {
     public let id: String
     public var label: String
+    /// Icon source: app bundle id, file path, or `sf:symbolName`.
+    /// Uses the same resolution as ButtonDefinition.icon (via IconLoader).
+    public var icon: String?
+    /// Emoji or short glyph used as a lightweight icon fallback.
+    public var iconText: String?
+    /// Background color in `#RRGGBB` hex for the group header.
+    public var backgroundColor: String?
+    /// Text color in `#RRGGBB` hex for the group header label.
+    public var textColor: String?
+    /// Tooltip shown on mouse hover over the group header.
+    public var tooltip: String?
     public var collapsed: Bool
     public var buttons: [ButtonDefinition]
 
-    public init(id: String, label: String, collapsed: Bool = false, buttons: [ButtonDefinition]) {
+    public init(id: String, label: String, icon: String? = nil,
+                iconText: String? = nil,
+                backgroundColor: String? = nil, textColor: String? = nil,
+                tooltip: String? = nil,
+                collapsed: Bool = false, buttons: [ButtonDefinition]) {
         self.id = id
         self.label = label
+        self.icon = icon
+        self.iconText = iconText
+        self.backgroundColor = backgroundColor
+        self.textColor = textColor
+        self.tooltip = tooltip
         self.collapsed = collapsed
         self.buttons = buttons
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, label, icon, iconText, backgroundColor, textColor, tooltip, collapsed, buttons
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id              = try c.decode(String.self, forKey: .id)
+        self.label           = try c.decode(String.self, forKey: .label)
+        self.icon            = try c.decodeIfPresent(String.self, forKey: .icon)
+        self.iconText        = try c.decodeIfPresent(String.self, forKey: .iconText)
+        self.backgroundColor = try c.decodeIfPresent(String.self, forKey: .backgroundColor)
+        self.textColor       = try c.decodeIfPresent(String.self, forKey: .textColor)
+        self.tooltip         = try c.decodeIfPresent(String.self, forKey: .tooltip)
+        self.collapsed       = try c.decodeIfPresent(Bool.self, forKey: .collapsed) ?? false
+        self.buttons         = try c.decode([ButtonDefinition].self, forKey: .buttons)
     }
 }
 

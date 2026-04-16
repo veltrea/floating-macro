@@ -495,8 +495,22 @@ final class ControlHandlers {
             return HTTPResponse.badRequest("body must contain {id: String}")
         }
         let label = dict["label"] as? String
+        let icon: String?? = dict.keys.contains("icon")
+            ? .some(dict["icon"] as? String) : nil
+        let iconText: String?? = dict.keys.contains("iconText")
+            ? .some(dict["iconText"] as? String) : nil
+        let bgColor: String?? = dict.keys.contains("backgroundColor")
+            ? .some(dict["backgroundColor"] as? String) : nil
+        let txtColor: String?? = dict.keys.contains("textColor")
+            ? .some(dict["textColor"] as? String) : nil
+        let tip: String?? = dict.keys.contains("tooltip")
+            ? .some(dict["tooltip"] as? String) : nil
         let collapsed = dict["collapsed"] as? Bool
-        let ok = presetManager.updateGroup(id: id, label: label, collapsed: collapsed)
+        let ok = presetManager.updateGroup(
+            id: id, label: label, icon: icon, iconText: iconText,
+            backgroundColor: bgColor, textColor: txtColor,
+            tooltip: tip, collapsed: collapsed
+        )
         return HTTPResponse.json(["ok": ok])
     }
 
@@ -543,6 +557,7 @@ final class ControlHandlers {
         let tc: String??        = dict.keys.contains("textColor") ? (dict["textColor"] as? String) : nil
         let width: Double??     = dict.keys.contains("width")  ? ((dict["width"]  as? NSNumber)?.doubleValue) : nil
         let height: Double??    = dict.keys.contains("height") ? ((dict["height"] as? NSNumber)?.doubleValue) : nil
+        let tooltip: String??   = dict.keys.contains("tooltip") ? (dict["tooltip"] as? String) : nil
 
         var action: Action?
         if let actionDict = dict["action"] as? [String: Any] {
@@ -558,7 +573,7 @@ final class ControlHandlers {
             id: id, label: label,
             icon: icon, iconText: iconText,
             backgroundColor: bg, textColor: tc,
-            width: width, height: height, action: action
+            width: width, height: height, tooltip: tooltip, action: action
         )
         return HTTPResponse.json(["ok": ok])
     }

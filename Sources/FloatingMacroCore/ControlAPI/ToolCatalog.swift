@@ -156,12 +156,17 @@ public enum ToolCatalog {
               ], required: ["id", "label"])),
 
         .init(name: "group_update",
-              description: "Patch a group's label and/or collapsed state.",
+              description: "Patch a group's label, icon, colors, tooltip, and/or collapsed state.",
               method: "POST", path: "/group/update",
               inputSchema: object([
-                  "id":        stringSchema(),
-                  "label":     stringSchema(),
-                  "collapsed": boolSchema(),
+                  "id":              stringSchema(),
+                  "label":           stringSchema(),
+                  "icon":            stringSchema(),
+                  "iconText":        stringSchema(),
+                  "backgroundColor": stringSchema(),
+                  "textColor":       stringSchema(),
+                  "tooltip":         stringSchema(),
+                  "collapsed":       boolSchema(),
               ], required: ["id"])),
 
         .init(name: "group_delete",

@@ -33,6 +33,12 @@ struct SettingsView: View {
             // Consume the request so the same id can be requested twice.
             presetManager.externalSelectButtonRequest = nil
         }
+        .onChange(of: presetManager.externalSelectGroupRequest) { requestedId in
+            guard let id = requestedId else { return }
+            selectedGroupId = id
+            selectedButtonId = nil
+            presetManager.externalSelectGroupRequest = nil
+        }
     }
 
     /// On open, auto-select the first button in the first non-empty group so
@@ -154,11 +160,33 @@ struct SettingsSidebar: View {
                 .buttonStyle(.plain)
                 Button {
                     _ = presetManager.deleteGroup(id: group.id)
+                    if selectedGroupId == group.id {
+                        selectedGroupId = nil
+                        selectedButtonId = nil
+                    }
                 } label: {
                     Image(systemName: "trash")
                 }
                 .buttonStyle(.plain)
                 .help("グループ削除")
+            }
+            .contextMenu {
+                Button {
+                    selectedGroupId = group.id
+                    selectedButtonId = nil
+                } label: {
+                    Label("編集", systemImage: "pencil")
+                }
+                Divider()
+                Button(role: .destructive) {
+                    _ = presetManager.deleteGroup(id: group.id)
+                    if selectedGroupId == group.id {
+                        selectedGroupId = nil
+                        selectedButtonId = nil
+                    }
+                } label: {
+                    Label("削除", systemImage: "trash")
+                }
             }
 
             ForEach(group.buttons, id: \.id) { btn in

@@ -15,6 +15,7 @@ final class PresetManager: ObservableObject {
     /// want to jump straight to "edit this particular button". Consumed by
     /// SettingsView, which clears it back to nil.
     @Published var externalSelectButtonRequest: String? = nil
+    @Published var externalSelectGroupRequest: String? = nil
 
     private let loader: ConfigLoader
     private let writer: ConfigWriter
@@ -112,10 +113,15 @@ final class PresetManager: ObservableObject {
         editActivePreset { try PresetEditor.addGroup(group, to: $0) }
     }
 
-    func updateGroup(id: String, label: String? = nil, collapsed: Bool? = nil) -> Bool {
+    func updateGroup(id: String, label: String? = nil,
+                      icon: String?? = nil, iconText: String?? = nil,
+                      backgroundColor: String?? = nil, textColor: String?? = nil,
+                      tooltip: String?? = nil, collapsed: Bool? = nil) -> Bool {
         editActivePreset { preset in
             try PresetEditor.updateGroup(groupId: id, in: preset) { g in
-                g.patch(label: label, collapsed: collapsed)
+                g.patch(label: label, icon: icon, iconText: iconText,
+                        backgroundColor: backgroundColor, textColor: textColor,
+                        tooltip: tooltip, collapsed: collapsed)
             }
         }
     }
@@ -136,6 +142,7 @@ final class PresetManager: ObservableObject {
                       textColor: String??,
                       width: Double??,
                       height: Double??,
+                      tooltip: String??,
                       action: Action?) -> Bool {
         editActivePreset { preset in
             try PresetEditor.updateButton(buttonId: id, in: preset) { b in
@@ -146,6 +153,7 @@ final class PresetManager: ObservableObject {
                         textColor: textColor,
                         width: width,
                         height: height,
+                        tooltip: tooltip,
                         action: action)
             }
         }
@@ -182,6 +190,7 @@ final class PresetManager: ObservableObject {
             backgroundColor: src.backgroundColor,
             width: src.width,
             height: src.height,
+            tooltip: src.tooltip,
             action: src.action
         )
         let ok = addButton(copy, toGroupId: group.id)

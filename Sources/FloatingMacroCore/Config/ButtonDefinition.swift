@@ -18,6 +18,8 @@ public struct ButtonDefinition: Codable, Equatable {
     public var width: Double?
     /// Explicit height override in points. nil = auto-size.
     public var height: Double?
+    /// Tooltip shown on mouse hover. nil = no tooltip.
+    public var tooltip: String?
     public var action: Action
 
     public init(id: String,
@@ -28,6 +30,7 @@ public struct ButtonDefinition: Codable, Equatable {
                 textColor: String? = nil,
                 width: Double? = nil,
                 height: Double? = nil,
+                tooltip: String? = nil,
                 action: Action) {
         self.id = id
         self.label = label
@@ -37,11 +40,12 @@ public struct ButtonDefinition: Codable, Equatable {
         self.textColor = textColor
         self.width = width
         self.height = height
+        self.tooltip = tooltip
         self.action = action
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, label, icon, iconText, backgroundColor, textColor, width, height, action
+        case id, label, icon, iconText, backgroundColor, textColor, width, height, tooltip, action
     }
 
     public init(from decoder: Decoder) throws {
@@ -54,6 +58,7 @@ public struct ButtonDefinition: Codable, Equatable {
         self.textColor       = try c.decodeIfPresent(String.self, forKey: .textColor)
         self.width           = try c.decodeIfPresent(Double.self, forKey: .width)
         self.height          = try c.decodeIfPresent(Double.self, forKey: .height)
+        self.tooltip         = try c.decodeIfPresent(String.self, forKey: .tooltip)
         self.action          = try c.decode(Action.self, forKey: .action)
     }
 }

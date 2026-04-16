@@ -2,24 +2,14 @@ import SwiftUI
 import AppKit
 import FloatingMacroCore
 
-@main
-struct FloatingMacroApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-
-    var body: some Scene {
-        // 空のシーン — ウィンドウは AppDelegate で管理
-        Settings {
-            EmptyView()
-        }
-    }
-}
-
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: FloatingPanel?
+    private var miniIcon: MiniIconPanel?
     private var statusItem: NSStatusItem?
     private let presetManager = PresetManager()
     private var controlServer: ControlServer?
     private var controlHandlers: ControlHandlers?
+    private var collapseObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Dock アイコンを非表示
@@ -38,6 +28,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // フローティングパネル作成
         setupPanel()
+
+        // パネル折りたたみ通知を監視
+        collapseObserver = NotificationCenter.default.addObserver(
+            forName: .floatingPanelWantsCollapse,
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.collapseToMiniIcon()
+        }
 
         // メニューバー常駐
         setupStatusItem()
@@ -109,6 +107,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         p.orderFront(nil)
 
         self.panel = p
+
+        // ミニアイコンも起動時に作成しておき、表示/非表示の切り替えだけで運用する
+        let mini = MiniIconPanel(near: frame)
+        mini.onRestore = { [weak self] in self?.expandFromMiniIcon() }
+        self.miniIcon = mini
+        // 初期状態は非表示
     }
 
     private func setupStatusItem() {
@@ -192,13 +196,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         LoggerContext.shared.flush()
     }
 
+    /// Accessory-style apps live in the menu bar and should keep running even
+    /// when every visible window is closed. Without this, closing the
+    /// Settings window makes macOS terminate the whole app (which also
+    /// takes the FloatingPanel with it).
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        return false
+    }
+
+    /// Re-show the floating panel. Called by SettingsWindowController when
+    /// the user closes the settings window with the red × — otherwise
+    /// macOS tends to orderOut the panel along with the other window,
+    /// leaving a menu-bar-only zombie. The menu-bar "Show / Hide" item
+    /// is a separate path and is preserved.
+    func restoreFloatingPanel() {
+        LoggerContext.shared.info("AppDelegate", "restoreFloatingPanel", [
+            "panel_present": String(panel != nil),
+            "visible_before": String(panel?.isVisible ?? false),
+        ])
+        expandFromMiniIcon()
+        LoggerContext.shared.info("AppDelegate", "restoreFloatingPanel after", [
+            "visible_after": String(panel?.isVisible ?? false),
+        ])
+    }
+
+    // MARK: - Mini icon collapse / expand
+
+    private func collapseToMiniIcon() {
+        guard let p = panel, let mini = miniIcon else { return }
+        // パネルの現在位置にミニアイコンを合わせてから表示切り替え
+        let size: CGFloat = 48
+        mini.setFrameOrigin(NSPoint(
+            x: p.frame.origin.x,
+            y: p.frame.origin.y + p.frame.size.height - size
+        ))
+        p.orderOut(nil)
+        mini.orderFront(nil)
+    }
+
+    private func expandFromMiniIcon() {
+        miniIcon?.orderOut(nil)
+        panel?.orderFront(nil)
+    }
+
     @objc private func togglePanel() {
-        if let p = panel {
-            if p.isVisible {
-                p.orderOut(nil)
-            } else {
-                p.orderFront(nil)
-            }
+        guard let p = panel else { return }
+        if p.isVisible {
+            // パネルが見えている → 折りたたむ
+            collapseToMiniIcon()
+        } else if miniIcon?.isVisible == true {
+            // ミニアイコンが見えている → パネルに戻す
+            expandFromMiniIcon()
+        } else {
+            // どちらも見えていない → パネルを表示
+            p.orderFront(nil)
         }
     }
 
@@ -256,6 +307,12 @@ struct ContentHostView: View {
                         preset: preset,
                         onButtonTap: { button in
                             presetManager.executeButton(button)
+                        },
+                        onGroupEdit: { group in
+                            SettingsWindowController.shared.show(
+                                presetManager: presetManager,
+                                selectGroupId: group.id
+                            )
                         },
                         onButtonEdit: { button in
                             SettingsWindowController.shared.show(

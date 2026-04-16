@@ -13,6 +13,8 @@ struct MacroButtonView: View {
     var onDelete: (() -> Void)? = nil
 
     @State private var isHovering = false
+    @State private var showTooltip = false
+    @State private var tooltipTask: Task<Void, Never>?
     @State private var confirmingDelete = false
 
     /// Attempt to synthesize an icon. Priority:
@@ -75,8 +77,31 @@ struct MacroButtonView: View {
         .buttonStyle(.plain)
         .frame(width: button.width.map { CGFloat($0) },
                height: button.height.map { CGFloat($0) })
+        .popover(isPresented: $showTooltip, arrowEdge: .bottom) {
+            if let tip = button.tooltip, !tip.isEmpty {
+                Text(tip)
+                    .font(.system(size: 11))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .fixedSize()
+            }
+        }
         .onHover { hovering in
             isHovering = hovering
+            tooltipTask?.cancel()
+            if hovering, let tip = button.tooltip, !tip.isEmpty {
+                tooltipTask = Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 800_000_000)
+                    guard !Task.isCancelled else { return }
+                    withAnimation(.easeIn(duration: 0.15)) {
+                        showTooltip = true
+                    }
+                }
+            } else {
+                withAnimation(.easeOut(duration: 0.1)) {
+                    showTooltip = false
+                }
+            }
         }
         .contextMenu {
             if let onEdit = onEdit {
@@ -127,6 +152,7 @@ struct MacroButtonView: View {
 struct GroupView: View {
     let group: ButtonGroup
     let onButtonTap: (ButtonDefinition) -> Void
+    var onGroupEdit: (() -> Void)? = nil
     var onButtonEdit: ((ButtonDefinition) -> Void)? = nil
     var onButtonDuplicate: ((ButtonDefinition) -> Void)? = nil
     var onButtonDelete: ((ButtonDefinition) -> Void)? = nil
@@ -135,11 +161,13 @@ struct GroupView: View {
 
     init(group: ButtonGroup,
          onButtonTap: @escaping (ButtonDefinition) -> Void,
+         onGroupEdit: (() -> Void)? = nil,
          onButtonEdit: ((ButtonDefinition) -> Void)? = nil,
          onButtonDuplicate: ((ButtonDefinition) -> Void)? = nil,
          onButtonDelete: ((ButtonDefinition) -> Void)? = nil) {
         self.group = group
         self.onButtonTap = onButtonTap
+        self.onGroupEdit = onGroupEdit
         self.onButtonEdit = onButtonEdit
         self.onButtonDuplicate = onButtonDuplicate
         self.onButtonDelete = onButtonDelete
@@ -153,17 +181,42 @@ struct GroupView: View {
                 HStack(spacing: 4) {
                     Image(systemName: collapsed ? "chevron.right" : "chevron.down")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(group.textColor.flatMap { Color(hex: $0) } ?? .secondary)
                         .frame(width: 12)
+                    if let iconText = group.iconText {
+                        Text(iconText)
+                            .font(.system(size: 12))
+                    }
+                    if let icon = group.icon, let img = IconLoader.image(for: icon) {
+                        Image(nsImage: img)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 14, height: 14)
+                    }
                     Text(group.label)
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(group.textColor.flatMap { Color(hex: $0) } ?? .secondary)
                     Spacer()
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
+                .background(
+                    group.backgroundColor.flatMap { Color(hex: $0) }.map { color in
+                        RoundedRectangle(cornerRadius: 4).fill(color)
+                    }
+                )
             }
             .buttonStyle(.plain)
+            .help(group.tooltip ?? "")
+            .contextMenu {
+                if let onGroupEdit = onGroupEdit {
+                    Button {
+                        onGroupEdit()
+                    } label: {
+                        Label("グループを編集...", systemImage: "pencil")
+                    }
+                }
+            }
 
             if !collapsed {
                 ForEach(group.buttons, id: \.id) { btn in
@@ -175,6 +228,7 @@ struct GroupView: View {
                         onDelete:    onButtonDelete.map    { cb in { cb(btn) } }
                     )
                 }
+                .padding(.leading, 16)
             }
         }
     }
@@ -183,6 +237,7 @@ struct GroupView: View {
 struct PresetView: View {
     let preset: Preset
     let onButtonTap: (ButtonDefinition) -> Void
+    var onGroupEdit: ((ButtonGroup) -> Void)? = nil
     var onButtonEdit: ((ButtonDefinition) -> Void)? = nil
     var onButtonDuplicate: ((ButtonDefinition) -> Void)? = nil
     var onButtonDelete: ((ButtonDefinition) -> Void)? = nil
@@ -193,6 +248,7 @@ struct PresetView: View {
                 GroupView(
                     group: group,
                     onButtonTap: onButtonTap,
+                    onGroupEdit: onGroupEdit.map { cb in { cb(group) } },
                     onButtonEdit: onButtonEdit,
                     onButtonDuplicate: onButtonDuplicate,
                     onButtonDelete: onButtonDelete
@@ -229,3 +285,4 @@ extension Color {
         self.init(red: r, green: g, blue: b, opacity: a)
     }
 }
+

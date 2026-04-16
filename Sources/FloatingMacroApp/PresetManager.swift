@@ -10,12 +10,19 @@ final class PresetManager: ObservableObject {
     /// react observes this and opens the picker on value change.
     @Published var sfPickerRequestNonce: Int = 0
 
+    /// Monotonic counter for requesting the app icon picker sheet.
+    @Published var appIconPickerRequestNonce: Int = 0
+
     /// Request the SettingsView to programmatically select a button. Set by
     /// SettingsWindowController.show(selectButtonId:) or by code paths that
     /// want to jump straight to "edit this particular button". Consumed by
     /// SettingsView, which clears it back to nil.
     @Published var externalSelectButtonRequest: String? = nil
     @Published var externalSelectGroupRequest: String? = nil
+
+    /// Request to change the action type in ButtonEditor.
+    /// Set to a value like "text", "key", "launch", "terminal" to trigger the change.
+    @Published var externalActionTypeRequest: String? = nil
 
     private let loader: ConfigLoader
     private let writer: ConfigWriter
@@ -70,9 +77,102 @@ final class PresetManager: ObservableObject {
         sfPickerRequestNonce &+= 1
     }
 
+    /// Public trigger for requesting the app icon picker sheet.
+    func requestAppIconPicker() {
+        appIconPickerRequestNonce &+= 1
+    }
+
+    /// Monotonic counter used to dismiss any open picker sheet.
+    @Published var dismissPickerNonce: Int = 0
+
+    /// Public trigger to close whichever picker sheet is currently open.
+    func requestDismissPicker() {
+        dismissPickerNonce &+= 1
+    }
+
+    // MARK: - External color / commit requests
+
+    /// Carries a color request from the control API to the active editor.
+    /// `hex` = nil means "disable the color toggle".
+    struct ColorRequest: Equatable {
+        let hex: String?
+        let nonce: Int
+    }
+
+    @Published var externalBackgroundColorRequest: ColorRequest? = nil
+    @Published var externalTextColorRequest: ColorRequest? = nil
+
+    /// Monotonic counter that tells the active editor to call commit().
+    @Published var commitNonce: Int = 0
+
+    func requestSetBackgroundColor(hex: String?) {
+        externalBackgroundColorRequest = ColorRequest(hex: hex, nonce: (externalBackgroundColorRequest?.nonce ?? 0) &+ 1)
+    }
+
+    func requestSetTextColor(hex: String?) {
+        externalTextColorRequest = ColorRequest(hex: hex, nonce: (externalTextColorRequest?.nonce ?? 0) &+ 1)
+    }
+
+    func requestCommit() {
+        commitNonce &+= 1
+    }
+
+    // MARK: - External key combo / action value requests
+
+    struct KeyComboRequest: Equatable {
+        let combo: String   // e.g. "cmd+shift+v"
+        let nonce: Int
+    }
+
+    struct ActionValueRequest: Equatable {
+        let type: String    // "text" | "launch" | "terminal"
+        let value: String
+        let nonce: Int
+    }
+
+    @Published var externalKeyComboRequest: KeyComboRequest? = nil
+    @Published var externalActionValueRequest: ActionValueRequest? = nil
+
+    func requestSetKeyCombo(combo: String) {
+        externalKeyComboRequest = KeyComboRequest(
+            combo: combo,
+            nonce: (externalKeyComboRequest?.nonce ?? 0) &+ 1
+        )
+    }
+
+    func requestSetActionValue(type: String, value: String) {
+        externalActionValueRequest = ActionValueRequest(
+            type: type, value: value,
+            nonce: (externalActionValueRequest?.nonce ?? 0) &+ 1
+        )
+    }
+
+    /// Monotonic counter used to clear the button/group selection in Settings,
+    /// which closes the ButtonEditor / GroupEditor detail pane.
+    @Published var clearSelectionNonce: Int = 0
+
+    /// Public trigger to deselect the current button/group in the Settings window.
+    func requestClearSelection() {
+        clearSelectionNonce &+= 1
+    }
+
     func setAgentMode(_ mode: AgentMode) {
         guard var cfg = appConfig else { return }
         cfg.controlAPI.agentMode = mode
+        appConfig = cfg
+        try? writer.saveAppConfig(cfg)
+    }
+
+    func setControlAPIEnabled(_ enabled: Bool) {
+        guard var cfg = appConfig else { return }
+        cfg.controlAPI.enabled = enabled
+        appConfig = cfg
+        try? writer.saveAppConfig(cfg)
+    }
+
+    func setControlAPIPort(_ port: Int) {
+        guard var cfg = appConfig else { return }
+        cfg.controlAPI.port = max(1024, min(65535, port))
         appConfig = cfg
         try? writer.saveAppConfig(cfg)
     }

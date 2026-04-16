@@ -57,11 +57,23 @@ private final class MiniIconView: NSView {
     required init?(coder: NSCoder) { fatalError() }
 
     override func draw(_ dirtyRect: NSRect) {
-        // アプリアイコンをそのままウィンドウ全体に描画する
-        let icon = Bundle.main.url(forResource: "AppIcon", withExtension: "icns")
-            .flatMap { NSImage(contentsOf: $0) }
-            ?? NSApp.applicationIconImage
-        icon?.draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1.0)
+        // 丸背景
+        let bg = NSBezierPath(ovalIn: bounds.insetBy(dx: 2, dy: 2))
+        NSColor(white: 0.15, alpha: 0.85).setFill()
+        bg.fill()
+
+        // SF Symbol (バンドル依存なし)
+        if let sym = NSImage(systemSymbolName: "command.square.fill",
+                             accessibilityDescription: nil) {
+            let cfg = NSImage.SymbolConfiguration(pointSize: 26, weight: .medium)
+            let img = sym.withSymbolConfiguration(cfg) ?? sym
+            let size = img.size
+            let origin = NSPoint(
+                x: bounds.midX - size.width / 2,
+                y: bounds.midY - size.height / 2
+            )
+            img.draw(at: origin, from: .zero, operation: .sourceOver, fraction: 0.9)
+        }
     }
 
     override func mouseDown(with event: NSEvent) {

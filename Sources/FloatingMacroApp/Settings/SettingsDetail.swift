@@ -137,7 +137,15 @@ struct ButtonEditor: View {
     @State private var height: String = ""
     @State private var tooltip: String = ""
     @State private var actionType: String = "text"
-    @State private var actionValue: String = ""
+    // アクション種類ごとに独立した状態 —— 種類を切り替えても互いを上書きしない
+    @State private var actionText: String = ""
+    @State private var keyModCmd: Bool = false
+    @State private var keyModShift: Bool = false
+    @State private var keyModOption: Bool = false
+    @State private var keyModCtrl: Bool = false
+    @State private var keyBaseKey: String = ""
+    @State private var launchTarget: String = ""
+    @State private var terminalCommand: String = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -256,27 +264,43 @@ struct ButtonEditor: View {
                         switch actionType {
                         case "text":
                             labeled("貼り付けテキスト") {
-                                TextEditor(text: $actionValue)
+                                TextEditor(text: $actionText)
                                     .font(.system(size: 12, design: .monospaced))
                                     .frame(minHeight: 80)
                                     .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.gray.opacity(0.3)))
                             }
                         case "key":
-                            labeled("コンボ (例: cmd+shift+v)") {
-                                TextField("cmd+v", text: $actionValue)
-                                    .textFieldStyle(.roundedBorder)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("修飾キー").font(.caption).foregroundColor(.secondary)
+                                HStack(spacing: 16) {
+                                    Toggle("⌘ cmd", isOn: $keyModCmd).toggleStyle(.checkbox)
+                                    Toggle("⇧ shift", isOn: $keyModShift).toggleStyle(.checkbox)
+                                    Toggle("⌥ option", isOn: $keyModOption).toggleStyle(.checkbox)
+                                    Toggle("⌃ ctrl", isOn: $keyModCtrl).toggleStyle(.checkbox)
+                                }
+                                labeled("キー (a〜z / 0〜9 / space / return / esc 等)") {
+                                    TextField("v", text: $keyBaseKey)
+                                        .textFieldStyle(.roundedBorder)
+                                        .frame(width: 120)
+                                }
+                                let preview = buildKeyCombo()
+                                if !preview.isEmpty {
+                                    Text("→ \(preview)")
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         case "launch":
                             labeled("起動対象 (パス / URL / bundle id / shell:)") {
                                 HStack {
-                                    TextField("/Applications/Slack.app", text: $actionValue)
+                                    TextField("/Applications/Slack.app", text: $launchTarget)
                                         .textFieldStyle(.roundedBorder)
                                     Button("参照...") { pickLaunchTarget() }
                                 }
                             }
                         case "terminal":
                             labeled("コマンド (Terminal.app に投入)") {
-                                TextField("cd ~/dev && claude", text: $actionValue)
+                                TextField("cd ~/dev && claude", text: $terminalCommand)
                                     .textFieldStyle(.roundedBorder)
                             }
                         default: EmptyView()
@@ -304,8 +328,67 @@ struct ButtonEditor: View {
             .padding(.vertical, 10)
         }
         .onAppear { loadFromButton() }
+        .onChange(of: button) { _ in loadFromButton() }
         .onChange(of: presetManager.sfPickerRequestNonce) { _ in
             showingSFSymbolPicker = true
+        }
+        .onChange(of: presetManager.appIconPickerRequestNonce) { _ in
+            showingAppIconPicker = true
+        }
+        .onChange(of: presetManager.dismissPickerNonce) { _ in
+            showingSFSymbolPicker = false
+            showingAppIconPicker = false
+        }
+        .onChange(of: presetManager.externalActionTypeRequest) { requested in
+            guard let type = requested else { return }
+            actionType = type
+            presetManager.externalActionTypeRequest = nil
+        }
+        .onChange(of: presetManager.externalBackgroundColorRequest) { req in
+            guard let req else { return }
+            if let hex = req.hex, let color = Color(hex: hex) {
+                useBackgroundColor = true
+                backgroundColor = color
+                backgroundHex = hex
+                applyBackgroundColorLive(enabled: true)
+            } else {
+                useBackgroundColor = false
+                backgroundHex = ""
+                applyBackgroundColorLive(enabled: false)
+            }
+            presetManager.externalBackgroundColorRequest = nil
+        }
+        .onChange(of: presetManager.externalTextColorRequest) { req in
+            guard let req else { return }
+            if let hex = req.hex, let color = Color(hex: hex) {
+                useTextColor = true
+                textColor = color
+                textHex = hex
+                applyTextColorLive(enabled: true)
+            } else {
+                useTextColor = false
+                textHex = ""
+                applyTextColorLive(enabled: false)
+            }
+            presetManager.externalTextColorRequest = nil
+        }
+        .onChange(of: presetManager.commitNonce) { _ in
+            commit()
+        }
+        .onChange(of: presetManager.externalKeyComboRequest) { req in
+            guard let req else { return }
+            parseKeyCombo(req.combo)
+            presetManager.externalKeyComboRequest = nil
+        }
+        .onChange(of: presetManager.externalActionValueRequest) { req in
+            guard let req else { return }
+            switch req.type {
+            case "text":     actionType = "text";     actionText = req.value
+            case "launch":   actionType = "launch";   launchTarget = req.value
+            case "terminal": actionType = "terminal"; terminalCommand = req.value
+            default: break
+            }
+            presetManager.externalActionValueRequest = nil
         }
         .sheet(isPresented: $showingSFSymbolPicker) {
             SFSymbolPicker(
@@ -359,17 +442,17 @@ struct ButtonEditor: View {
 
         switch button.action {
         case .text(let c, _, _):
-            actionType = "text"; actionValue = c
+            actionType = "text"; actionText = c
         case .key(let c):
-            actionType = "key"; actionValue = c
+            actionType = "key"; parseKeyCombo(c)
         case .launch(let t):
-            actionType = "launch"; actionValue = t
+            actionType = "launch"; launchTarget = t
         case .terminal(_, let c, _, _, _):
-            actionType = "terminal"; actionValue = c
+            actionType = "terminal"; terminalCommand = c
         case .delay(let ms):
-            actionType = "text"; actionValue = "delay=\(ms)ms (編集非対応)"
+            actionType = "text"; actionText = "delay=\(ms)ms (編集非対応)"
         case .macro:
-            actionType = "text"; actionValue = "macro (JSON で直接編集してください)"
+            actionType = "text"; actionText = "macro (JSON で直接編集してください)"
         }
     }
 
@@ -380,13 +463,13 @@ struct ButtonEditor: View {
         let newAction: Action
         switch actionType {
         case "text":
-            newAction = .text(content: actionValue, pasteDelayMs: 120, restoreClipboard: true)
+            newAction = .text(content: actionText, pasteDelayMs: 120, restoreClipboard: true)
         case "key":
-            newAction = .key(combo: actionValue)
+            newAction = .key(combo: buildKeyCombo())
         case "launch":
-            newAction = .launch(target: actionValue)
+            newAction = .launch(target: launchTarget)
         case "terminal":
-            newAction = .terminal(app: "Terminal", command: actionValue,
+            newAction = .terminal(app: "Terminal", command: terminalCommand,
                                   newWindow: true, execute: true, profile: nil)
         default:
             newAction = button.action
@@ -429,8 +512,30 @@ struct ButtonEditor: View {
         panel.allowsMultipleSelection = false
         panel.prompt = "選択"
         if panel.runModal() == .OK, let url = panel.url {
-            actionValue = url.path
+            launchTarget = url.path
         }
+    }
+
+    // MARK: - Key combo helpers
+
+    private func parseKeyCombo(_ combo: String) {
+        let parts = combo.lowercased().split(separator: "+").map { String($0).trimmingCharacters(in: .whitespaces) }
+        let modSet = Set(["cmd", "command", "shift", "option", "alt", "opt", "ctrl", "control"])
+        keyModCmd    = parts.contains("cmd")    || parts.contains("command")
+        keyModShift  = parts.contains("shift")
+        keyModOption = parts.contains("option") || parts.contains("alt") || parts.contains("opt")
+        keyModCtrl   = parts.contains("ctrl")   || parts.contains("control")
+        keyBaseKey   = parts.last(where: { !modSet.contains($0) }) ?? ""
+    }
+
+    private func buildKeyCombo() -> String {
+        var parts: [String] = []
+        if keyModCmd    { parts.append("cmd") }
+        if keyModShift  { parts.append("shift") }
+        if keyModOption { parts.append("option") }
+        if keyModCtrl   { parts.append("ctrl") }
+        if !keyBaseKey.isEmpty { parts.append(keyBaseKey.lowercased()) }
+        return parts.joined(separator: "+")
     }
 
     // MARK: - Helpers
@@ -628,6 +733,45 @@ struct GroupEditor: View {
             .padding(.vertical, 10)
         }
         .onAppear { loadFromGroup() }
+        .onChange(of: group) { _ in loadFromGroup() }
+        .onChange(of: presetManager.appIconPickerRequestNonce) { _ in
+            showingAppIconPicker = true
+        }
+        .onChange(of: presetManager.dismissPickerNonce) { _ in
+            showingSFSymbolPicker = false
+            showingAppIconPicker = false
+        }
+        .onChange(of: presetManager.externalBackgroundColorRequest) { req in
+            guard let req else { return }
+            if let hex = req.hex, let color = Color(hex: hex) {
+                useBackgroundColor = true
+                backgroundColor = color
+                backgroundHex = hex
+                applyBackgroundColorLive(enabled: true)
+            } else {
+                useBackgroundColor = false
+                backgroundHex = ""
+                applyBackgroundColorLive(enabled: false)
+            }
+            presetManager.externalBackgroundColorRequest = nil
+        }
+        .onChange(of: presetManager.externalTextColorRequest) { req in
+            guard let req else { return }
+            if let hex = req.hex, let color = Color(hex: hex) {
+                useTextColor = true
+                textColor = color
+                textHex = hex
+                applyTextColorLive(enabled: true)
+            } else {
+                useTextColor = false
+                textHex = ""
+                applyTextColorLive(enabled: false)
+            }
+            presetManager.externalTextColorRequest = nil
+        }
+        .onChange(of: presetManager.commitNonce) { _ in
+            commit()
+        }
         .sheet(isPresented: $showingSFSymbolPicker) {
             SFSymbolPicker(
                 selection: $iconPath,

@@ -39,6 +39,10 @@ struct SettingsView: View {
             selectedButtonId = nil
             presetManager.externalSelectGroupRequest = nil
         }
+        .onChange(of: presetManager.clearSelectionNonce) { _ in
+            selectedButtonId = nil
+            selectedGroupId = nil
+        }
     }
 
     /// On open, auto-select the first button in the first non-empty group so
@@ -79,6 +83,7 @@ struct SettingsSidebar: View {
 
     @State private var newPresetName = ""
     @State private var newGroupLabel = ""
+    @State private var portText = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -123,6 +128,34 @@ struct SettingsSidebar: View {
             }
             .labelsHidden()
             .help("GET /manifest で返すシステムプロンプトを切り替えます")
+
+            // Control API 設定
+            HStack {
+                Text("Control API").font(.caption).foregroundColor(.secondary)
+                Spacer()
+            }
+            Toggle("有効", isOn: Binding(
+                get: { presetManager.appConfig?.controlAPI.enabled ?? false },
+                set: { presetManager.setControlAPIEnabled($0) }
+            ))
+            .help("有効にするとポートで HTTP API が起動します。変更後は再起動が必要です。")
+            HStack(spacing: 4) {
+                Text("ポート").font(.caption).foregroundColor(.secondary)
+                TextField("17430", text: $portText)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 70)
+                    .onAppear {
+                        portText = String(presetManager.appConfig?.controlAPI.port ?? 17430)
+                    }
+                    .onChange(of: presetManager.appConfig?.controlAPI.port) { newPort in
+                        portText = String(newPort ?? 17430)
+                    }
+                    .onSubmit { commitPort() }
+                Text("1024–65535").font(.caption2).foregroundColor(.secondary)
+            }
+            Text("変更後はアプリの再起動が必要です。")
+                .font(.caption2)
+                .foregroundColor(.secondary)
 
             Divider()
 
@@ -249,6 +282,17 @@ struct SettingsSidebar: View {
         let group = ButtonGroup(id: id, label: newGroupLabel, buttons: [])
         _ = presetManager.addGroup(group)
         newGroupLabel = ""
+    }
+
+    private func commitPort() {
+        guard let port = Int(portText) else {
+            // 無効な値はリセット
+            portText = String(presetManager.appConfig?.controlAPI.port ?? 17430)
+            return
+        }
+        presetManager.setControlAPIPort(port)
+        // setControlAPIPort 内でクランプされた値に合わせて表示を更新
+        portText = String(presetManager.appConfig?.controlAPI.port ?? port)
     }
 
     private func addEmptyButton() {

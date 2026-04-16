@@ -2,6 +2,45 @@ import SwiftUI
 import AppKit
 import FloatingMacroCore
 
+/// `NSColorWell` wrapper that keeps the SwiftUI binding in sync **while the
+/// user is dragging inside `NSColorPanel`**. SwiftUI's built-in `ColorPicker`
+/// on macOS only reports changes when the color panel is dismissed, which
+/// makes real-time previews impossible. `NSColorWell.action` fires on every
+/// color change from the panel, so bridging through it gives us a
+/// continuously-updated binding.
+struct ContinuousColorPicker: NSViewRepresentable {
+    @Binding var color: Color
+
+    func makeNSView(context: Context) -> NSColorWell {
+        let well = NSColorWell()
+        well.target = context.coordinator
+        well.action = #selector(Coordinator.colorChanged(_:))
+        well.color = NSColor(color)
+        return well
+    }
+
+    func updateNSView(_ nsView: NSColorWell, context: Context) {
+        context.coordinator.parent = self
+        let incoming = NSColor(color)
+        if !nsView.color.isEqual(incoming) {
+            // Avoid a feedback loop: only push into the well when the source
+            // of truth drifted outside of user interaction (e.g. hex typed).
+            nsView.color = incoming
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    final class Coordinator: NSObject {
+        var parent: ContinuousColorPicker
+        init(_ parent: ContinuousColorPicker) { self.parent = parent }
+
+        @objc func colorChanged(_ sender: NSColorWell) {
+            parent.color = Color(nsColor: sender.color)
+        }
+    }
+}
+
 /// Detail editor for the currently selected button. Shows empty state when
 /// nothing is selected.
 struct SettingsDetail: View {
@@ -143,15 +182,22 @@ struct ButtonEditor: View {
                         labeled("背景色") {
                             HStack {
                                 Toggle("有効", isOn: $useBackgroundColor)
+                                    .onChange(of: useBackgroundColor) { newValue in
+                                        applyBackgroundColorLive(enabled: newValue)
+                                    }
                                 if useBackgroundColor {
-                                    ColorPicker("", selection: $backgroundColor)
-                                        .labelsHidden()
+                                    ContinuousColorPicker(color: $backgroundColor)
+                                        .frame(width: 44, height: 24)
                                         .onChange(of: backgroundColor) { newValue in
                                             backgroundHex = Self.hexFromColor(newValue)
+                                            applyBackgroundColorLive(enabled: true)
                                         }
                                     TextField("#RRGGBB", text: $backgroundHex)
                                         .textFieldStyle(.roundedBorder)
                                         .frame(width: 110)
+                                        .onChange(of: backgroundHex) { _ in
+                                            applyBackgroundColorLive(enabled: useBackgroundColor)
+                                        }
                                 }
                             }
                         }
@@ -159,15 +205,22 @@ struct ButtonEditor: View {
                         labeled("文字色") {
                             HStack {
                                 Toggle("有効", isOn: $useTextColor)
+                                    .onChange(of: useTextColor) { newValue in
+                                        applyTextColorLive(enabled: newValue)
+                                    }
                                 if useTextColor {
-                                    ColorPicker("", selection: $textColor)
-                                        .labelsHidden()
+                                    ContinuousColorPicker(color: $textColor)
+                                        .frame(width: 44, height: 24)
                                         .onChange(of: textColor) { newValue in
                                             textHex = Self.hexFromColor(newValue)
+                                            applyTextColorLive(enabled: true)
                                         }
                                     TextField("#RRGGBB", text: $textHex)
                                         .textFieldStyle(.roundedBorder)
                                         .frame(width: 110)
+                                        .onChange(of: textHex) { _ in
+                                            applyTextColorLive(enabled: useTextColor)
+                                        }
                                 } else {
                                     Text("(自動: 背景色があれば白、なければ システム既定)")
                                         .font(.caption)
@@ -396,6 +449,42 @@ struct ButtonEditor: View {
         let b = Int((nsColor.blueComponent  * 255).rounded())
         return String(format: "#%02X%02X%02X", r, g, b)
     }
+
+    /// Apply just the background color change to the live preset, bypassing
+    /// the full `commit()` path so color-picker drags update the floating
+    /// panel in real time.
+    private func applyBackgroundColorLive(enabled: Bool) {
+        let hex: String?
+        if enabled {
+            hex = backgroundHex.isEmpty ? Self.hexFromColor(backgroundColor) : backgroundHex
+        } else {
+            hex = nil
+        }
+        _ = presetManager.updateButton(
+            id: button.id,
+            label: nil, icon: nil, iconText: nil,
+            backgroundColor: .some(hex),
+            textColor: nil, width: nil, height: nil,
+            tooltip: nil, action: nil
+        )
+    }
+
+    private func applyTextColorLive(enabled: Bool) {
+        let hex: String?
+        if enabled {
+            hex = textHex.isEmpty ? Self.hexFromColor(textColor) : textHex
+        } else {
+            hex = nil
+        }
+        _ = presetManager.updateButton(
+            id: button.id,
+            label: nil, icon: nil, iconText: nil,
+            backgroundColor: nil,
+            textColor: .some(hex),
+            width: nil, height: nil,
+            tooltip: nil, action: nil
+        )
+    }
 }
 
 // MARK: - GroupEditor
@@ -464,15 +553,22 @@ struct GroupEditor: View {
                         labeled("背景色") {
                             HStack {
                                 Toggle("有効", isOn: $useBackgroundColor)
+                                    .onChange(of: useBackgroundColor) { newValue in
+                                        applyBackgroundColorLive(enabled: newValue)
+                                    }
                                 if useBackgroundColor {
-                                    ColorPicker("", selection: $backgroundColor)
-                                        .labelsHidden()
+                                    ContinuousColorPicker(color: $backgroundColor)
+                                        .frame(width: 44, height: 24)
                                         .onChange(of: backgroundColor) { newValue in
                                             backgroundHex = Self.hexFromColor(newValue)
+                                            applyBackgroundColorLive(enabled: true)
                                         }
                                     TextField("#RRGGBB", text: $backgroundHex)
                                         .textFieldStyle(.roundedBorder)
                                         .frame(width: 110)
+                                        .onChange(of: backgroundHex) { _ in
+                                            applyBackgroundColorLive(enabled: useBackgroundColor)
+                                        }
                                 }
                             }
                         }
@@ -480,15 +576,22 @@ struct GroupEditor: View {
                         labeled("文字色") {
                             HStack {
                                 Toggle("有効", isOn: $useTextColor)
+                                    .onChange(of: useTextColor) { newValue in
+                                        applyTextColorLive(enabled: newValue)
+                                    }
                                 if useTextColor {
-                                    ColorPicker("", selection: $textColor)
-                                        .labelsHidden()
+                                    ContinuousColorPicker(color: $textColor)
+                                        .frame(width: 44, height: 24)
                                         .onChange(of: textColor) { newValue in
                                             textHex = Self.hexFromColor(newValue)
+                                            applyTextColorLive(enabled: true)
                                         }
                                     TextField("#RRGGBB", text: $textHex)
                                         .textFieldStyle(.roundedBorder)
                                         .frame(width: 110)
+                                        .onChange(of: textHex) { _ in
+                                            applyTextColorLive(enabled: useTextColor)
+                                        }
                                 } else {
                                     Text("(自動: 背景色があれば白、なければシステム既定)")
                                         .font(.caption)
@@ -614,5 +717,38 @@ struct GroupEditor: View {
         let g = Int((nsColor.greenComponent * 255).rounded())
         let b = Int((nsColor.blueComponent  * 255).rounded())
         return String(format: "#%02X%02X%02X", r, g, b)
+    }
+
+    /// Apply just the group's background color to the live preset so
+    /// color-picker drags update the floating panel in real time.
+    private func applyBackgroundColorLive(enabled: Bool) {
+        let hex: String?
+        if enabled {
+            hex = backgroundHex.isEmpty ? Self.hexFromColor(backgroundColor) : backgroundHex
+        } else {
+            hex = nil
+        }
+        _ = presetManager.updateGroup(
+            id: group.id,
+            label: nil, icon: nil, iconText: nil,
+            backgroundColor: .some(hex),
+            textColor: nil, tooltip: nil
+        )
+    }
+
+    private func applyTextColorLive(enabled: Bool) {
+        let hex: String?
+        if enabled {
+            hex = textHex.isEmpty ? Self.hexFromColor(textColor) : textHex
+        } else {
+            hex = nil
+        }
+        _ = presetManager.updateGroup(
+            id: group.id,
+            label: nil, icon: nil, iconText: nil,
+            backgroundColor: nil,
+            textColor: .some(hex),
+            tooltip: nil
+        )
     }
 }

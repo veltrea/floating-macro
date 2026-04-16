@@ -154,10 +154,12 @@ struct SettingsSidebar: View {
                     .padding(4)
                     .background(
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(selectedGroupId == group.id ? Color.accentColor.opacity(0.2) : Color.clear)
+                            .fill(selectedGroupId == group.id && selectedButtonId == nil
+                                  ? Color.accentColor.opacity(0.2) : Color.clear)
                     )
                 }
                 .buttonStyle(.plain)
+
                 Button {
                     _ = presetManager.deleteGroup(id: group.id)
                     if selectedGroupId == group.id {

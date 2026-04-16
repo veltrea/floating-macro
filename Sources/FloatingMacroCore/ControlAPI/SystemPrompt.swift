@@ -5,6 +5,10 @@ import Foundation
 /// a single JSON payload that explains what the app is, how the agent is
 /// expected to behave, which endpoints exist, and what every tool does.
 ///
+/// Prompt text is loaded from `agent_prompts.json` bundled with the target.
+/// Edit that file to update prompts without recompiling. Hardcoded strings
+/// below serve as compile-time fallbacks only.
+///
 /// AI clients should hit `GET /manifest` (alias `GET /help`) **before**
 /// doing anything else, and call the `help` tool any time they want to
 /// re-ground themselves later.
@@ -14,89 +18,56 @@ public enum SystemPrompt {
     public static let product = "FloatingMacro"
     public static let version = "0.1"
 
-    /// The core self-introduction. Kept in Japanese first (the primary user's
-    /// language) and then restated in English so foreign-language AI clients
-    /// can follow without translation.
-    public static let greeting = """
+    // MARK: - Prompt loading
+
+    /// Loads all prompts from `agent_prompts.json` in the module bundle.
+    /// Returns nil if the file is missing or malformed.
+    private static var bundledPrompts: [String: String]? = {
+        guard let url = Bundle.module.url(forResource: "agent_prompts",
+                                          withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: String]
+        else { return nil }
+        return dict
+    }()
+
+    public static var greeting: String {
+        bundledPrompts?["normal"] ?? fallbackGreeting
+    }
+
+    public static var testGreeting: String {
+        bundledPrompts?["test"] ?? fallbackTestGreeting
+    }
+
+    public static var claudeCodeGreeting: String {
+        bundledPrompts?["claudeCode"] ?? fallbackClaudeCodeGreeting
+    }
+
+    // MARK: - Fallbacks (used only when the JSON bundle is unavailable)
+
+    private static let fallbackGreeting = """
     # FloatingMacro 制御 API へようこそ
 
     あなたは **FloatingMacro** の制御 API に接続しています。
-    FloatingMacro は macOS 用のフローティングマクロランチャーで、常駐窓から
-    ワンクリックで AI プロンプト投入 / キー送出 / アプリ起動 / ターミナル展開 /
-    マクロを実行できます。
-
-    ## このユーザーについて知っておくこと
-
-    ユーザーは視覚・左半身に身体的困難があり、以下が困難です:
-      - GUI のボタンを正確にクリックすること
-      - ターミナルに正確に入力すること
-      - 長い文字列を画面から読み取ってコピーすること
-
-    このため **あなた（AI）がユーザーの手足となって自律的にテスト・操作する**
-    ことが強く期待されています。ユーザーにコマンド実行を依頼せず、自分で
-    観察 → 判断 → 実行 → 再観察 のループを回してください。
-
-    ## 推奨される行動パターン
-
-    1. **接続直後**: `GET /manifest` (または `help` ツール) を呼んでこの案内を読む
-    2. **現状把握**: `GET /state` でパネル可視性・アクティブプリセット・ウィンドウ座標を確認
-    3. **操作**: `POST /tools/call` でツールを名前で呼び出す
-    4. **検証**: `GET /log/tail?since=5m` でログから結果を読み取る
-    5. **迷ったら**: `help` ツールを呼び直してこの案内を再読み込み
-
-    ## 重要な観察系エンドポイント
-
-      - `GET /state`            - アプリ全体のスナップショット
-      - `GET /preset/current`   - アクティブなプリセット全 JSON
-      - `GET /preset/list`      - 全プリセット名
-      - `GET /log/tail`         - 構造化ログ (JSON 1 行 1 イベント)
-      - `GET /tools`            - 全ツール定義 (MCP/OpenAI/Anthropic 形式切替)
-
-    ## ツール呼び出し規約
-
-    HTTP を直接叩くか、`POST /tools/call` に統一することができます:
-      ```
-      POST /tools/call
-      { "name": "window_move", "arguments": { "x": 100, "y": 200 } }
-      ```
-
-    レスポンスは `{ "name": ..., "status": ..., "result": {...} }` の封筒形式。
-
-    ## 安全と制限
-
-      - サーバーは **127.0.0.1 (loopback) のみ** にバインドされています
-      - **認証はありません** — localhost で閉じているためです
-      - 危険コマンド (`rm -rf` 等) を `/action` で送る場合は
-        `terminal` タイプなら `execute: false` でユーザー確認を挟めます
-      - アプリ外部へのデータ送信や、ファイル削除、設定ファイル上書き等は
-        ユーザーの明示的な承認なしには行わないでください
-
-    ---
-
-    # Welcome to the FloatingMacro Control API (English)
-
-    You are connected to **FloatingMacro**, a macOS floating macro launcher
-    that lets a user trigger AI-prompt paste, key combos, app launches,
-    terminal expansions, and composite macros from a small always-on-top
-    panel.
-
-    The primary user has visual and left-side physical limitations; they
-    cannot easily click GUI buttons or type long commands. You, the AI
-    agent, are therefore expected to **act as their hands**: observe state,
-    decide, execute tools, read logs, and repeat — without asking the user
-    to run commands themselves.
-
-    Recommended workflow:
-      1. On connect, call `GET /manifest` (or the `help` tool) to read this.
-      2. Check current state with `GET /state`.
-      3. Invoke tools via `POST /tools/call { name, arguments }`.
-      4. Verify outcomes via `GET /log/tail?since=5m`.
-      5. If unsure, call the `help` tool again to re-ground yourself.
-
-    Security: the server binds 127.0.0.1 only, has no auth, and should
-    never be reached from other hosts. Destructive actions require user
-    consent.
+    ユーザーと対話しながら、このAPIを通じてアプリを操作・設定できます。
+    まず `GET /state` で現在の状態を把握してから作業を始めてください。
     """
+
+    private static let fallbackTestGreeting = """
+    # FloatingMacro テストエージェントモード
+
+    すべての機能が仕様通りに動くことを確認し、仕様バグも発見する。
+    まずログを読み、テストケースを生成し、テスト完了レポートを出力する。
+    """
+
+    private static let fallbackClaudeCodeGreeting = """
+    # FloatingMacro — Claude Code アシスタントモード
+
+    Claude Code のコーディングセッションを補助する。
+    ターミナル展開・プロンプト投入・作業シーン切替を担う。
+    """
+
+    // MARK: - Shared
 
     /// Quick-start checklist surfaced separately so a thin client can render
     /// it without parsing the full greeting.
@@ -124,11 +95,20 @@ public enum SystemPrompt {
     /// Includes the system prompt, quick start, endpoint map, and the entire
     /// tool catalog in MCP dialect so a client only needs ONE round trip to
     /// fully bootstrap.
-    public static func manifest() -> [String: Any] {
+    ///
+    /// - Parameter agentMode: Selects which system prompt to embed.
+    public static func manifest(agentMode: AgentMode = .normal) -> [String: Any] {
+        let prompt: String
+        switch agentMode {
+        case .normal:     prompt = greeting
+        case .test:       prompt = testGreeting
+        case .claudeCode: prompt = claudeCodeGreeting
+        }
         return [
             "product":       product,
             "version":       version,
-            "systemPrompt":  greeting,
+            "agentMode":     agentMode.rawValue,
+            "systemPrompt":  prompt,
             "quickStart":    quickStart,
             "endpoints":     endpoints,
             "dialects": [

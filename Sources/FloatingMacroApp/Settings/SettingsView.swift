@@ -108,6 +108,22 @@ struct SettingsSidebar: View {
                 .help("現在のプリセットを削除")
             }
 
+            // AI モード picker
+            HStack {
+                Text("AI モード").font(.caption).foregroundColor(.secondary)
+                Spacer()
+            }
+            Picker("", selection: Binding(
+                get: { presetManager.appConfig?.controlAPI.agentMode ?? .normal },
+                set: { presetManager.setAgentMode($0) }
+            )) {
+                Text("ノーマル").tag(AgentMode.normal)
+                Text("テスト（自律）").tag(AgentMode.test)
+                Text("Claude Code").tag(AgentMode.claudeCode)
+            }
+            .labelsHidden()
+            .help("GET /manifest で返すシステムプロンプトを切り替えます")
+
             Divider()
 
             // Group + button tree

@@ -161,6 +161,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         opacityItem.submenu = opacityMenu
         menu.addItem(opacityItem)
 
+        // AI モード切替
+        let agentModeMenu = NSMenu()
+        let currentMode = presetManager.appConfig?.controlAPI.agentMode ?? .normal
+        let agentModeChoices: [(String, AgentMode)] = [
+            ("ノーマル",       .normal),
+            ("テスト（自律）", .test),
+            ("Claude Code",    .claudeCode),
+        ]
+        for (label, mode) in agentModeChoices {
+            let item = NSMenuItem(title: label,
+                                  action: #selector(setAgentMode(_:)),
+                                  keyEquivalent: "")
+            item.representedObject = mode.rawValue
+            if mode == currentMode { item.state = .on }
+            agentModeMenu.addItem(item)
+        }
+        let agentModeItem = NSMenuItem(title: "AI モード", action: nil, keyEquivalent: "")
+        agentModeItem.submenu = agentModeMenu
+        menu.addItem(agentModeItem)
+
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "ボタン編集...", action: #selector(openSettings), keyEquivalent: "e"))
         menu.addItem(NSMenuItem(title: "設定フォルダを開く", action: #selector(openConfigFolder), keyEquivalent: ","))
@@ -180,6 +200,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let value = num.doubleValue
         presetManager.setOpacity(value)
         panel?.alphaValue = CGFloat(value)
+        setupStatusItem()  // チェック状態を再描画
+    }
+
+    @objc private func setAgentMode(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let mode = AgentMode(rawValue: raw) else { return }
+        presetManager.setAgentMode(mode)
         setupStatusItem()  // チェック状態を再描画
     }
 

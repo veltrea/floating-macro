@@ -192,7 +192,8 @@ floatingmacro/
   },
   "controlAPI": {
     "enabled": false,
-    "port": 17430
+    "port": 17430,
+    "testMode": false
   }
 }
 ```

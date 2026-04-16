@@ -70,6 +70,13 @@ final class PresetManager: ObservableObject {
         sfPickerRequestNonce &+= 1
     }
 
+    func setAgentMode(_ mode: AgentMode) {
+        guard var cfg = appConfig else { return }
+        cfg.controlAPI.agentMode = mode
+        appConfig = cfg
+        try? writer.saveAppConfig(cfg)
+    }
+
     /// Clamped to [0.25, 1.0] so users can't make the panel fully invisible.
     func setOpacity(_ value: Double) {
         guard var cfg = appConfig else { return }

@@ -150,7 +150,8 @@ final class ControlHandlers {
 
     @MainActor
     private func handleManifest() -> HTTPResponse {
-        HTTPResponse.json(SystemPrompt.manifest())
+        let agentMode = presetManager.appConfig?.controlAPI.agentMode ?? .normal
+        return HTTPResponse.json(SystemPrompt.manifest(agentMode: agentMode))
     }
 
     @MainActor

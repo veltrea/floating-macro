@@ -16,7 +16,7 @@ public enum AgentCard {
     public static func card(baseURL: String = "http://127.0.0.1:17430") -> [String: Any] {
         return [
             "name":        SystemPrompt.product,
-            "description": "FloatingMacro — a macOS floating macro launcher with an HTTP control surface designed for AI agents to operate on behalf of physically-impaired users.",
+            "description": "FloatingMacro — a macOS floating macro launcher with an HTTP control surface designed for AI agents to observe, configure, and drive the app as first-class users.",
             "url":         baseURL,
             "version":     SystemPrompt.version,
             "protocolVersion": "0.1",

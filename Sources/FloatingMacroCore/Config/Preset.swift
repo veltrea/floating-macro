@@ -110,6 +110,20 @@ public struct WindowConfig: Codable, Equatable {
     }
 }
 
+/// The role the AI agent is expected to play when connected to the control API.
+/// Set via `controlAPI.agentMode` in config.json.
+public enum AgentMode: String, Codable, Equatable {
+    /// General-purpose operator: transparent tool usage + context awareness.
+    /// The agent checks current state on connect and acts as invisible hands.
+    case normal
+    /// Dedicated test agent: reads logs first, generates test cases from
+    /// SPEC.md, proposes fixes as diffs, and produces a test-completion report.
+    case test
+    /// Claude Code assistant: specialised for coding sessions. Sets up
+    /// terminal layouts, injects prompts, and keeps the environment tidy.
+    case claudeCode
+}
+
 /// Local HTTP control API settings. See Sources/FloatingMacroApp/ControlAPI/.
 public struct ControlAPIConfig: Codable, Equatable {
     /// When true, the GUI process opens a localhost-bound HTTP listener so
@@ -117,10 +131,25 @@ public struct ControlAPIConfig: Codable, Equatable {
     public var enabled: Bool
     /// Preferred port. If taken, the server tries `port+1` … `port+9`.
     public var port: Int
+    /// Controls which system prompt GET /manifest returns.
+    /// Defaults to `.normal`. See `AgentMode` for available values.
+    public var agentMode: AgentMode
 
-    public init(enabled: Bool = false, port: Int = 17430) {
+    public init(enabled: Bool = false, port: Int = 17430, agentMode: AgentMode = .normal) {
         self.enabled = enabled
         self.port = port
+        self.agentMode = agentMode
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case enabled, port, agentMode
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.enabled   = try c.decodeIfPresent(Bool.self,      forKey: .enabled)   ?? false
+        self.port      = try c.decodeIfPresent(Int.self,       forKey: .port)      ?? 17430
+        self.agentMode = try c.decodeIfPresent(AgentMode.self, forKey: .agentMode) ?? .normal
     }
 }
 

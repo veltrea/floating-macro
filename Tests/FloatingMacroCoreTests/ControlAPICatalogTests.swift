@@ -78,10 +78,13 @@ final class SystemPromptTests: XCTestCase {
     }
 
     func testGreetingDescribesUser() {
-        // The greeting must mention physical-limitation context so AI
-        // agents behave accordingly.
-        XCTAssertTrue(SystemPrompt.greeting.contains("身体的"))
-        XCTAssertTrue(SystemPrompt.greeting.contains("AI"))
+        // Normal greeting is interactive — just needs state check and tool call info.
+        XCTAssertTrue(SystemPrompt.greeting.contains("GET /state"))
+        XCTAssertTrue(SystemPrompt.greeting.contains("tools/call"))
+        // Test greeting instructs agents to read logs and produce a report.
+        XCTAssertTrue(SystemPrompt.testGreeting.contains("テスト完了レポート"))
+        // Claude Code greeting focuses on terminal and prompt injection.
+        XCTAssertTrue(SystemPrompt.claudeCodeGreeting.contains("ターミナル"))
     }
 }
 

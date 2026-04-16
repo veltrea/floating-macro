@@ -16,7 +16,10 @@ let package = Package(
     targets: [
         .target(
             name: "FloatingMacroCore",
-            path: "Sources/FloatingMacroCore"
+            path: "Sources/FloatingMacroCore",
+            resources: [
+                .process("Resources"),
+            ]
         ),
         .executableTarget(
             name: "FloatingMacroCLI",

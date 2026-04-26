@@ -1,0 +1,36 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Xcode (if we ever open via Xcode later)
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+
+# macOS
+.DS_Store
+._*
+
+# Logs / temp
+*.log
+*.tmp
+*.old
+
+# Claude Code per-project local settings (user-specific, may include tokens)
+.claude/
+
+# Editor cruft
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Stitch raw project dump (ephemeral, keep out of history)
+fm_stitch_project.json
+
+# .app bundle output from scripts/build-app.sh
+build/
+
+# Playwright MCP debug artifacts
+.playwright-mcp/

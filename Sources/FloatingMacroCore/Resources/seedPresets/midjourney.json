@@ -1,0 +1,169 @@
+{
+  "version": 1,
+  "name": "midjourney",
+  "displayName": "MidJourney 用",
+  "groups": [
+    {
+      "id": "g-mj-aspect",
+      "label": "アスペクト比",
+      "iconText": "📐",
+      "buttons": [
+        {
+          "id": "b-mj-ar-1-1",
+          "label": "1:1",
+          "iconText": "□",
+          "action": { "type": "text", "content": " --ar 1:1", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-ar-16-9",
+          "label": "16:9",
+          "iconText": "▭",
+          "action": { "type": "text", "content": " --ar 16:9", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-ar-9-16",
+          "label": "9:16",
+          "iconText": "▯",
+          "action": { "type": "text", "content": " --ar 9:16", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-ar-3-2",
+          "label": "3:2",
+          "iconText": "📷",
+          "action": { "type": "text", "content": " --ar 3:2", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-ar-2-3",
+          "label": "2:3",
+          "iconText": "🖼️",
+          "action": { "type": "text", "content": " --ar 2:3", "pasteDelayMs": 120, "restoreClipboard": true }
+        }
+      ]
+    },
+    {
+      "id": "g-mj-version",
+      "label": "バージョン",
+      "iconText": "🆚",
+      "buttons": [
+        {
+          "id": "b-mj-v-6-1",
+          "label": "v6.1",
+          "action": { "type": "text", "content": " --v 6.1", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-niji-6",
+          "label": "niji 6",
+          "iconText": "🌸",
+          "action": { "type": "text", "content": " --niji 6", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-v-5-2",
+          "label": "v5.2",
+          "action": { "type": "text", "content": " --v 5.2", "pasteDelayMs": 120, "restoreClipboard": true }
+        }
+      ]
+    },
+    {
+      "id": "g-mj-style",
+      "label": "画風タグ",
+      "iconText": "🎨",
+      "buttons": [
+        {
+          "id": "b-mj-style-photo",
+          "label": "写実",
+          "iconText": "📸",
+          "action": { "type": "text", "content": "photorealistic, ", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-style-cinema",
+          "label": "映画的",
+          "iconText": "🎬",
+          "action": { "type": "text", "content": "cinematic lighting, ", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-style-anime",
+          "label": "アニメ",
+          "iconText": "🌸",
+          "action": { "type": "text", "content": "anime style, ", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-style-oil",
+          "label": "油絵",
+          "iconText": "🖌️",
+          "action": { "type": "text", "content": "oil painting, ", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-style-water",
+          "label": "水彩",
+          "iconText": "💧",
+          "action": { "type": "text", "content": "watercolor, ", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-style-concept",
+          "label": "コンセプト",
+          "iconText": "💡",
+          "action": { "type": "text", "content": "concept art, ", "pasteDelayMs": 120, "restoreClipboard": true }
+        }
+      ]
+    },
+    {
+      "id": "g-mj-params",
+      "label": "パラメータ",
+      "iconText": "⚙️",
+      "buttons": [
+        {
+          "id": "b-mj-s-0",
+          "label": "Style 0",
+          "tooltip": "Stylize 弱め (--s 0)",
+          "action": { "type": "text", "content": " --s 0", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-s-250",
+          "label": "Style 250",
+          "tooltip": "Stylize 中間 (--s 250)",
+          "action": { "type": "text", "content": " --s 250", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-s-750",
+          "label": "Style 750",
+          "tooltip": "Stylize 強め (--s 750)",
+          "action": { "type": "text", "content": " --s 750", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-c-25",
+          "label": "Chaos 25",
+          "tooltip": "バリエーション増 (--c 25)",
+          "action": { "type": "text", "content": " --c 25", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-q-2",
+          "label": "Quality 2",
+          "tooltip": "GPU 時間 2倍 (--q 2)",
+          "action": { "type": "text", "content": " --q 2", "pasteDelayMs": 120, "restoreClipboard": true }
+        }
+      ]
+    },
+    {
+      "id": "g-mj-negative",
+      "label": "除外指定",
+      "iconText": "🚫",
+      "buttons": [
+        {
+          "id": "b-mj-no-blur",
+          "label": "ぼかし無",
+          "action": { "type": "text", "content": " --no blur", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-no-people",
+          "label": "人物無",
+          "action": { "type": "text", "content": " --no people", "pasteDelayMs": 120, "restoreClipboard": true }
+        },
+        {
+          "id": "b-mj-no-text",
+          "label": "文字無",
+          "action": { "type": "text", "content": " --no text", "pasteDelayMs": 120, "restoreClipboard": true }
+        }
+      ]
+    }
+  ]
+}

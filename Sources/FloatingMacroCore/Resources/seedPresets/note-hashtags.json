@@ -1,0 +1,147 @@
+{
+  "version": 1,
+  "name": "note-hashtags",
+  "displayName": "note.com ハッシュタグ",
+  "groups": [
+    {
+      "id": "g-note-basic",
+      "label": "基本",
+      "iconText": "🏷️",
+      "buttons": [
+        {
+          "id": "b-note-note",
+          "label": "#note",
+          "action": { "type": "text", "content": " #note", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-note-mainichi",
+          "label": "#毎日note",
+          "action": { "type": "text", "content": " #毎日note", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-note-howto",
+          "label": "#note書き方",
+          "action": { "type": "text", "content": " #note書き方", "pasteDelayMs": 80, "restoreClipboard": true }
+        }
+      ]
+    },
+    {
+      "id": "g-note-ai",
+      "label": "AI / 技術",
+      "iconText": "🤖",
+      "buttons": [
+        {
+          "id": "b-note-ai",
+          "label": "#AI",
+          "action": { "type": "text", "content": " #AI", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-note-chatgpt",
+          "label": "#ChatGPT",
+          "action": { "type": "text", "content": " #ChatGPT", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-note-genai",
+          "label": "#生成AI",
+          "action": { "type": "text", "content": " #生成AI", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-note-claude",
+          "label": "#Claude",
+          "action": { "type": "text", "content": " #Claude", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-note-prog",
+          "label": "#プログラミング",
+          "action": { "type": "text", "content": " #プログラミング", "pasteDelayMs": 80, "restoreClipboard": true }
+        }
+      ]
+    },
+    {
+      "id": "g-note-life",
+      "label": "ライフ",
+      "iconText": "🌱",
+      "buttons": [
+        {
+          "id": "b-note-essay",
+          "label": "#エッセイ",
+          "action": { "type": "text", "content": " #エッセイ", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-note-diary",
+          "label": "#日記",
+          "action": { "type": "text", "content": " #日記", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-note-column",
+          "label": "#コラム",
+          "action": { "type": "text", "content": " #コラム", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-note-lifestyle",
+          "label": "#ライフスタイル",
+          "action": { "type": "text", "content": " #ライフスタイル", "pasteDelayMs": 80, "restoreClipboard": true }
+        }
+      ]
+    },
+    {
+      "id": "g-note-business",
+      "label": "ビジネス",
+      "iconText": "💼",
+      "buttons": [
+        {
+          "id": "b-note-biz",
+          "label": "#ビジネス",
+          "action": { "type": "text", "content": " #ビジネス", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-note-marketing",
+          "label": "#マーケティング",
+          "action": { "type": "text", "content": " #マーケティング", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-note-freelance",
+          "label": "#フリーランス",
+          "action": { "type": "text", "content": " #フリーランス", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-note-fukugyo",
+          "label": "#副業",
+          "action": { "type": "text", "content": " #副業", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-note-startup",
+          "label": "#起業",
+          "action": { "type": "text", "content": " #起業", "pasteDelayMs": 80, "restoreClipboard": true }
+        }
+      ]
+    },
+    {
+      "id": "g-note-creative",
+      "label": "クリエイティブ",
+      "iconText": "🎨",
+      "buttons": [
+        {
+          "id": "b-note-illust",
+          "label": "#イラスト",
+          "action": { "type": "text", "content": " #イラスト", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-note-photo",
+          "label": "#写真",
+          "action": { "type": "text", "content": " #写真", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-note-music",
+          "label": "#音楽",
+          "action": { "type": "text", "content": " #音楽", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-note-design",
+          "label": "#デザイン",
+          "action": { "type": "text", "content": " #デザイン", "pasteDelayMs": 80, "restoreClipboard": true }
+        }
+      ]
+    }
+  ]
+}

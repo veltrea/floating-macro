@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "name": "cud-palette",
+  "displayName": "🎨 CUD カラー (色覚多様性対応)",
+  "groups": [
+    {
+      "id": "g-cud-warm",
+      "label": "暖色系",
+      "buttons": [
+        {
+          "id": "b-cud-orange",
+          "label": "オレンジ #E69F00",
+          "backgroundColor": "#E69F00",
+          "textColor": "#000000",
+          "iconText": "🟠",
+          "action": { "type": "text", "content": "#E69F00", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-cud-vermilion",
+          "label": "朱色 #D55E00",
+          "backgroundColor": "#D55E00",
+          "textColor": "#FFFFFF",
+          "iconText": "🔶",
+          "action": { "type": "text", "content": "#D55E00", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-cud-yellow",
+          "label": "黄 #F0E442",
+          "backgroundColor": "#F0E442",
+          "textColor": "#000000",
+          "iconText": "🟡",
+          "action": { "type": "text", "content": "#F0E442", "pasteDelayMs": 80, "restoreClipboard": true }
+        }
+      ]
+    },
+    {
+      "id": "g-cud-cool",
+      "label": "寒色系",
+      "buttons": [
+        {
+          "id": "b-cud-sky",
+          "label": "空色 #56B4E9",
+          "backgroundColor": "#56B4E9",
+          "textColor": "#000000",
+          "iconText": "🔵",
+          "action": { "type": "text", "content": "#56B4E9", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-cud-blue",
+          "label": "青 #0072B2",
+          "backgroundColor": "#0072B2",
+          "textColor": "#FFFFFF",
+          "iconText": "🔹",
+          "action": { "type": "text", "content": "#0072B2", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-cud-bluegreen",
+          "label": "青緑 #009E73",
+          "backgroundColor": "#009E73",
+          "textColor": "#FFFFFF",
+          "iconText": "🟢",
+          "action": { "type": "text", "content": "#009E73", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-cud-reddishpurple",
+          "label": "赤紫 #CC79A7",
+          "backgroundColor": "#CC79A7",
+          "textColor": "#000000",
+          "iconText": "🔴",
+          "action": { "type": "text", "content": "#CC79A7", "pasteDelayMs": 80, "restoreClipboard": true }
+        }
+      ]
+    }
+  ]
+}

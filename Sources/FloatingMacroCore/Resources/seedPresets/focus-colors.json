@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "name": "focus-colors",
+  "displayName": "🧠 集中力カラー (心理効果)",
+  "groups": [
+    {
+      "id": "g-fc-blue",
+      "label": "青系 — 深い集中・思考 (長時間向き)",
+      "buttons": [
+        {
+          "id": "b-fc-midnight",
+          "label": "ミッドナイト #1B3A6B",
+          "backgroundColor": "#1B3A6B",
+          "textColor": "#FFFFFF",
+          "iconText": "🌙",
+          "action": { "type": "text", "content": "#1B3A6B", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-fc-cobalt",
+          "label": "コバルト #0047AB",
+          "backgroundColor": "#0047AB",
+          "textColor": "#FFFFFF",
+          "iconText": "🔵",
+          "action": { "type": "text", "content": "#0047AB", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-fc-steel",
+          "label": "スチール #4682B4",
+          "backgroundColor": "#4682B4",
+          "textColor": "#FFFFFF",
+          "iconText": "💠",
+          "action": { "type": "text", "content": "#4682B4", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-fc-skyblue",
+          "label": "スカイ #87CEEB",
+          "backgroundColor": "#87CEEB",
+          "textColor": "#1A1A1A",
+          "iconText": "🩵",
+          "action": { "type": "text", "content": "#87CEEB", "pasteDelayMs": 80, "restoreClipboard": true }
+        }
+      ]
+    },
+    {
+      "id": "g-fc-green",
+      "label": "緑系 — 眼精疲労なし・長時間維持",
+      "buttons": [
+        {
+          "id": "b-fc-forest",
+          "label": "フォレスト #228B22",
+          "backgroundColor": "#228B22",
+          "textColor": "#FFFFFF",
+          "iconText": "🌲",
+          "action": { "type": "text", "content": "#228B22", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-fc-teal",
+          "label": "ティール #008080",
+          "backgroundColor": "#008080",
+          "textColor": "#FFFFFF",
+          "iconText": "🌿",
+          "action": { "type": "text", "content": "#008080", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-fc-sage",
+          "label": "セージ #8FBC8F",
+          "backgroundColor": "#8FBC8F",
+          "textColor": "#1A1A1A",
+          "iconText": "🌱",
+          "action": { "type": "text", "content": "#8FBC8F", "pasteDelayMs": 80, "restoreClipboard": true }
+        }
+      ]
+    },
+    {
+      "id": "g-fc-warm",
+      "label": "黄・オレンジ系 — 短時間・スタートダッシュ",
+      "buttons": [
+        {
+          "id": "b-fc-gold",
+          "label": "ゴールド #FFD700",
+          "backgroundColor": "#FFD700",
+          "textColor": "#1A1A1A",
+          "iconText": "⭐",
+          "action": { "type": "text", "content": "#FFD700", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-fc-orange",
+          "label": "オレンジ #FF8C00",
+          "backgroundColor": "#FF8C00",
+          "textColor": "#FFFFFF",
+          "iconText": "🟠",
+          "action": { "type": "text", "content": "#FF8C00", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-fc-amber",
+          "label": "アンバー #FFB347",
+          "backgroundColor": "#FFB347",
+          "textColor": "#1A1A1A",
+          "iconText": "🌅",
+          "action": { "type": "text", "content": "#FFB347", "pasteDelayMs": 80, "restoreClipboard": true }
+        }
+      ]
+    },
+    {
+      "id": "g-fc-earth",
+      "label": "茶・ベージュ系 — 疲れた時の持続集中",
+      "buttons": [
+        {
+          "id": "b-fc-terra",
+          "label": "テラコッタ #8B5E3C",
+          "backgroundColor": "#8B5E3C",
+          "textColor": "#FFFFFF",
+          "iconText": "🏺",
+          "action": { "type": "text", "content": "#8B5E3C", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-fc-caffe",
+          "label": "カフェオレ #7B6650",
+          "backgroundColor": "#7B6650",
+          "textColor": "#FFFFFF",
+          "iconText": "☕",
+          "action": { "type": "text", "content": "#7B6650", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-fc-beige",
+          "label": "ウォームベージュ #F5DEB3",
+          "backgroundColor": "#F5DEB3",
+          "textColor": "#1A1A1A",
+          "iconText": "🌾",
+          "action": { "type": "text", "content": "#F5DEB3", "pasteDelayMs": 80, "restoreClipboard": true }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "name": "soft-vision",
+  "displayName": "☁️ やさしい配色 (老眼・疲れ目向け)",
+  "groups": [
+    {
+      "id": "g-sv-pastel",
+      "label": "薄色背景 × 濃グレー文字 (眩しくない)",
+      "buttons": [
+        {
+          "id": "b-sv-cream",
+          "label": "クリーム #FFF8DC",
+          "backgroundColor": "#FFF8DC",
+          "textColor": "#1A1A1A",
+          "iconText": "🌕",
+          "action": { "type": "text", "content": "#FFF8DC", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-sv-lavender",
+          "label": "ラベンダー #E8E0F5",
+          "backgroundColor": "#E8E0F5",
+          "textColor": "#1A1A1A",
+          "iconText": "💜",
+          "action": { "type": "text", "content": "#E8E0F5", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-sv-mint",
+          "label": "ミント #D4F5E9",
+          "backgroundColor": "#D4F5E9",
+          "textColor": "#1A1A1A",
+          "iconText": "🌿",
+          "action": { "type": "text", "content": "#D4F5E9", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-sv-salmon",
+          "label": "サーモン #FFE8E8",
+          "backgroundColor": "#FFE8E8",
+          "textColor": "#1A1A1A",
+          "iconText": "🌸",
+          "action": { "type": "text", "content": "#FFE8E8", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-sv-lightblue",
+          "label": "水色 #DDEEFF",
+          "backgroundColor": "#DDEEFF",
+          "textColor": "#1A1A1A",
+          "iconText": "💧",
+          "action": { "type": "text", "content": "#DDEEFF", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-sv-lightyellow",
+          "label": "淡黄 #FEFFD4",
+          "backgroundColor": "#FEFFD4",
+          "textColor": "#1A1A1A",
+          "iconText": "🌼",
+          "action": { "type": "text", "content": "#FEFFD4", "pasteDelayMs": 80, "restoreClipboard": true }
+        }
+      ]
+    }
+  ]
+}

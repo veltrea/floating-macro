@@ -1,0 +1,215 @@
+{
+  "version": 1,
+  "name": "logic-pro",
+  "displayName": "🎹 Logic Pro",
+  "groups": [
+    {
+      "id": "g-lp-transport",
+      "label": "トランスポート",
+      "buttons": [
+        {
+          "id": "b-lp-play",
+          "label": "再生/停止",
+          "backgroundColor": "#009E73",
+          "textColor": "#FFFFFF",
+          "iconText": "▶",
+          "action": { "type": "key", "combo": "space" }
+        },
+        {
+          "id": "b-lp-rec",
+          "label": "録音",
+          "backgroundColor": "#D55E00",
+          "textColor": "#FFFFFF",
+          "iconText": "⏺",
+          "action": { "type": "key", "combo": "r" }
+        },
+        {
+          "id": "b-lp-return",
+          "label": "先頭へ",
+          "backgroundColor": "#009E73",
+          "textColor": "#FFFFFF",
+          "iconText": "⏮",
+          "action": { "type": "key", "combo": "return" }
+        },
+        {
+          "id": "b-lp-cycle",
+          "label": "サイクル",
+          "backgroundColor": "#0072B2",
+          "textColor": "#FFFFFF",
+          "iconText": "🔁",
+          "action": { "type": "key", "combo": "c" }
+        },
+        {
+          "id": "b-lp-locator",
+          "label": "ロケーター設定",
+          "backgroundColor": "#0072B2",
+          "textColor": "#FFFFFF",
+          "iconText": "📍",
+          "action": { "type": "key", "combo": "u" }
+        }
+      ]
+    },
+    {
+      "id": "g-lp-window",
+      "label": "ウィンドウ",
+      "buttons": [
+        {
+          "id": "b-lp-main",
+          "label": "メイン",
+          "backgroundColor": "#0072B2",
+          "textColor": "#FFFFFF",
+          "iconText": "🪟",
+          "action": { "type": "key", "combo": "cmd+1" }
+        },
+        {
+          "id": "b-lp-mixer",
+          "label": "ミキサー",
+          "backgroundColor": "#0072B2",
+          "textColor": "#FFFFFF",
+          "iconText": "🎚",
+          "action": { "type": "key", "combo": "cmd+2" }
+        },
+        {
+          "id": "b-lp-piano",
+          "label": "ピアノロール",
+          "backgroundColor": "#0072B2",
+          "textColor": "#FFFFFF",
+          "iconText": "🎹",
+          "action": { "type": "key", "combo": "cmd+4" }
+        },
+        {
+          "id": "b-lp-loop",
+          "label": "ループBrowser",
+          "backgroundColor": "#56B4E9",
+          "textColor": "#000000",
+          "iconText": "🔎",
+          "action": { "type": "key", "combo": "cmd+0" }
+        },
+        {
+          "id": "b-lp-mixer-toggle",
+          "label": "ミキサー切替",
+          "backgroundColor": "#56B4E9",
+          "textColor": "#000000",
+          "iconText": "X",
+          "action": { "type": "key", "combo": "x" }
+        }
+      ]
+    },
+    {
+      "id": "g-lp-edit",
+      "label": "編集",
+      "buttons": [
+        {
+          "id": "b-lp-undo",
+          "label": "アンドゥ",
+          "backgroundColor": "#E69F00",
+          "textColor": "#000000",
+          "iconText": "↩",
+          "action": { "type": "key", "combo": "cmd+z" }
+        },
+        {
+          "id": "b-lp-redo",
+          "label": "リドゥ",
+          "backgroundColor": "#E69F00",
+          "textColor": "#000000",
+          "iconText": "↪",
+          "action": { "type": "key", "combo": "cmd+shift+z" }
+        },
+        {
+          "id": "b-lp-dup",
+          "label": "複製",
+          "backgroundColor": "#E69F00",
+          "textColor": "#000000",
+          "iconText": "⧉",
+          "action": { "type": "key", "combo": "cmd+d" }
+        },
+        {
+          "id": "b-lp-join",
+          "label": "結合",
+          "backgroundColor": "#E69F00",
+          "textColor": "#000000",
+          "iconText": "⊞",
+          "action": { "type": "key", "combo": "cmd+j" }
+        },
+        {
+          "id": "b-lp-bounce",
+          "label": "バウンス",
+          "backgroundColor": "#F0E442",
+          "textColor": "#000000",
+          "iconText": "💾",
+          "action": { "type": "key", "combo": "cmd+b" }
+        },
+        {
+          "id": "b-lp-quantize",
+          "label": "クォンタイズ",
+          "backgroundColor": "#F0E442",
+          "textColor": "#000000",
+          "iconText": "⏱",
+          "action": { "type": "key", "combo": "q" }
+        },
+        {
+          "id": "b-lp-snap",
+          "label": "スナップ切替",
+          "backgroundColor": "#F0E442",
+          "textColor": "#000000",
+          "iconText": "🧲",
+          "action": { "type": "key", "combo": "cmd+g" }
+        }
+      ]
+    },
+    {
+      "id": "g-lp-tool",
+      "label": "ツール",
+      "buttons": [
+        {
+          "id": "b-lp-tool-pointer",
+          "label": "ポインター",
+          "backgroundColor": "#CC79A7",
+          "textColor": "#000000",
+          "iconText": "↖",
+          "action": { "type": "key", "combo": "1" }
+        },
+        {
+          "id": "b-lp-tool-pencil",
+          "label": "鉛筆",
+          "backgroundColor": "#CC79A7",
+          "textColor": "#000000",
+          "iconText": "✏",
+          "action": { "type": "key", "combo": "2" }
+        },
+        {
+          "id": "b-lp-tool-eraser",
+          "label": "消しゴム",
+          "backgroundColor": "#CC79A7",
+          "textColor": "#000000",
+          "iconText": "⌫",
+          "action": { "type": "key", "combo": "3" }
+        },
+        {
+          "id": "b-lp-tool-scissors",
+          "label": "鋏",
+          "backgroundColor": "#CC79A7",
+          "textColor": "#000000",
+          "iconText": "✂",
+          "action": { "type": "key", "combo": "7" }
+        },
+        {
+          "id": "b-lp-tool-glue",
+          "label": "グルー",
+          "backgroundColor": "#CC79A7",
+          "textColor": "#000000",
+          "iconText": "🔗",
+          "action": { "type": "key", "combo": "8" }
+        },
+        {
+          "id": "b-lp-toolbox",
+          "label": "ツールBOX",
+          "backgroundColor": "#4A0066",
+          "textColor": "#FFFFFF",
+          "iconText": "🧰",
+          "action": { "type": "key", "combo": "t" }
+        }
+      ]
+    }
+  ]
+}

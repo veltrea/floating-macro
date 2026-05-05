@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "name": "high-contrast",
+  "displayName": "🔲 高コントラスト (弱視向け)",
+  "groups": [
+    {
+      "id": "g-hc-dark",
+      "label": "濃色背景 × 白文字 (コントラスト比 7:1 以上)",
+      "buttons": [
+        {
+          "id": "b-hc-navy",
+          "label": "濃紺 #1A1A6E",
+          "backgroundColor": "#1A1A6E",
+          "textColor": "#FFFFFF",
+          "iconText": "🟦",
+          "action": { "type": "text", "content": "#1A1A6E", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-hc-darkgreen",
+          "label": "濃緑 #0D4F1C",
+          "backgroundColor": "#0D4F1C",
+          "textColor": "#FFFFFF",
+          "iconText": "🟩",
+          "action": { "type": "text", "content": "#0D4F1C", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-hc-darkred",
+          "label": "深紅 #8B0000",
+          "backgroundColor": "#8B0000",
+          "textColor": "#FFFFFF",
+          "iconText": "🟥",
+          "action": { "type": "text", "content": "#8B0000", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-hc-darkpurple",
+          "label": "濃紫 #4A0066",
+          "backgroundColor": "#4A0066",
+          "textColor": "#FFFFFF",
+          "iconText": "🟪",
+          "action": { "type": "text", "content": "#4A0066", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-hc-nearblack",
+          "label": "ほぼ黒 #111111",
+          "backgroundColor": "#111111",
+          "textColor": "#FFFFFF",
+          "iconText": "⬛",
+          "action": { "type": "text", "content": "#111111", "pasteDelayMs": 80, "restoreClipboard": true }
+        },
+        {
+          "id": "b-hc-amber",
+          "label": "濃琥珀 #7B4000",
+          "backgroundColor": "#7B4000",
+          "textColor": "#FFFFFF",
+          "iconText": "🟫",
+          "action": { "type": "text", "content": "#7B4000", "pasteDelayMs": 80, "restoreClipboard": true }
+        }
+      ]
+    }
+  ]
+}

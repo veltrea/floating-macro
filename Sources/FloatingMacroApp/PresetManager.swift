@@ -1,0 +1,1096 @@
+import Foundation
+import FloatingMacroCore
+
+/// User-facing summary of a preset on disk: the file ID (`name`) and the
+/// human-readable label (`displayName`). UI code should iterate over these
+/// rather than calling `listPresets()` and looking up display names by hand.
+struct PresetEntry: Identifiable, Equatable {
+    let name: String
+    let displayName: String
+    var id: String { name }
+}
+
+final class PresetManager: ObservableObject {
+    @Published var currentPreset: Preset?
+    @Published var appConfig: AppConfig?
+    @Published var errorMessage: String?
+    /// Cached list of (name, displayName) pairs for the preset directory.
+    /// Refreshed on create / delete / rename and on initial load. UI binds
+    /// to this so SwiftUI re-renders the picker when the set changes.
+    @Published var presetEntries: [PresetEntry] = []
+    /// True if the macOS Accessibility permission is currently granted to
+    /// this binary. Polled (not pushed) because there is no notification
+    /// when the user toggles the permission. Drives a persistent panel
+    /// banner so the user notices the silent-failure state where logs say
+    /// "Text injected" but CGEvent.post is dropped at the OS level.
+    ///
+    /// 初期値は false。AccessibilityChecker.isTrusted を init 時に評価すると、
+    /// AXIsProcessTrusted() の stale TRUE キャッシュ (prompt: true 呼出後や
+    /// tccutil reset 後に短時間続く) を拾って「許可済み」と誤判定し、
+    /// 起動直後だけバナーが消える事故が起きる。3 秒の polling サイクルで
+    /// すぐ実値に追従するので、初期値 false で開始する方が安全。
+    @Published var accessibilityTrusted: Bool = false
+    private var accessibilityPollTimer: Timer?
+    /// Monotonic counter used to request the SF Symbol picker sheet from
+    /// outside SwiftUI (e.g. from the control API). Any view that wants to
+    /// react observes this and opens the picker on value change.
+    @Published var sfPickerRequestNonce: Int = 0
+
+    /// Monotonic counter for requesting the app icon picker sheet.
+    @Published var appIconPickerRequestNonce: Int = 0
+
+    /// Request the SettingsView to programmatically select a button. Set by
+    /// SettingsWindowController.show(selectButtonId:) or by code paths that
+    /// want to jump straight to "edit this particular button". Consumed by
+    /// SettingsView, which clears it back to nil.
+    @Published var externalSelectButtonRequest: String? = nil
+    @Published var externalSelectGroupRequest: String? = nil
+
+    /// Request to change the action type in ButtonEditor.
+    /// Set to a value like "text", "key", "launch", "terminal" to trigger the change.
+    @Published var externalActionTypeRequest: String? = nil
+
+    private let loader: ConfigLoader
+    private let writer: ConfigWriter
+    private var directoryWatcher: PresetDirectoryWatcher?
+
+    /// Monotonic token for the currently-displayed transient error. A new
+    /// error increments this so a previously-scheduled clear cannot wipe out
+    /// a fresher message.
+    private var errorMessageNonce: Int = 0
+
+    /// Set `errorMessage` and clear it after `seconds`. Use for one-shot
+    /// failures (edit/CRUD/execute). Persistent failures should set
+    /// `errorMessage` directly so they remain visible.
+    func showTransientError(_ message: String, clearAfter seconds: TimeInterval = 4) {
+        errorMessageNonce &+= 1
+        let token = errorMessageNonce
+        errorMessage = message
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            await MainActor.run { [weak self] in
+                guard let self, self.errorMessageNonce == token else { return }
+                self.errorMessage = nil
+            }
+        }
+    }
+
+    init() {
+        self.loader = ConfigLoader()
+        self.writer = ConfigWriter()
+    }
+
+    func loadInitialConfig() {
+        // デフォルト設定がなければ作成
+        do {
+            try writer.writeDefaultConfigIfNeeded()
+        } catch {
+            errorMessage = "設定初期化に失敗: \(error.localizedDescription)"
+        }
+
+        // config.json 読み込み
+        do {
+            appConfig = try loader.loadAppConfig()
+        } catch {
+            appConfig = AppConfig()
+        }
+
+        // 同梱プリセット (MidJourney 用 / note.com ハッシュタグ等) を初回限り
+        // ユーザーの presets/ にコピーする。同名ファイルが既にある場合は
+        // 個別に skip するので、再インストールで残骸が残っているケースでも
+        // ユーザーの編集を上書きしない。
+        installSeedPresetsIfNeeded()
+
+        // アクティブプリセット読み込み
+        loadActivePreset()
+        refreshPresetEntries()
+        startDirectoryWatcher()
+        startAccessibilityPolling()
+    }
+
+    /// First-run only: copy bundled seed presets into the user's directory
+    /// and persist a `seedInstalled` marker on AppConfig so subsequent
+    /// launches skip the pass. Errors are logged but never block app
+    /// startup.
+    ///
+    /// The bundled install runs synchronously so the panel is never empty.
+    /// After it succeeds we kick off a background refresh against the
+    /// public preset catalog (`github.com/veltrea/floating-macro-preset`)
+    /// to overwrite the just-installed bundled copies with whatever newer
+    /// revisions the catalog ships. The refresh is best-effort: offline
+    /// users keep the bundled copies and notice nothing.
+    private func installSeedPresetsIfNeeded() {
+        guard var cfg = appConfig, cfg.seedInstalled == false else { return }
+        let installer = SeedPresetInstaller()
+        do {
+            _ = try installer.install(force: false)
+            cfg.seedInstalled = true
+            try writer.saveAppConfig(cfg)
+            appConfig = cfg
+        } catch {
+            LoggerContext.shared.error("PresetManager",
+                "Seed install failed", ["error": String(describing: error)])
+            return
+        }
+        refreshSeedsFromCatalogInBackground()
+    }
+
+    /// Background catalog refresh. Runs once after the bundled seed install
+    /// on first launch. Any failure is logged and ignored — the bundled
+    /// seeds already on disk remain valid. UI is refreshed on the main
+    /// thread once the refresh finishes (the directory watcher would also
+    /// catch this, but an explicit refresh avoids racing with it).
+    private func refreshSeedsFromCatalogInBackground() {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self else { return }
+            let installer = SeedPresetInstaller()
+            let refreshed = installer.refreshFromCatalog()
+            guard !refreshed.isEmpty else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.refreshPresetEntries()
+                self.loadActivePreset()
+            }
+        }
+    }
+
+    /// Force-install bundled seed presets (e.g. user wiped MidJourney
+    /// and wants the original back). Returns the (installed, skipped)
+    /// pair. `force` overwrites existing files; the default false flag
+    /// preserves user edits.
+    @discardableResult
+    func reinstallSeedPresets(force: Bool) -> SeedPresetInstaller.Result? {
+        let installer = SeedPresetInstaller()
+        do {
+            let result = try installer.install(force: force)
+            refreshPresetEntries()
+            return result
+        } catch {
+            showTransientError("同梱プリセット再インストールに失敗: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// Start watching the presets directory for external changes (Finder
+    /// drag-and-drop, manual delete, etc.). Idempotent — safe to call
+    /// Poll the OS Accessibility-trust state. There is no notification
+    /// for grant/revoke transitions, so we sample on a coarse cadence —
+    /// 3s is fast enough that a user toggling permission in System
+    /// Settings sees the badge clear before they switch back.
+    private func startAccessibilityPolling() {
+        accessibilityPollTimer?.invalidate()
+        accessibilityPollTimer = Timer.scheduledTimer(withTimeInterval: 3.0,
+                                                      repeats: true) { [weak self] _ in
+            guard let self else { return }
+            let now = AccessibilityChecker.isTrusted(prompt: false)
+            if now != self.accessibilityTrusted {
+                self.accessibilityTrusted = now
+                LoggerContext.shared.info("Accessibility",
+                    "trust state changed", ["trusted": String(now)])
+            }
+        }
+    }
+
+    /// multiple times during config reload.
+    private func startDirectoryWatcher() {
+        directoryWatcher?.stop()
+        // Ensure the directory exists so open() succeeds. ensureDirectories
+        // is also called by writeDefaultConfigIfNeeded but we play safe.
+        try? loader.ensureDirectories()
+        let watcher = PresetDirectoryWatcher(path: loader.presetsURL.path) { [weak self] in
+            self?.handleDirectoryChange()
+        }
+        watcher.start()
+        directoryWatcher = watcher
+    }
+
+    /// Called when the watcher detects a filesystem change. Re-scans the
+    /// directory and falls back to `default` if the active preset's file
+    /// disappeared (e.g. Finder delete).
+    private func handleDirectoryChange() {
+        refreshPresetEntries()
+        if let active = appConfig?.activePreset,
+           !presetEntries.contains(where: { $0.name == active }) {
+            appConfig?.activePreset = "default"
+            if let c = appConfig { try? writer.saveAppConfig(c) }
+            loadActivePreset()
+        } else {
+            loadActivePreset()
+        }
+    }
+
+    /// Re-scan the presets directory and refresh `presetEntries`. Loading
+    /// each file just to extract `displayName` is acceptable for the
+    /// expected preset count (tens, not thousands); cache invalidation on
+    /// create / delete / rename keeps the UI in sync.
+    ///
+    /// The display order is composed from `appConfig.presetOrder` first
+    /// (filtering out any names that no longer exist on disk), then any
+    /// names not in that list appended in alphabetical order. This keeps
+    /// externally added presets (Finder drop, manual file copy) visible
+    /// without losing the user's explicit ordering.
+    /// If the on-disk order needed normalization (stale or missing entries),
+    /// `appConfig.presetOrder` is self-healed and persisted.
+    func refreshPresetEntries() {
+        let onDisk = (try? loader.listPresets()) ?? []
+        let onDiskSet = Set(onDisk)
+        let saved = appConfig?.presetOrder ?? []
+
+        var ordered: [String] = []
+        var seen = Set<String>()
+        for name in saved where onDiskSet.contains(name) && !seen.contains(name) {
+            ordered.append(name)
+            seen.insert(name)
+        }
+        for name in onDisk.sorted() where !seen.contains(name) {
+            ordered.append(name)
+            seen.insert(name)
+        }
+
+        presetEntries = ordered.map { name in
+            let display = (try? loader.loadPreset(name: name).displayName) ?? name
+            return PresetEntry(name: name, displayName: display)
+        }
+
+        // Self-heal: persist the normalized order if it diverged from what was
+        // saved (stale entries removed, externally added presets appended).
+        if var cfg = appConfig, cfg.presetOrder != ordered {
+            cfg.presetOrder = ordered
+            appConfig = cfg
+            try? writer.saveAppConfig(cfg)
+        }
+    }
+
+    /// Persist a new preset display order. Names not present on disk are
+    /// dropped; missing-on-disk names are appended in alphabetical order so
+    /// the saved order always reflects reality. Returns true on success.
+    @discardableResult
+    func reorderPresets(ids: [String]) -> Bool {
+        guard var cfg = appConfig else { return false }
+        let onDisk = Set((try? loader.listPresets()) ?? [])
+        var normalized: [String] = []
+        var seen = Set<String>()
+        for name in ids where onDisk.contains(name) && !seen.contains(name) {
+            normalized.append(name)
+            seen.insert(name)
+        }
+        for name in onDisk.sorted() where !seen.contains(name) {
+            normalized.append(name)
+            seen.insert(name)
+        }
+        cfg.presetOrder = normalized
+        do {
+            try writer.saveAppConfig(cfg)
+            appConfig = cfg
+            refreshPresetEntries()
+            return true
+        } catch {
+            showTransientError("プリセット並べ替えに失敗: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Smallest unused `preset-N` (N starting at 1). Skips holes so that
+    /// re-installs with leftover files still pick up clean numbering.
+    func nextPresetName() -> String {
+        let existing = Set(listPresets())
+        var n = 1
+        while existing.contains("preset-\(n)") {
+            n += 1
+        }
+        return "preset-\(n)"
+    }
+
+    /// Phase 3 で導入。複数パネルが別々のプリセットを表示するためのオンデマンドキャッシュ。
+    /// 1 つのプリセットは複数パネルから共有される可能性があり、編集 (`editActivePreset`)
+    /// で更新されたら全パネルの ContentHostView が即座に再描画されるよう @Published。
+    @Published var loadedPresets: [String: Preset] = [:]
+
+    /// Reload preset content from disk. Phase 3 (v0.12) では複数パネルが
+    /// 別々のプリセットを表示するため、`activePreset` だけでなく `loadedPresets`
+    /// の全エントリを再読込する。`currentPreset` (編集ターゲット) は自身の
+    /// 名前を維持し、その名前で再読込されたインスタンスに差し替える。これに
+    /// より、panels[0] 以外のプリセットを編集 → 保存 → directory watcher が
+    /// fire したとき、currentPreset が panels[0] のプリセットに勝手に
+    /// 上書きされて編集中ボタンが見失われる Phase 3 バグを防ぐ。
+    func loadActivePreset() {
+        guard let config = appConfig else { return }
+        // 再読込対象 = (現在キャッシュ中の名前) ∪ (panels[*].presetName) ∪ (activePreset)。
+        var names: Set<String> = Set(loadedPresets.keys)
+        names.insert(config.activePreset)
+        for panel in config.panels { names.insert(panel.presetName) }
+        if let curName = currentPreset?.name { names.insert(curName) }
+
+        var newCache: [String: Preset] = [:]
+        var loadFailures: [String] = []
+        for name in names {
+            if let p = try? loader.loadPreset(name: name) {
+                newCache[name] = p
+            } else {
+                loadFailures.append(name)
+            }
+        }
+        loadedPresets = newCache
+
+        // 編集ターゲット (`currentPreset`) はその名前のまま、新しい disk 内容に差し替える。
+        // 名前自体が消えていたら `activePreset` にフォールバック。
+        if let curName = currentPreset?.name, let reloaded = newCache[curName] {
+            currentPreset = reloaded
+        } else if let p = newCache[config.activePreset] {
+            currentPreset = p
+        } else {
+            currentPreset = nil
+        }
+
+        // 失敗があれば一過性エラーとして残す (currentPreset が nil なら永続バナー)。
+        if !loadFailures.isEmpty && currentPreset == nil {
+            errorMessage = "プリセット読み込みに失敗: \(loadFailures.joined(separator: ", "))"
+        }
+    }
+
+    /// 指定名のプリセットをキャッシュから返し、無ければディスクから読み込んで
+    /// キャッシュに格納する。読み込みに失敗したら nil を返す（エラーは
+    /// `errorMessage` に出さない — 複数パネル描画中の頻繁なルックアップで
+    /// バナーが点滅するのを避けるため）。
+    func preset(named name: String) -> Preset? {
+        if let cached = loadedPresets[name] { return cached }
+        do {
+            let p = try loader.loadPreset(name: name)
+            loadedPresets[name] = p
+            return p
+        } catch {
+            return nil
+        }
+    }
+
+    /// 指定パネルが現在表示すべきプリセットを返す。複数パネル描画用。
+    func panelPreset(forPanelID id: String) -> Preset? {
+        guard let cfg = appConfig,
+              let panel = cfg.panels.first(where: { $0.id == id }) else { return nil }
+        return preset(named: panel.presetName)
+    }
+
+    func listPresets() -> [String] {
+        (try? loader.listPresets()) ?? []
+    }
+
+    /// 旧 API: プライマリパネル (panels[0]) のプリセットを切り替える。
+    /// Phase 3 移行期は内部で `switchPanelPreset(primary)` に転送し、`currentPreset`
+    /// (編集ターゲット) も同期更新する。新コードは `switchPanelPreset` 直接利用推奨。
+    func switchPreset(to name: String) {
+        guard let primaryID = appConfig?.panels.first?.id else { return }
+        switchPanelPreset(panelID: primaryID, to: name)
+    }
+
+    /// 指定パネルが表示するプリセットを切り替えて永続化。プライマリパネル
+    /// (panels[0]) を切り替えた場合は legacy `activePreset` と `currentPreset`
+    /// (編集ターゲット) も同期する。
+    func switchPanelPreset(panelID: String, to name: String) {
+        guard let cfg = appConfig else { return }
+        let next = cfg.settingPanelPreset(id: panelID, presetName: name)
+        appConfig = next
+        try? writer.saveAppConfig(next)
+        // プリセット内容をキャッシュに読み込む。パネル描画・編集どちらでも使われる。
+        if let preset = preset(named: name) {
+            loadedPresets[name] = preset
+            // プライマリパネルを切り替えた場合は `currentPreset` (編集ターゲット) も追従。
+            if panelID == next.panels.first?.id {
+                currentPreset = preset
+            }
+        }
+    }
+
+    /// 編集ターゲット (`currentPreset` / SettingsWindow) を指定パネルのプリセットに
+    /// 切り替える。Phase 3 で「複数パネルが違うプリセットを表示している状態で
+    /// 特定パネルの編集ボタンを押す」フローを成立させるためのフック。
+    func setEditTarget(panelID: String) {
+        guard let preset = panelPreset(forPanelID: panelID) else { return }
+        currentPreset = preset
+    }
+
+    /// Public trigger used by the control API.
+    func requestSFPicker() {
+        sfPickerRequestNonce &+= 1
+    }
+
+    /// Public trigger for requesting the app icon picker sheet.
+    func requestAppIconPicker() {
+        appIconPickerRequestNonce &+= 1
+    }
+
+    /// Monotonic counter used to dismiss any open picker sheet.
+    @Published var dismissPickerNonce: Int = 0
+
+    /// Public trigger to close whichever picker sheet is currently open.
+    func requestDismissPicker() {
+        dismissPickerNonce &+= 1
+    }
+
+    // MARK: - External color / commit requests
+
+    /// Carries a color request from the control API to the active editor.
+    /// `hex` = nil means "disable the color toggle".
+    struct ColorRequest: Equatable {
+        let hex: String?
+        let nonce: Int
+    }
+
+    @Published var externalBackgroundColorRequest: ColorRequest? = nil
+    @Published var externalTextColorRequest: ColorRequest? = nil
+
+    /// Monotonic counter that tells the active editor to call commit().
+    @Published var commitNonce: Int = 0
+
+    func requestSetBackgroundColor(hex: String?) {
+        externalBackgroundColorRequest = ColorRequest(hex: hex, nonce: (externalBackgroundColorRequest?.nonce ?? 0) &+ 1)
+    }
+
+    func requestSetTextColor(hex: String?) {
+        externalTextColorRequest = ColorRequest(hex: hex, nonce: (externalTextColorRequest?.nonce ?? 0) &+ 1)
+    }
+
+    func requestCommit() {
+        commitNonce &+= 1
+    }
+
+    // MARK: - External key combo / action value requests
+
+    struct KeyComboRequest: Equatable {
+        let combo: String   // e.g. "cmd+shift+v"
+        let nonce: Int
+    }
+
+    struct ActionValueRequest: Equatable {
+        let type: String    // "text" | "launch" | "terminal"
+        let value: String
+        let nonce: Int
+    }
+
+    @Published var externalKeyComboRequest: KeyComboRequest? = nil
+    @Published var externalActionValueRequest: ActionValueRequest? = nil
+
+    func requestSetKeyCombo(combo: String) {
+        externalKeyComboRequest = KeyComboRequest(
+            combo: combo,
+            nonce: (externalKeyComboRequest?.nonce ?? 0) &+ 1
+        )
+    }
+
+    func requestSetActionValue(type: String, value: String) {
+        externalActionValueRequest = ActionValueRequest(
+            type: type, value: value,
+            nonce: (externalActionValueRequest?.nonce ?? 0) &+ 1
+        )
+    }
+
+    /// Monotonic counter used to clear the button/group selection in Settings,
+    /// which closes the ButtonEditor / GroupEditor detail pane.
+    @Published var clearSelectionNonce: Int = 0
+
+    /// Public trigger to deselect the current button/group in the Settings window.
+    func requestClearSelection() {
+        clearSelectionNonce &+= 1
+    }
+
+    func setAgentMode(_ mode: AgentMode) {
+        guard var cfg = appConfig else { return }
+        cfg.controlAPI.agentMode = mode
+        appConfig = cfg
+        try? writer.saveAppConfig(cfg)
+    }
+
+    func setControlAPIEnabled(_ enabled: Bool) {
+        guard var cfg = appConfig else { return }
+        cfg.controlAPI.enabled = enabled
+        appConfig = cfg
+        try? writer.saveAppConfig(cfg)
+    }
+
+    func setControlAPIPort(_ port: Int) {
+        guard var cfg = appConfig else { return }
+        cfg.controlAPI.port = max(1024, min(65535, port))
+        appConfig = cfg
+        try? writer.saveAppConfig(cfg)
+    }
+
+    /// Clamped to [0.25, 1.0] so users can't make the panel fully invisible.
+    /// プライマリパネル (panels[0]) の透明度を変える。Phase 3 移行期は legacy
+    /// `window.opacity` も自動同期される（`AppConfig+Panels.withSyncedLegacyFields()`）。
+    func setOpacity(_ value: Double) {
+        guard let cfg = appConfig, let primaryID = cfg.panels.first?.id else { return }
+        let next = cfg.updatingPanelOpacity(id: primaryID, opacity: value)
+        appConfig = next
+        try? writer.saveAppConfig(next)
+    }
+
+    /// Persist panel geometry so the window reopens where the user left it.
+    /// Called on applicationWillTerminate and opportunistically after moves.
+    /// Phase 3 移行期: プライマリパネル (panels[0]) の frame を更新し、legacy
+    /// `window` フィールドも自動同期される。複数パネル時は `updatePanelFrame(id:)`
+    /// を使うこと。
+    func setPanelFrame(x: Double, y: Double, width: Double, height: Double) {
+        guard let cfg = appConfig, let primaryID = cfg.panels.first?.id else { return }
+        let next = cfg.updatingPanelFrame(id: primaryID, x: x, y: y, width: width, height: height)
+        appConfig = next
+        try? writer.saveAppConfig(next)
+    }
+
+    // MARK: - Phase 3: per-panel ops
+
+    /// 指定 id のパネルの frame を更新して永続化。
+    func updatePanelFrame(id: String, x: Double, y: Double,
+                          width: Double, height: Double) {
+        guard let cfg = appConfig else { return }
+        let next = cfg.updatingPanelFrame(id: id, x: x, y: y, width: width, height: height)
+        appConfig = next
+        try? writer.saveAppConfig(next)
+    }
+
+    /// 指定 id のパネルの透明度を更新して永続化。
+    func updatePanelOpacity(id: String, opacity: Double) {
+        guard let cfg = appConfig else { return }
+        let next = cfg.updatingPanelOpacity(id: id, opacity: opacity)
+        appConfig = next
+        try? writer.saveAppConfig(next)
+    }
+
+    /// 指定 id のパネルの可視状態（メニューバー show/hide）を更新。
+    func setPanelVisible(id: String, visible: Bool) {
+        guard let cfg = appConfig else { return }
+        let next = cfg.settingPanelVisible(id: id, visible: visible)
+        appConfig = next
+        try? writer.saveAppConfig(next)
+    }
+
+    /// 指定 id のパネルのスクロール位置を更新。AppKit のスクロール通知から
+    /// 高頻度 (1 ドラッグで数十〜百回) で呼ばれるため、disk 書き込みは
+    /// 350ms デバウンスで集約する。in-memory の `appConfig` は即時反映。
+    private var scrollYSaveDebouncers: [String: DispatchWorkItem] = [:]
+    func updatePanelScrollY(id: String, y: Double) {
+        guard let cfg = appConfig else { return }
+        let next = cfg.updatingPanelScrollY(id: id, scrollY: y)
+        // 値が変わっていなければ何もしない (スクロール停止中の無駄打ち防止)。
+        if cfg == next { return }
+        appConfig = next
+
+        scrollYSaveDebouncers[id]?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, let c = self.appConfig else { return }
+            try? self.writer.saveAppConfig(c)
+        }
+        scrollYSaveDebouncers[id] = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: work)
+    }
+
+    /// 新規パネルを追加。生成された id を返す（呼び出し側で NSWindow 生成に使う）。
+    @discardableResult
+    func addPanel(presetName: String, window: WindowConfig = WindowConfig()) -> String? {
+        guard let cfg = appConfig else { return nil }
+        let (next, id) = cfg.addingPanel(presetName: presetName, window: window)
+        appConfig = next
+        try? writer.saveAppConfig(next)
+        return id
+    }
+
+    /// 指定 id のパネルを削除。最後の 1 件は削除されない（Core 側で拒否）。
+    /// 削除に成功した場合 true を返す。
+    @discardableResult
+    func removePanel(id: String) -> Bool {
+        guard let cfg = appConfig else { return false }
+        let next = cfg.removingPanel(id: id)
+        guard next != cfg else { return false }
+        appConfig = next
+        try? writer.saveAppConfig(next)
+        return true
+    }
+
+    // MARK: - Preset / group / button editing
+
+    /// Apply a transform to the currently-active preset and persist.
+    /// Errors bubble through `errorMessage` for the GUI, and the function
+    /// returns whether the edit succeeded so HTTP callers can report it.
+    ///
+    /// Phase 3 fix: `loadedPresets[next.name]` も同期的に更新する。これがないと、
+    /// 編集対象が panels[0] 以外のプリセットだったとき、複数パネルが読んでいる
+    /// キャッシュが古いままになり、編集後の表示が反映されない。directory
+    /// watcher 経由の遅延 reload に頼ると "保存後にちらっと反映されない瞬間"
+    /// + "watcher 起動と currentPreset の race" の 2 つのバグの温床になる。
+    @discardableResult
+    func editActivePreset(_ transform: (Preset) throws -> Preset) -> Bool {
+        guard let preset = currentPreset else { return false }
+        do {
+            let next = try transform(preset)
+            try writer.savePreset(next)
+            currentPreset = next
+            loadedPresets[next.name] = next
+            return true
+        } catch {
+            showTransientError("編集に失敗: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    func addGroup(_ group: ButtonGroup) -> Bool {
+        editActivePreset { try PresetEditor.addGroup(group, to: $0) }
+    }
+
+    func updateGroup(id: String, label: String? = nil,
+                      icon: String?? = nil, iconText: String?? = nil,
+                      backgroundColor: String?? = nil, textColor: String?? = nil,
+                      tooltip: String?? = nil, collapsed: Bool? = nil,
+                      displayType: GroupDisplayType? = nil) -> Bool {
+        editActivePreset { preset in
+            try PresetEditor.updateGroup(groupId: id, in: preset) { g in
+                g.patch(label: label, icon: icon, iconText: iconText,
+                        backgroundColor: backgroundColor, textColor: textColor,
+                        tooltip: tooltip, collapsed: collapsed,
+                        displayType: displayType)
+            }
+        }
+    }
+
+    func deleteGroup(id: String) -> Bool {
+        editActivePreset { try PresetEditor.deleteGroup(groupId: id, from: $0) }
+    }
+
+    func addButton(_ button: ButtonDefinition, toGroupId: String) -> Bool {
+        editActivePreset { try PresetEditor.addButton(button, toGroupId: toGroupId, in: $0) }
+    }
+
+    func updateButton(id: String,
+                      label: String?,
+                      icon: String??,
+                      iconText: String??,
+                      backgroundColor: String??,
+                      textColor: String??,
+                      width: Double??,
+                      height: Double??,
+                      tooltip: String??,
+                      confirm: Bool? = nil,
+                      confirmMessage: String?? = nil,
+                      confirmDestructive: Bool? = nil,
+                      thumbnail: String?? = nil,
+                      action: Action?) -> Bool {
+        editActivePreset { preset in
+            try PresetEditor.updateButton(buttonId: id, in: preset) { b in
+                b.patch(label: label,
+                        icon: icon,
+                        iconText: iconText,
+                        backgroundColor: backgroundColor,
+                        textColor: textColor,
+                        width: width,
+                        height: height,
+                        tooltip: tooltip,
+                        confirm: confirm,
+                        confirmMessage: confirmMessage,
+                        confirmDestructive: confirmDestructive,
+                        thumbnail: thumbnail,
+                        action: action)
+            }
+        }
+    }
+
+    func deleteButton(id: String) -> Bool {
+        editActivePreset { try PresetEditor.deleteButton(buttonId: id, from: $0) }
+    }
+
+    /// Duplicate a group in-place with all its buttons. Each button gets a
+    /// fresh id; the new group is inserted right after the source group.
+    /// Returns the new group's id on success, nil otherwise.
+    @discardableResult
+    func duplicateGroup(id: String) -> String? {
+        guard let preset = currentPreset,
+              let src = preset.groups.first(where: { $0.id == id }) else { return nil }
+
+        let newGroupId = "g-\(Int.random(in: 10000...99999))"
+        let copiedButtons = src.buttons.map { b in
+            ButtonDefinition(
+                id: "b-\(Int.random(in: 10000...99999))",
+                label: b.label,
+                icon: b.icon,
+                iconText: b.iconText,
+                backgroundColor: b.backgroundColor,
+                width: b.width,
+                height: b.height,
+                tooltip: b.tooltip,
+                confirm: b.confirm,
+                confirmMessage: b.confirmMessage,
+                confirmDestructive: b.confirmDestructive,
+                action: b.action
+            )
+        }
+        let copy = ButtonGroup(
+            id: newGroupId,
+            label: "\(src.label) のコピー",
+            icon: src.icon,
+            iconText: src.iconText,
+            backgroundColor: src.backgroundColor,
+            textColor: src.textColor,
+            tooltip: src.tooltip,
+            collapsed: src.collapsed,
+            buttons: copiedButtons
+        )
+        guard addGroup(copy) else { return nil }
+
+        // Move the new group to right after the source group.
+        var ids = (currentPreset?.groups.map { $0.id }) ?? []
+        ids.removeAll { $0 == newGroupId }
+        if let i = ids.firstIndex(of: id) {
+            ids.insert(newGroupId, at: i + 1)
+            _ = reorderGroups(ids: ids)
+        }
+        return newGroupId
+    }
+
+    /// Duplicate a button in-place. The copy is appended to the same group,
+    /// gets a fresh id, and has " copy" appended to the label. Returns the
+    /// new button's id if the operation succeeded, nil otherwise.
+    @discardableResult
+    func duplicateButton(id: String) -> String? {
+        guard let preset = currentPreset else { return nil }
+        // Find the source button and its group.
+        var sourceGroup: ButtonGroup?
+        var sourceButton: ButtonDefinition?
+        for group in preset.groups {
+            if let b = group.buttons.first(where: { $0.id == id }) {
+                sourceGroup = group
+                sourceButton = b
+                break
+            }
+        }
+        guard let group = sourceGroup, let src = sourceButton else { return nil }
+
+        let newId = "b-\(Int.random(in: 10000...99999))"
+        let copy = ButtonDefinition(
+            id: newId,
+            label: "\(src.label) のコピー",
+            icon: src.icon,
+            iconText: src.iconText,
+            backgroundColor: src.backgroundColor,
+            width: src.width,
+            height: src.height,
+            tooltip: src.tooltip,
+            confirm: src.confirm,
+            confirmMessage: src.confirmMessage,
+            confirmDestructive: src.confirmDestructive,
+            action: src.action
+        )
+        let ok = addButton(copy, toGroupId: group.id)
+        return ok ? newId : nil
+    }
+
+    func reorderButtons(ids: [String], inGroupId: String) -> Bool {
+        editActivePreset {
+            try PresetEditor.reorderButtons(ids: ids, inGroupId: inGroupId, in: $0)
+        }
+    }
+
+    func reorderGroups(ids: [String]) -> Bool {
+        editActivePreset {
+            try PresetEditor.reorderGroups(ids: ids, in: $0)
+        }
+    }
+
+    func moveButton(id: String, toGroupId: String, at position: Int?) -> Bool {
+        editActivePreset {
+            try PresetEditor.moveButton(buttonId: id, toGroupId: toGroupId,
+                                        at: position, in: $0)
+        }
+    }
+
+    /// Create a new empty preset file. Refuses to overwrite an existing
+    /// file — callers that want a fresh internal id should pass
+    /// `nextPresetName()`.
+    /// `memo` is optional; pass non-nil to seed a usage note on creation
+    /// (mostly used by ACP `preset_create` so AI agents can write the memo
+    /// at the same time they create the preset).
+    func createPreset(name: String, displayName: String, memo: String? = nil) -> Bool {
+        let url = loader.presetsURL.appendingPathComponent("\(name).json")
+        if FileManager.default.fileExists(atPath: url.path) {
+            showTransientError("プリセット作成に失敗: \(name) は既に存在します")
+            return false
+        }
+        let trimmed = memo?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedMemo: String? = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        let preset = Preset(name: name, displayName: displayName,
+                            memo: normalizedMemo, groups: [])
+        do {
+            try writer.savePreset(preset)
+            appendToPresetOrder([name])
+            refreshPresetEntries()
+            return true
+        } catch {
+            showTransientError("プリセット作成に失敗: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Append the given preset names to `appConfig.presetOrder` so newly
+    /// created or imported presets land at the bottom of the user's
+    /// chosen order (instead of being mixed alphabetically with other
+    /// unknown names by the self-heal pass).
+    private func appendToPresetOrder(_ names: [String]) {
+        guard var cfg = appConfig else { return }
+        let existing = Set(cfg.presetOrder)
+        let toAppend = names.filter { !existing.contains($0) }
+        guard !toAppend.isEmpty else { return }
+        cfg.presetOrder.append(contentsOf: toAppend)
+        appConfig = cfg
+        try? writer.saveAppConfig(cfg)
+    }
+
+    func renamePreset(name: String, displayName: String) -> Bool {
+        guard let p = (try? loader.loadPreset(name: name)) else { return false }
+        let next = PresetEditor.renameDisplayName(displayName, of: p)
+        do {
+            try writer.savePreset(next)
+            if currentPreset?.name == name { currentPreset = next }
+            // Phase 3: 表示中のキャッシュも同期。既存パネルの即時再描画用。
+            if loadedPresets[name] != nil { loadedPresets[name] = next }
+            refreshPresetEntries()
+            return true
+        } catch {
+            showTransientError("プリセット名変更に失敗: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    @discardableResult
+    func updatePresetMemo(name: String, memo: String?) -> Bool {
+        guard let p = (try? loader.loadPreset(name: name)) else { return false }
+        let next = PresetEditor.updateMemo(memo, of: p)
+        do {
+            try writer.savePreset(next)
+            if currentPreset?.name == name { currentPreset = next }
+            // Phase 3: 表示中のキャッシュも同期。
+            if loadedPresets[name] != nil { loadedPresets[name] = next }
+            return true
+        } catch {
+            showTransientError("メモ保存に失敗: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    // MARK: - Export / Import
+
+    /// Encode a single preset as JSON bytes for export. Returns nil if the
+    /// preset cannot be loaded.
+    func exportPresetData(name: String) -> Data? {
+        guard let preset = try? loader.loadPreset(name: name) else { return nil }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try? encoder.encode(preset)
+    }
+
+    /// Encode every preset as a `PresetBundle` JSON for backup or
+    /// distribution. The `default` preset is included.
+    func exportAllPresetsData() -> Data? {
+        let names = (try? loader.listPresets()) ?? []
+        let presets = names.compactMap { try? loader.loadPreset(name: $0) }
+        let bundle = PresetBundle(presets: presets)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try? encoder.encode(bundle)
+    }
+
+    /// Import one or more presets from a JSON file. Auto-detects whether
+    /// the file is a single `Preset` or a `PresetBundle`. Each imported
+    /// preset gets a fresh internal id via `nextPresetName()` so existing
+    /// files are never overwritten. Returns the number of imported presets.
+    @discardableResult
+    func importPresets(from url: URL) -> Int {
+        let decoder = JSONDecoder()
+        guard let data = try? Data(contentsOf: url) else {
+            showTransientError("インポートに失敗: ファイルを読み込めません")
+            return 0
+        }
+        let presets: [Preset]
+        if let bundle = try? decoder.decode(PresetBundle.self, from: data) {
+            presets = bundle.presets
+        } else if let single = try? decoder.decode(Preset.self, from: data) {
+            presets = [single]
+        } else {
+            showTransientError("インポートに失敗: JSON 形式が不正です")
+            return 0
+        }
+        var imported = 0
+        var importedNames: [String] = []
+        for source in presets {
+            let newName = nextPresetName()
+            let copy = Preset(
+                version: source.version,
+                name: newName,
+                displayName: source.displayName,
+                groups: source.groups
+            )
+            do {
+                try writer.savePreset(copy)
+                imported += 1
+                importedNames.append(newName)
+            } catch {
+                LoggerContext.shared.error("PresetManager",
+                    "Failed to save imported preset",
+                    ["name": newName, "error": String(describing: error)])
+            }
+        }
+        if imported > 0 {
+            appendToPresetOrder(importedNames)
+            refreshPresetEntries()
+        }
+        return imported
+    }
+
+    func deletePreset(name: String) -> Bool {
+        let url = loader.presetsURL.appendingPathComponent("\(name).json")
+        do {
+            try FileManager.default.removeItem(at: url)
+        } catch {
+            showTransientError("プリセット削除に失敗: \(error.localizedDescription)")
+            return false
+        }
+        if appConfig?.activePreset == name {
+            appConfig?.activePreset = "default"
+            if let c = appConfig { try? writer.saveAppConfig(c) }
+            loadActivePreset()
+        }
+        refreshPresetEntries()
+        return true
+    }
+
+    func executeButton(_ button: ButtonDefinition) {
+        let blacklist = appConfig?.commandBlacklist
+        Task.detached {
+            do {
+                let onBlocked: MacroRunner.BlockedCommandHandler = { pattern, text in
+                    await MainActor.run {
+                        CommandConfirmation.askProceed(pattern: pattern, text: text)
+                    }
+                }
+                try await Self.executeAction(button.action, blacklist: blacklist, onBlocked: onBlocked)
+            } catch {
+                let msg: String
+                if case ActionError.commandBlocked(let pattern) = error {
+                    msg = "\(button.label) — キャンセル: 禁止パターン「\(pattern)」"
+                } else {
+                    msg = "\(button.label) 実行失敗: \(error)"
+                }
+                await MainActor.run {
+                    self.showTransientError(msg, clearAfter: 3)
+                }
+            }
+        }
+    }
+
+    func setCommandBlacklistEnabled(_ enabled: Bool) {
+        guard var cfg = appConfig else { return }
+        cfg.commandBlacklist.enabled = enabled
+        appConfig = cfg
+        try? writer.saveAppConfig(cfg)
+    }
+
+    func setCommandBlacklistPatterns(_ patterns: [String]) {
+        guard var cfg = appConfig else { return }
+        cfg.commandBlacklist.patterns = patterns
+        appConfig = cfg
+        try? writer.saveAppConfig(cfg)
+    }
+
+    /// Enables autopilot mode after verifying the passphrase.
+    /// Returns `false` if the passphrase is wrong or no password is set.
+    @discardableResult
+    func enableAutopilot(passphrase: String) -> Bool {
+        guard var cfg = appConfig,
+              let storedHash = cfg.commandBlacklist.autopilotPasswordHash else { return false }
+        guard CommandConfirmation.verify(passphrase: passphrase, against: storedHash) else { return false }
+        cfg.commandBlacklist.autopilotEnabled = true
+        appConfig = cfg
+        try? writer.saveAppConfig(cfg)
+        return true
+    }
+
+    func disableAutopilot() {
+        guard var cfg = appConfig else { return }
+        cfg.commandBlacklist.autopilotEnabled = false
+        appConfig = cfg
+        try? writer.saveAppConfig(cfg)
+    }
+
+    /// Sets or changes the autopilot passphrase. Requires the old passphrase
+    /// when one is already stored. Pass `nil` for `oldPassphrase` when setting
+    /// for the first time.
+    /// Returns `false` if `oldPassphrase` verification fails.
+    @discardableResult
+    func setAutopilotPassword(oldPassphrase: String?, newPassphrase: String) -> Bool {
+        guard var cfg = appConfig else { return false }
+        if let storedHash = cfg.commandBlacklist.autopilotPasswordHash {
+            // A password is already set — require the old one.
+            guard let old = oldPassphrase,
+                  CommandConfirmation.verify(passphrase: old, against: storedHash) else { return false }
+        }
+        cfg.commandBlacklist.autopilotPasswordHash = CommandConfirmation.hash(newPassphrase)
+        // Disable autopilot when password changes so the user must re-enable.
+        cfg.commandBlacklist.autopilotEnabled = false
+        appConfig = cfg
+        try? writer.saveAppConfig(cfg)
+        return true
+    }
+
+    private static func executeAction(_ action: Action,
+                                      blacklist: CommandBlacklist?,
+                                      onBlocked: MacroRunner.BlockedCommandHandler?) async throws {
+        // Blacklist check for direct terminal/text actions.
+        // MacroRunner handles sub-actions of .macro via the same onBlocked closure.
+        if let bl = blacklist, !bl.autopilotEnabled {
+            switch action {
+            case .terminal(_, let command, _, _, _):
+                if let pattern = CommandGuard.check(command, against: bl) {
+                    if let handler = onBlocked {
+                        let proceed = await handler(pattern, command)
+                        if !proceed { throw ActionError.commandBlocked(pattern: pattern) }
+                    } else {
+                        throw ActionError.commandBlocked(pattern: pattern)
+                    }
+                }
+            case .text(let content, _, _, _):
+                if let pattern = CommandGuard.check(content, against: bl) {
+                    if let handler = onBlocked {
+                        let proceed = await handler(pattern, content)
+                        if !proceed { throw ActionError.commandBlocked(pattern: pattern) }
+                    } else {
+                        throw ActionError.commandBlocked(pattern: pattern)
+                    }
+                }
+            default: break
+            }
+        }
+
+        switch action {
+        case .key(let combo):
+            let kc = try KeyCombo.parse(combo)
+            try KeyActionExecutor.execute(kc)
+
+        case .text(let content, let pasteDelayMs, let restoreClipboard, let appendMode):
+            try TextActionExecutor.execute(
+                content: content, pasteDelayMs: pasteDelayMs,
+                restoreClipboard: restoreClipboard,
+                appendMode: appendMode
+            )
+
+        case .launch(let target):
+            try LaunchActionExecutor.execute(target: target)
+
+        case .terminal(let app, let command, let newWindow, let execute, let profile):
+            try TerminalActionExecutor.execute(
+                app: app, command: command, newWindow: newWindow,
+                execute: execute, profile: profile
+            )
+
+        case .delay(let ms):
+            try await Task.sleep(nanoseconds: UInt64(ms) * 1_000_000)
+
+        case .macro(let actions, let stopOnError):
+            try await MacroRunner.run(actions: actions, stopOnError: stopOnError,
+                                      blacklist: blacklist, onBlocked: onBlocked)
+        }
+    }
+}

@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "name": "accessibility",
+  "displayName": "⏻ 電源・ロック",
+  "memo": "電源・スリープ・ロック・強制終了をボタン化したパネル。視線入力 / Switch Control / 音声操作などで「物理キーを押すのが大変」なユーザー向けに、ショートカットを覚えなくても常駐パネルから 1 押しで届くようにした構成。\n\n使う前に確認:\n\n• 再起動 / シャットダウン / ログアウトは初回押下時に macOS が「FloatingMacro が System Events を制御することを許可しますか?」というダイアログを 1 回だけ表示する → 許可してから実用可能になる\n• 上記 3 ボタンは「実行前の確認ダイアログ」付き。視線入力でも誤発火しないよう、実行ボタンは赤い destructive スタイル + デフォルトボタンはキャンセル側に固定\n• 「強制終了ダイアログ」は Force Quit Application のリストを開くだけで、実際にアプリを終了はしない（一覧から選んで終了)\n• 「画面オフ」はスリープではなくディスプレイだけ消す挙動 (バックグラウンド処理は継続)",
+  "groups": [
+    {
+      "id": "g-a11y-rest",
+      "label": "ロック / スリープ",
+      "buttons": [
+        {
+          "id": "b-a11y-lock",
+          "label": "画面ロック",
+          "backgroundColor": "#0072B2",
+          "textColor": "#FFFFFF",
+          "iconText": "🔒",
+          "tooltip": "ctrl + cmd + q を送出してロック画面に切り替える",
+          "action": { "type": "key", "combo": "ctrl+cmd+q" }
+        },
+        {
+          "id": "b-a11y-sleep",
+          "label": "スリープ",
+          "backgroundColor": "#0072B2",
+          "textColor": "#FFFFFF",
+          "iconText": "💤",
+          "tooltip": "Mac 全体をスリープさせる (pmset sleepnow)",
+          "action": { "type": "launch", "target": "shell:pmset sleepnow" }
+        },
+        {
+          "id": "b-a11y-display-sleep",
+          "label": "画面オフ",
+          "backgroundColor": "#56B4E9",
+          "textColor": "#000000",
+          "iconText": "🌑",
+          "tooltip": "ディスプレイだけ消す (バックグラウンド処理は継続) — pmset displaysleepnow",
+          "action": { "type": "launch", "target": "shell:pmset displaysleepnow" }
+        }
+      ]
+    },
+    {
+      "id": "g-a11y-power",
+      "label": "電源系 (要確認)",
+      "buttons": [
+        {
+          "id": "b-a11y-restart",
+          "label": "再起動",
+          "backgroundColor": "#D55E00",
+          "textColor": "#FFFFFF",
+          "iconText": "🔁",
+          "tooltip": "Mac を再起動。確認ダイアログ付き、保存していない作業は失われる",
+          "confirm": true,
+          "confirmMessage": "Mac を再起動します。保存していない作業はすべて失われます。",
+          "confirmDestructive": true,
+          "action": {
+            "type": "launch",
+            "target": "shell:osascript -e 'tell application \"System Events\" to restart'"
+          }
+        },
+        {
+          "id": "b-a11y-shutdown",
+          "label": "シャットダウン",
+          "backgroundColor": "#D55E00",
+          "textColor": "#FFFFFF",
+          "iconText": "⏻",
+          "tooltip": "Mac の電源を切る。確認ダイアログ付き、保存していない作業は失われる",
+          "confirm": true,
+          "confirmMessage": "Mac をシャットダウンします。保存していない作業はすべて失われます。",
+          "confirmDestructive": true,
+          "action": {
+            "type": "launch",
+            "target": "shell:osascript -e 'tell application \"System Events\" to shut down'"
+          }
+        },
+        {
+          "id": "b-a11y-logout",
+          "label": "ログアウト",
+          "backgroundColor": "#E69F00",
+          "textColor": "#000000",
+          "iconText": "🚪",
+          "tooltip": "現在のユーザーをログアウト。確認ダイアログ付き、保存していない作業は失われる",
+          "confirm": true,
+          "confirmMessage": "現在のユーザーをログアウトします。保存していない作業はすべて失われます。",
+          "confirmDestructive": true,
+          "action": {
+            "type": "launch",
+            "target": "shell:osascript -e 'tell application \"System Events\" to log out'"
+          }
+        }
+      ]
+    },
+    {
+      "id": "g-a11y-emergency",
+      "label": "緊急",
+      "buttons": [
+        {
+          "id": "b-a11y-force-quit-dialog",
+          "label": "強制終了ダイアログ",
+          "backgroundColor": "#F0E442",
+          "textColor": "#000000",
+          "iconText": "⚠",
+          "tooltip": "cmd + option + esc を送出して Force Quit のアプリ一覧を開く (フリーズしたアプリの強制終了用)",
+          "action": { "type": "key", "combo": "cmd+option+escape" }
+        }
+      ]
+    }
+  ]
+}

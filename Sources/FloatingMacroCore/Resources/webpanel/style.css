@@ -1,0 +1,202 @@
+/* FloatingMacro Web Panel — Phase 5
+ * iOS Safari / iPad / モバイル Chrome を主対象にしたタッチ UI。
+ * 配色は Stream Deck のソフトボタン UI に近い、暗背景＋カラフルなボタン。
+ */
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+               "Helvetica Neue", Arial, sans-serif;
+  background: #1c1c1e;
+  color: #f5f5f7;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: env(safe-area-inset-top, 12px) 16px 12px 16px;
+  padding-top: max(env(safe-area-inset-top, 12px), 12px);
+  background: #2c2c2e;
+  border-bottom: 1px solid #3a3a3c;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+header .title {
+  font-weight: 600;
+  font-size: 17px;
+}
+
+header .status {
+  font-size: 13px;
+  color: #8e8e93;
+}
+
+header .status.ok    { color: #30d158; }
+header .status.error { color: #ff453a; }
+
+main {
+  padding: 16px;
+  padding-bottom: max(env(safe-area-inset-bottom, 16px), 16px);
+}
+
+.group {
+  margin-bottom: 24px;
+}
+
+.group h2 {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8e8e93;
+  margin: 0 0 10px 0;
+}
+
+/* icon: 既存パネルと同じ正方形グリッド */
+.group.icon .buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 10px;
+}
+
+/* wide: 横長の縦リスト */
+.group.wide .buttons {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+/* card: サムネイルつき大カード */
+.group.card .buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #2c2c2e;
+  border: 1px solid #3a3a3c;
+  border-radius: 12px;
+  color: #f5f5f7;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  font: inherit;
+  text-align: center;
+  padding: 10px 8px;
+  transition: transform 0.06s ease, background 0.15s ease, border-color 0.15s ease;
+  touch-action: manipulation;
+}
+
+.btn:active {
+  transform: scale(0.96);
+  background: #3a3a3c;
+}
+
+.btn .icon {
+  font-size: 28px;
+  line-height: 1;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+}
+
+.btn .icon .icon-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  display: block;
+}
+
+/* wide タイプではアイコンを少し小さく */
+.group.wide .btn .icon .icon-img {
+  width: 24px;
+  height: 24px;
+}
+
+.btn .label {
+  font-size: 12px;
+  line-height: 1.25;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* アイコン無しボタン: ラベルを中央に大きめで見せる。 */
+.btn.text-only {
+  min-height: 48px;
+  padding: 12px 10px;
+}
+.btn.text-only .label {
+  font-size: 14px;
+  -webkit-line-clamp: 3;
+}
+
+/* wide: アイコン左、ラベル右の横並び */
+.group.wide .btn {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  min-height: 56px;
+}
+.group.wide .btn .icon  { font-size: 22px; margin: 0; }
+.group.wide .btn .label {
+  font-size: 14px;
+  text-align: left;
+  -webkit-line-clamp: 2;
+}
+
+/* card: サムネイル上、ラベル下 */
+.group.card .btn {
+  padding: 0;
+  overflow: hidden;
+  min-height: 140px;
+}
+.group.card .btn .thumb {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background: #1c1c1e;
+  background-size: cover;
+  background-position: center;
+}
+.group.card .btn .icon  { display: none; }
+.group.card .btn .body  {
+  padding: 8px 10px 12px 10px;
+  width: 100%;
+  text-align: left;
+}
+.group.card .btn .label {
+  font-size: 13px;
+  text-align: left;
+  -webkit-line-clamp: 2;
+}
+
+.btn.firing  { background: #3a3a3c; border-color: #ffd60a; }
+.btn.success { background: #1f3a28; border-color: #30d158; }
+.btn.failure { background: #3a1c1c; border-color: #ff453a; }
+
+.empty {
+  text-align: center;
+  color: #8e8e93;
+  font-size: 14px;
+  padding: 32px 16px;
+}
+
+.hidden { display: none !important; }

@@ -1,0 +1,44 @@
+{
+  "name": "@veltrea/floatingmacro-mcp",
+  "version": "0.1.0",
+  "description": "MCP stdio server for FloatingMacro — proxies stdio JSON-RPC to FloatingMacro's local HTTP API. macOS only.",
+  "type": "module",
+  "bin": {
+    "floatingmacro-mcp": "bin/floatingmacro-mcp.mjs"
+  },
+  "files": [
+    "bin/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "os": [
+    "darwin"
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "floatingmacro",
+    "stdio",
+    "macos",
+    "claude",
+    "cursor",
+    "gemini-cli"
+  ],
+  "author": "veltrea",
+  "license": "MIT",
+  "homepage": "https://github.com/veltrea/floatingmacro#readme",
+  "bugs": {
+    "url": "https://github.com/veltrea/floatingmacro/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/veltrea/floatingmacro.git",
+    "directory": "npm"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

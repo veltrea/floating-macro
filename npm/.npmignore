@@ -1,0 +1,9 @@
+# Source-only excludes that npm pack/publish should drop.
+# Keep this minimal — `package.json#files` is the primary allowlist.
+.DS_Store
+node_modules/
+*.log
+.git
+.gitignore
+test/
+__tests__/

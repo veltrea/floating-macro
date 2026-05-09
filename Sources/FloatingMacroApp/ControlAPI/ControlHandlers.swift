@@ -1,0 +1,2235 @@
+import Foundation
+import AppKit
+import FloatingMacroCore
+
+/// Endpoints served by the FloatingMacroApp control API.
+///
+/// All endpoints are JSON-in / JSON-out, bound to 127.0.0.1 only, no auth.
+/// Intended audience: this user's own tooling (CLI, AI assistant, scripts).
+/// Not intended for exposure to other hosts.
+///
+/// The registered handler runs on the ControlServer's own queue, which is
+/// explicitly NOT the main queue. Any AppKit interaction must hop to the
+/// main queue. We use a helper `onMainSync` that blocks until the main-queue
+/// work completes so the response reflects the post-operation state.
+final class ControlHandlers {
+
+    private let presetManager: PresetManager
+    private weak var panel: NSPanel?
+    /// Phase 3 で導入。複数パネル制御 (panel_* ツール) のために PanelManager を
+    /// 持つ。weak に保持して循環参照を避ける（PanelManager は AppDelegate が所有）。
+    private weak var panelManager: PanelManager?
+    private let logURL: URL
+
+    init(presetManager: PresetManager, panel: NSPanel?,
+         panelManager: PanelManager?, logURL: URL) {
+        self.presetManager = presetManager
+        self.panel = panel
+        self.panelManager = panelManager
+        self.logURL = logURL
+    }
+
+    /// Build a handler closure suitable for `ControlServer.Handler`. All AppKit
+    /// / presetManager work is explicitly hopped to the main queue inside.
+    ///
+    /// **Phase 5 Fast path**: Web Panel の read-only ルート (HTML/CSS/JS/icon)
+    /// は main を経由せず接続キューで直接処理する。これがないと iPhone から
+    /// の並列画像リクエストが main 1 本に直列化されて遅い。読み取り対象は
+    /// すべて thread-safe なヘルパで覆われている (WebPanelAssets,
+    /// EphemeralLANTokenStore, WebPanelIconRenderer)。
+    func makeHandler() -> ControlServer.Handler {
+        return { [self] request in
+            if Self.isWebPanelReadOnlyRoute(request) {
+                return self.dispatchWebPanelReadOnly(request)
+            }
+            return onMainSync { self.dispatch(request) }
+        }
+    }
+
+    private static func isWebPanelReadOnlyRoute(_ req: HTTPRequest) -> Bool {
+        guard req.method == .GET else { return false }
+        switch req.path {
+        case "/webpanel",
+             "/webpanel/style.css",
+             "/webpanel/app.js",
+             "/webpanel/icon":
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// main を経由しない高速 dispatch。ここで呼ぶ非 MainActor ハンドラ
+    /// は AppKit や presetManager の可変状態に触らない。
+    private func dispatchWebPanelReadOnly(_ req: HTTPRequest) -> HTTPResponse {
+        switch req.path {
+        case "/webpanel":           return handleWebPanelHTML_nonMain(req)
+        case "/webpanel/style.css": return handleWebPanelAsset_nonMain(.css)
+        case "/webpanel/app.js":    return handleWebPanelAsset_nonMain(.js)
+        case "/webpanel/icon":      return handleWebPanelIcon_nonMain(req)
+        default: return HTTPResponse.notFound(req.path)
+        }
+    }
+
+    /// `appConfig.controlAPI.lanExposureEnabled` のスレッドセーフ読み取り。
+    /// PresetManager の `@Published var appConfig` は main で更新されるが、
+    /// プロパティ読み取りは原子的なので "ほぼ最新" を取れる。LAN トグルは
+    /// 頻繁に切り替わらないのでこの程度の整合性で十分。
+    private var lanExposureEnabledSnapshot: Bool {
+        return presetManager.appConfig?.controlAPI.lanExposureEnabled ?? false
+    }
+
+    nonisolated private func handleWebPanelHTML_nonMain(_ req: HTTPRequest) -> HTTPResponse {
+        let ua = req.header("User-Agent") ?? "(no UA)"
+        guard lanExposureEnabledSnapshot else {
+            LoggerContext.shared.warn("WebPanel", "HTML blocked: LAN off (fast)", ["ua": ua])
+            return HTTPResponse.json(["error": "LAN off"], status: 403)
+        }
+        guard let token = req.query["token"] else {
+            return HTTPResponse.json(["error": "missing token"], status: 401)
+        }
+        guard EphemeralLANTokenStore.shared.matches(token) else {
+            return HTTPResponse.json(["error": "invalid token"], status: 401)
+        }
+
+        // SSR: 要求された preset (?preset=...) の現在の構造を読み、
+        // HTML 内に inline で埋め込む。これにより iPhone 側が JS を待たず
+        // にヘッダー + skeleton を即 paint できる。
+        let presetName = req.query["preset"]
+        let preset = resolvePresetForSSR(name: presetName)
+        let presetJSON = encodePresetJSONString(preset) ?? "null"
+        let presetDisplay = preset?.displayName ?? presetName ?? L("現在のプリセット_95367b")
+        let ssrHTML = WebPanelSSR.renderInnerHTML(preset: preset)
+
+        // この時点で preset を参照したので、画像 prewarm をオンデマンド起動
+        // (要求された preset 専用)。背景で並列に encode。iPhone が画像
+        // リクエストを送ってくるまでに大半が cache に乗る想定。
+        if let preset = preset {
+            WebPanelIconRenderer.shared.prewarm(preset: preset)
+        }
+
+        guard let body = WebPanelAssets.renderHTML(token: token,
+                                                   presetJSON: presetJSON,
+                                                   presetDisplay: presetDisplay,
+                                                   ssrHTML: ssrHTML) else {
+            return HTTPResponse.internalError("asset missing")
+        }
+        return HTTPResponse(
+            status: 200, reason: "OK",
+            headers: [
+                ("Content-Type",   WebPanelAssets.AssetKind.html.contentType),
+                ("Cache-Control",  "no-store, no-cache, must-revalidate, max-age=0"),
+                ("Pragma",         "no-cache"),
+            ],
+            body: body
+        )
+    }
+
+    /// `?preset=foo` クエリから Preset を読み取る。query 無しなら active。
+    nonisolated private func resolvePresetForSSR(name: String?) -> Preset? {
+        if let name = name, !name.isEmpty {
+            return presetManager.preset(named: name)
+        }
+        // active preset (panels[0] が指している preset)
+        if let active = presetManager.appConfig?.activePreset {
+            return presetManager.preset(named: active)
+        }
+        return nil
+    }
+
+    /// Preset を JSON 文字列にエンコード。HTML inline で `window.__FM_PRESET__`
+    /// に直接代入するため、`</script>` 等を含まないようサニタイズも兼ねる。
+    nonisolated private func encodePresetJSONString(_ preset: Preset?) -> String? {
+        guard let preset = preset else { return nil }
+        guard let data = try? JSONEncoder().encode(preset),
+              let str = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+        // `</script>` を JS リテラルから抜けさせない安全策。JSON 文字列中の
+        // `<` を `<` に置換すると JS としてはそのまま動く。
+        return str
+            .replacingOccurrences(of: "</", with: "\\u003c/")
+            .replacingOccurrences(of: "<!--", with: "\\u003c!--")
+    }
+
+    nonisolated private func handleWebPanelAsset_nonMain(_ kind: WebPanelAssets.AssetKind) -> HTTPResponse {
+        guard lanExposureEnabledSnapshot else {
+            return HTTPResponse.json(["error": "LAN off"], status: 403)
+        }
+        guard let body = WebPanelAssets.data(kind) else {
+            return HTTPResponse.notFound("/webpanel/\(kind.fileName)")
+        }
+        return HTTPResponse(
+            status: 200, reason: "OK",
+            headers: [
+                ("Content-Type",  kind.contentType),
+                ("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0"),
+                ("Pragma",        "no-cache"),
+            ],
+            body: body
+        )
+    }
+
+    nonisolated private func handleWebPanelIcon_nonMain(_ req: HTTPRequest) -> HTTPResponse {
+        guard lanExposureEnabledSnapshot else {
+            return HTTPResponse.json(["error": "LAN off"], status: 403)
+        }
+        guard let token = req.query["token"],
+              EphemeralLANTokenStore.shared.matches(token) else {
+            return HTTPResponse.json(["error": "invalid token"], status: 401)
+        }
+        guard let ref = req.query["ref"], !ref.isEmpty else {
+            return HTTPResponse.badRequest("missing 'ref'")
+        }
+        let requestedSize = Int(req.query["size"] ?? "") ?? 128
+        let size = max(32, min(2048, requestedSize))
+        let format: WebPanelIconRenderer.Format = {
+            switch req.query["format"]?.lowercased() {
+            case "jpeg": return .jpeg
+            case "webp": return .webp
+            default:     return .png
+            }
+        }()
+
+        guard let entry = WebPanelIconRenderer.shared.render(ref: ref,
+                                                             maxSize: size,
+                                                             format: format) else {
+            return HTTPResponse.notFound("/webpanel/icon")
+        }
+        if let inm = req.header("If-None-Match"), inm == entry.etag {
+            return HTTPResponse(
+                status: 304, reason: "Not Modified",
+                headers: [
+                    ("ETag",          entry.etag),
+                    ("Cache-Control", "public, max-age=86400, immutable"),
+                ]
+            )
+        }
+        return HTTPResponse(
+            status: 200, reason: "OK",
+            headers: [
+                ("Content-Type",  entry.contentType),
+                ("ETag",          entry.etag),
+                ("Cache-Control", "public, max-age=86400, immutable"),
+            ],
+            body: entry.data
+        )
+    }
+
+    // MARK: - Routing
+
+    @MainActor
+    private func dispatch(_ req: HTTPRequest) -> HTTPResponse {
+        switch (req.method, req.path) {
+        case (.GET,  "/manifest"):              return handleManifest()
+        case (.GET,  "/help"):                  return handleManifest()
+        case (.GET,  "/openapi.json"):          return handleOpenAPI()
+        case (.GET,  "/.well-known/agent.json"):return handleAgentCard()
+        case (.POST, "/mcp"):                   return handleMCP(req)
+        case (.GET,  "/ping"):                  return handlePing()
+        case (.GET,  "/state"):           return handleState()
+        case (.GET,  "/key-codes"):       return handleKeyCodes()
+        case (.POST, "/window/show"):     return handleWindowShow()
+        case (.POST, "/window/hide"):     return handleWindowHide()
+        case (.POST, "/window/toggle"):   return handleWindowToggle()
+        case (.POST, "/window/opacity"):  return handleWindowOpacity(req)
+        case (.POST, "/window/move"):     return handleWindowMove(req)
+        case (.POST, "/window/resize"):   return handleWindowResize(req)
+        // Phase 3: multi-panel controls
+        case (.GET,  "/panel/list"):      return handlePanelList()
+        case (.POST, "/panel/create"):    return handlePanelCreate(req)
+        case (.POST, "/panel/close"):     return handlePanelClose(req)
+        case (.POST, "/panel/show"):      return handlePanelShow(req)
+        case (.POST, "/panel/hide"):      return handlePanelHide(req)
+        // Phase 3.6: id 指定の per-panel 操作
+        case (.POST, "/panel/move"):       return handlePanelMove(req)
+        case (.POST, "/panel/resize"):     return handlePanelResize(req)
+        case (.POST, "/panel/opacity"):          return handlePanelOpacity(req)
+        case (.POST, "/panel/background-color"): return handlePanelBackgroundColor(req)
+        case (.POST, "/panel/set-preset"):       return handlePanelSetPreset(req)
+        // Phase 3.5: edge dock
+        case (.POST, "/panel/dock"):      return handlePanelDock(req)
+        case (.POST, "/panel/undock"):    return handlePanelUndock(req)
+        case (.POST, "/panel/reset-dock-position"): return handlePanelResetDockPosition(req)
+        case (.POST, "/panel/gather-dock-bars"):    return handlePanelGatherDockBars()
+        case (.POST, "/settings/open"):              return handleSettingsOpen()
+        case (.POST, "/settings/close"):             return handleSettingsClose()
+        case (.POST, "/ai-integration/open"):        return handleAIIntegrationOpen()
+        case (.POST, "/ai-integration/close"):       return handleAIIntegrationClose()
+        case (.POST, "/settings/open-sf-picker"):   return handleSettingsOpenSFPicker()
+        case (.POST, "/settings/select-button"):    return handleSettingsSelectButton(req)
+        case (.POST, "/settings/select-group"):     return handleSettingsSelectGroup(req)
+        case (.POST, "/settings/open-app-icon-picker"): return handleSettingsOpenAppIconPicker()
+        case (.POST, "/settings/dismiss-picker"):    return handleSettingsDismissPicker()
+        case (.POST, "/settings/clear-selection"):  return handleSettingsClearSelection()
+        case (.POST, "/settings/move"):                    return handleSettingsMove(req)
+        case (.POST, "/settings/commit"):               return handleSettingsCommit()
+        case (.POST, "/settings/set-background-color"): return handleSettingsSetBackgroundColor(req)
+        case (.POST, "/settings/set-text-color"):       return handleSettingsSetTextColor(req)
+        case (.POST, "/arrange"):                        return handleArrange(req)
+        case (.POST, "/settings/set-action-type"):  return handleSettingsSetActionType(req)
+        case (.POST, "/settings/set-key-combo"):    return handleSettingsSetKeyCombo(req)
+        case (.POST, "/settings/set-action-value"): return handleSettingsSetActionValue(req)
+        case (.POST, "/preset/reload"):   return handlePresetReload()
+        case (.POST, "/preset/switch"):   return handlePresetSwitch(req)
+        case (.GET,  "/preset/list"):     return handlePresetList()
+        case (.POST, "/preset/create"):   return handlePresetCreate(req)
+        case (.POST, "/preset/rename"):   return handlePresetRename(req)
+        case (.POST, "/preset/delete"):   return handlePresetDelete(req)
+        case (.GET,  "/preset/current"):  return handlePresetCurrent()
+        case (.GET,  "/preset/get"):      return handlePresetGet(req)
+        case (.POST, "/preset/export"):        return handlePresetExport(req)
+        case (.POST, "/preset/export-bundle"): return handlePresetExportBundle()
+        case (.POST, "/preset/import"):        return handlePresetImport(req)
+        case (.POST, "/preset/install-seeds"): return handlePresetInstallSeeds(req)
+        case (.POST, "/preset/reorder"):  return handlePresetReorder(req)
+        case (.POST, "/group/add"):       return handleGroupAdd(req)
+        case (.POST, "/group/update"):    return handleGroupUpdate(req)
+        case (.POST, "/group/delete"):    return handleGroupDelete(req)
+        case (.POST, "/button/add"):      return handleButtonAdd(req)
+        case (.POST, "/button/update"):   return handleButtonUpdate(req)
+        case (.POST, "/button/delete"):   return handleButtonDelete(req)
+        case (.POST, "/button/reorder"):  return handleButtonReorder(req)
+        case (.POST, "/button/move"):     return handleButtonMove(req)
+        case (.POST, "/button/press"):    return handleButtonPress(req)
+        case (.POST, "/action"):          return handleAction(req)
+        case (.GET,  "/log/tail"):        return handleLogTail(req)
+        case (.GET,  "/icon/for-app"):    return handleIconForApp(req)
+        case (.GET,  "/tools"):           return handleToolsList(req)
+        case (.POST, "/tools/call"):      return handleToolsCall(req)
+        // Phase 5: Web Panel (LAN 公開モード時にスマホ/タブレットから到達)
+        case (.GET,  "/webpanel"):           return handleWebPanelHTML(req)
+        case (.GET,  "/webpanel/style.css"): return handleWebPanelAsset(.css)
+        case (.GET,  "/webpanel/app.js"):    return handleWebPanelAsset(.js)
+        case (.POST, "/webpanel/tools/call"):return handleWebPanelToolsCall(req)
+        case (.GET,  "/webpanel/icon"):      return handleWebPanelIcon(req)
+        // Phase 5: Mac 側 (Bearer 認証経由) から ephemeral LAN token を取得する
+        // 管理用エンドポイント。Block 3 で QR 生成 UI が利用する。Web Panel
+        // 経由 (/webpanel/*) からは到達できないので外部漏洩は loopback の
+        // Bearer トークン経由のみ。
+        case (.GET,  "/lan-token"):     return handleLANTokenInfo()
+        case (.POST, "/lan-token/rotate"): return handleLANTokenRotate()
+        // ACP (Agent Communication Protocol) — stateless / sync subset.
+        case (.GET,  "/agents"):                  return handleACPAgentsList()
+        case (.GET,  "/agents/floatingmacro"):    return handleACPAgentManifest()
+        case (.POST, "/runs"):                    return handleACPRunsCreate(req)
+        case (_, let p) where p.hasPrefix("/runs/") || p.hasPrefix("/sessions"):
+            return HTTPResponse.json(
+                ["error": "not implemented",
+                 "detail": "this agent is stateless / sync-only; no run lifecycle, sessions, events, resume, or cancel"],
+                status: 501
+            )
+        case (_,     let path):           return HTTPResponse.notFound(path)
+        }
+    }
+
+    // MARK: - Tool discovery & dispatch
+
+    @MainActor
+    private func handleToolsList(_ req: HTTPRequest) -> HTTPResponse {
+        let dialect: ToolCatalog.Dialect
+        switch (req.query["format"] ?? "mcp").lowercased() {
+        case "openai":    dialect = .openai
+        case "anthropic": dialect = .anthropic
+        default:          dialect = .mcp
+        }
+        return HTTPResponse.json(ToolCatalog.render(dialect: dialect))
+    }
+
+    @MainActor
+    private func handleToolsCall(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let name = dict["name"] as? String else {
+            return HTTPResponse.badRequest("body must be {name: String, arguments?: object}")
+        }
+        guard let tool = ToolCatalog.find(name) else {
+            return HTTPResponse.json(
+                ["error": "unknown tool", "name": name],
+                status: 404
+            )
+        }
+        let args = (dict["arguments"] as? [String: Any]) ?? [:]
+        let inner = invokeToolByDispatch(tool: tool, arguments: args, headers: req.headers)
+
+        var envelope: [String: Any] = [
+            "name": name,
+            "status": inner.status,
+        ]
+        if let innerObj = try? JSONSerialization.jsonObject(with: inner.body) {
+            envelope["result"] = innerObj
+        } else if let str = String(data: inner.body, encoding: .utf8) {
+            envelope["result"] = str
+        }
+        return HTTPResponse.json(envelope, status: inner.status < 400 ? 200 : inner.status)
+    }
+
+    // MARK: - Phase 5: Web Panel
+
+    /// `GET /webpanel?token=xxx` — Web Panel の HTML を返す。
+    ///
+    /// アクセス制御の二段構え:
+    /// 1. `ControlAPIConfig.lanExposureEnabled == false` のときは 403。
+    ///    LAN モードでないときは Web UI を出さない。
+    /// 2. クエリ `token` が `EphemeralLANTokenStore.shared` と一致しない
+    ///    ときは 401。これにより QR を持っていない端末はそもそも HTML を
+    ///    取り出せない (= JS / token も取れない = API も叩けない)。
+    /// 旧 main 経由ルート (今は dispatcher fast path が直接 nonMain 版に
+    /// 飛ばすので使われないが、ルート表 fallback として残し nonMain に委譲)。
+    @MainActor
+    private func handleWebPanelHTML(_ req: HTTPRequest) -> HTTPResponse {
+        return handleWebPanelHTML_nonMain(req)
+    }
+
+    /// 静的アセット (CSS / JS)。HTML 経由で参照されるので個別認証はしない
+    /// が、LAN 公開モードでなければ 403。Web Panel が動作する前提自体を
+    /// 切るため、漏洩時の被害面を最小化する。
+    @MainActor
+    private func handleWebPanelAsset(_ kind: WebPanelAssets.AssetKind) -> HTTPResponse {
+        guard presetManager.appConfig?.controlAPI.lanExposureEnabled == true else {
+            LoggerContext.shared.warn("WebPanel", "asset blocked: LAN off", ["kind": kind.fileName])
+            return HTTPResponse.json(
+                ["error": "web panel is only available in LAN exposure mode"],
+                status: 403
+            )
+        }
+        guard let body = WebPanelAssets.data(kind) else {
+            LoggerContext.shared.error("WebPanel", "asset 404", ["kind": kind.fileName])
+            return HTTPResponse.notFound("/webpanel/\(kind.fileName)")
+        }
+        LoggerContext.shared.info("WebPanel", "asset 200", [
+            "kind":  kind.fileName,
+            "bytes": String(body.count),
+        ])
+        // CSS / JS は再ビルドするたびに中身が変わる前提なので no-cache。
+        // 画像 (/webpanel/icon) のような ETag ベースの長期キャッシュはここでは使わない。
+        return HTTPResponse(
+            status: 200, reason: "OK",
+            headers: [
+                ("Content-Type",  kind.contentType),
+                ("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0"),
+                ("Pragma",        "no-cache"),
+            ],
+            body: body
+        )
+    }
+
+    /// `POST /webpanel/tools/call` — Web Panel 専用のゲート付き tools/call。
+    ///
+    /// 通常の `/tools/call` は永続 Bearer トークン (loopback 想定) で守られて
+    /// いるが、LAN に公開する経路では破壊的 tool を呼ばれないよう
+    /// `WebPanelToolWhitelist` で名前を絞る。認証は ephemeral token のみ。
+    @MainActor
+    private func handleWebPanelToolsCall(_ req: HTTPRequest) -> HTTPResponse {
+        let ua = req.header("User-Agent") ?? "(no UA)"
+        guard presetManager.appConfig?.controlAPI.lanExposureEnabled == true else {
+            LoggerContext.shared.warn("WebPanel", "tools/call 403: LAN off", ["ua": ua])
+            return HTTPResponse.json(
+                ["error": "web panel is only available in LAN exposure mode"],
+                status: 403
+            )
+        }
+        guard let auth = req.header("Authorization"),
+              auth.hasPrefix("Bearer ") else {
+            LoggerContext.shared.warn("WebPanel", "tools/call 401: missing Authorization", ["ua": ua])
+            return HTTPResponse.json(
+                ["error": "Authorization: Bearer <token> required"],
+                status: 401
+            )
+        }
+        let candidate = String(auth.dropFirst("Bearer ".count))
+        guard EphemeralLANTokenStore.shared.matches(candidate) else {
+            LoggerContext.shared.warn("WebPanel", "tools/call 401: token mismatch", [
+                "ua": ua,
+                "tokenPrefix": String(candidate.prefix(8)),
+            ])
+            return HTTPResponse.json(
+                ["error": "invalid ephemeral token"],
+                status: 401
+            )
+        }
+        guard let dict = req.jsonDictionary(),
+              let name = dict["name"] as? String else {
+            LoggerContext.shared.warn("WebPanel", "tools/call 400: bad body", ["ua": ua])
+            return HTTPResponse.badRequest("body must be {name: String, arguments?: object}")
+        }
+        guard WebPanelToolWhitelist.isAllowed(name) else {
+            LoggerContext.shared.warn("WebPanel", "tools/call 403: not whitelisted", [
+                "ua":   ua,
+                "name": name,
+            ])
+            return HTTPResponse.json(
+                ["error": "tool not allowed from web panel",
+                 "name": name],
+                status: 403
+            )
+        }
+        guard let tool = ToolCatalog.find(name) else {
+            LoggerContext.shared.warn("WebPanel", "tools/call 404: unknown tool", ["name": name])
+            return HTTPResponse.json(
+                ["error": "unknown tool", "name": name],
+                status: 404
+            )
+        }
+        let args = (dict["arguments"] as? [String: Any]) ?? [:]
+        let inner = invokeToolByDispatch(tool: tool, arguments: args, headers: req.headers)
+        LoggerContext.shared.info("WebPanel", "tools/call \(inner.status)", [
+            "ua":    ua,
+            "name":  name,
+            "args":  String(describing: args.keys.sorted()),
+        ])
+        var envelope: [String: Any] = [
+            "name": name,
+            "status": inner.status,
+        ]
+        if let innerObj = try? JSONSerialization.jsonObject(with: inner.body) {
+            envelope["result"] = innerObj
+        } else if let str = String(data: inner.body, encoding: .utf8) {
+            envelope["result"] = str
+        }
+        return HTTPResponse.json(envelope, status: inner.status < 400 ? 200 : inner.status)
+    }
+
+    /// `GET /webpanel/icon?ref=<icon-ref>&token=<eph>&size=<max>` — ボタンの
+    /// icon / thumbnail (絶対パス・SF Symbol 名・bundle id 等) をリサイズ + PNG
+    /// 化して配る。`WebPanelIconRenderer` がメモリキャッシュ。
+    ///
+    /// 認証: `<img src="...">` は Authorization ヘッダを送らないため、
+    /// クエリパラメータ ?token=... で ephemeral token を受ける。HTML 配信と
+    /// 同じ経路。
+    ///
+    /// HTTP キャッシュ: ETag + Cache-Control: max-age=86400。同じ ref / size の
+    /// 2 回目以降は 304 Not Modified で空ボディを返す。
+    @MainActor
+    private func handleWebPanelIcon(_ req: HTTPRequest) -> HTTPResponse {
+        guard presetManager.appConfig?.controlAPI.lanExposureEnabled == true else {
+            LoggerContext.shared.warn("WebPanel", "icon 403: LAN off")
+            return HTTPResponse.json(
+                ["error": "web panel is only available in LAN exposure mode"],
+                status: 403
+            )
+        }
+        guard let token = req.query["token"],
+              EphemeralLANTokenStore.shared.matches(token) else {
+            LoggerContext.shared.warn("WebPanel", "icon 401: token mismatch")
+            return HTTPResponse.json(
+                ["error": "missing or invalid token"], status: 401
+            )
+        }
+        guard let ref = req.query["ref"], !ref.isEmpty else {
+            return HTTPResponse.badRequest("missing 'ref' query parameter")
+        }
+        // size クエリ。32〜2048 にクランプし、未指定時は 128 (icon 用途の既定)。
+        let requestedSize = Int(req.query["size"] ?? "") ?? 128
+        let size = max(32, min(2048, requestedSize))
+        // format クエリ: "jpeg" / "webp" / それ以外 = png。
+        let format: WebPanelIconRenderer.Format = {
+            switch req.query["format"]?.lowercased() {
+            case "jpeg": return .jpeg
+            case "webp": return .webp
+            default:     return .png
+            }
+        }()
+
+        guard let entry = WebPanelIconRenderer.shared.render(ref: ref,
+                                                             maxSize: size,
+                                                             format: format) else {
+            LoggerContext.shared.warn("WebPanel", "icon 404", [
+                "ref": ref, "size": String(size), "fmt": format.rawValue,
+            ])
+            return HTTPResponse.notFound("/webpanel/icon")
+        }
+
+        // 条件付き GET: クライアントが持っている ETag が一致したら 304。
+        if let inm = req.header("If-None-Match"), inm == entry.etag {
+            LoggerContext.shared.info("WebPanel", "icon 304", [
+                "ref":  ref,
+                "size": String(size),
+            ])
+            return HTTPResponse(
+                status: 304, reason: "Not Modified",
+                headers: [
+                    ("ETag",          entry.etag),
+                    ("Cache-Control", "public, max-age=86400, immutable"),
+                ]
+            )
+        }
+
+        LoggerContext.shared.info("WebPanel", "icon 200", [
+            "ref":   ref,
+            "size":  String(size),
+            "fmt":   format.rawValue,
+            "bytes": String(entry.data.count),
+        ])
+        return HTTPResponse(
+            status: 200, reason: "OK",
+            headers: [
+                ("Content-Type",   entry.contentType),
+                ("ETag",           entry.etag),
+                // 1 日キャッシュ。LAN session 単位の利用が想定なので長めで OK。
+                // immutable: ETag が同じなら絶対に再検証不要、と Safari に伝える。
+                ("Cache-Control",  "public, max-age=86400, immutable"),
+            ],
+            body: entry.data
+        )
+    }
+
+    // MARK: - Phase 5: LAN token info (Bearer auth)
+
+    /// 現在の ephemeral LAN token を返す。LAN 公開モードが OFF のときは null。
+    /// `/lan-token/rotate` を叩くと新トークンを発行できる。Mac 側の
+    /// メニューバー / Settings UI が QR 生成用にこれを参照する。
+    @MainActor
+    private func handleLANTokenInfo() -> HTTPResponse {
+        let lanEnabled = presetManager.appConfig?.controlAPI.lanExposureEnabled ?? false
+        let token = EphemeralLANTokenStore.shared.current
+        let issuedAt = EphemeralLANTokenStore.shared.lastRotatedAt
+        var body: [String: Any] = [
+            "lanExposureEnabled": lanEnabled,
+            "token": token as Any,
+        ]
+        if let issuedAt = issuedAt {
+            body["issuedAt"] = ISO8601DateFormatter().string(from: issuedAt)
+        }
+        return HTTPResponse.json(body)
+    }
+
+    @MainActor
+    private func handleLANTokenRotate() -> HTTPResponse {
+        let lanEnabled = presetManager.appConfig?.controlAPI.lanExposureEnabled ?? false
+        guard lanEnabled else {
+            return HTTPResponse.json(
+                ["error": "LAN exposure is disabled; enable it before rotating"],
+                status: 409
+            )
+        }
+        let token = EphemeralLANTokenStore.shared.rotate()
+        return HTTPResponse.json([
+            "token": token,
+            "issuedAt": ISO8601DateFormatter().string(from: Date()),
+        ])
+    }
+
+    /// Build a synthetic HTTPRequest targeting `tool`'s real endpoint, then
+    /// re-enter the dispatcher. Shared by /tools/call, /mcp, and /runs.
+    @MainActor
+    private func invokeToolByDispatch(tool: ToolDefinition,
+                                      arguments: [String: Any],
+                                      headers: [String: String] = [:]) -> HTTPResponse {
+        var newPath = tool.path
+        var body = Data()
+        if tool.method == "GET" && !arguments.isEmpty {
+            let pairs = arguments.compactMap { (k, v) -> String? in
+                guard let enc = "\(v)".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return nil }
+                return "\(k)=\(enc)"
+            }
+            if !pairs.isEmpty {
+                newPath += newPath.contains("?") ? "&" : "?"
+                newPath += pairs.joined(separator: "&")
+            }
+        } else if tool.method != "GET" {
+            body = (try? JSONSerialization.data(withJSONObject: arguments)) ?? Data()
+        }
+
+        let (innerPath, innerQuery) = HTTPParser.splitPathAndQuery(newPath)
+        let synthetic = HTTPRequest(
+            method: HTTPMethod(rawValue: tool.method) ?? .POST,
+            rawTarget: newPath,
+            path: innerPath,
+            query: innerQuery,
+            headers: headers,
+            body: body
+        )
+        return dispatch(synthetic)
+    }
+
+    // MARK: - Endpoints
+
+    @MainActor
+    private func handleManifest() -> HTTPResponse {
+        let agentMode = presetManager.appConfig?.controlAPI.agentMode ?? .normal
+        return HTTPResponse.json(SystemPrompt.manifest(agentMode: agentMode))
+    }
+
+    @MainActor
+    private func handleOpenAPI() -> HTTPResponse {
+        HTTPResponse.json(OpenAPIGenerator.document())
+    }
+
+    @MainActor
+    private func handleAgentCard() -> HTTPResponse {
+        HTTPResponse.json(AgentCard.card())
+    }
+
+    /// JSON-RPC 2.0 / MCP endpoint. Bridges into the same REST handlers
+    /// used by /tools/call so behavior is identical regardless of transport.
+    @MainActor
+    private func handleMCP(_ req: HTTPRequest) -> HTTPResponse {
+        switch MCPAdapter.parseRequest(req.body) {
+        case .failure(let errorResponse):
+            let body = try? JSONSerialization.data(withJSONObject: errorResponse.serialize())
+            return HTTPResponse(
+                status: 200, reason: "OK",
+                headers: [("Content-Type", "application/json")],
+                body: body ?? Data()
+            )
+        case .success(let rpcRequest):
+            let response = MCPAdapter.handle(rpcRequest) { [self] toolName, arguments in
+                return callToolByName(toolName, arguments: arguments)
+            }
+            let body = try? JSONSerialization.data(withJSONObject: response.serialize())
+            return HTTPResponse(
+                status: 200, reason: "OK",
+                headers: [("Content-Type", "application/json")],
+                body: body ?? Data()
+            )
+        }
+    }
+
+    /// Internal helper: run a tool by name against its real endpoint and
+    /// return the parsed JSON result (or a JSON-RPC error).
+    @MainActor
+    private func callToolByName(_ name: String,
+                                arguments: [String: Any]) -> Result<Any, MCPAdapter.JSONRPCError> {
+        guard let tool = ToolCatalog.find(name) else {
+            return .failure(.methodNotFound)
+        }
+        let innerResponse = invokeToolByDispatch(tool: tool, arguments: arguments)
+        guard innerResponse.status < 400 else {
+            let msg = String(data: innerResponse.body, encoding: .utf8) ?? "error"
+            return .failure(MCPAdapter.JSONRPCError(
+                code: -32000,
+                message: "Tool \(name) failed with status \(innerResponse.status)",
+                data: msg
+            ))
+        }
+        if let parsed = try? JSONSerialization.jsonObject(with: innerResponse.body) {
+            return .success(parsed)
+        }
+        return .success(["ok": true])
+    }
+
+    // MARK: - ACP (stateless, sync-only subset)
+
+    @MainActor
+    private func handleACPAgentsList() -> HTTPResponse {
+        HTTPResponse.json(ACPManifest.agentsList())
+    }
+
+    @MainActor
+    private func handleACPAgentManifest() -> HTTPResponse {
+        HTTPResponse.json(ACPManifest.agentManifest())
+    }
+
+    @MainActor
+    private func handleACPRunsCreate(_ req: HTTPRequest) -> HTTPResponse {
+        let createdAt = Date()
+        let runId = ACPManifest.newRunId()
+
+        let runReq: ACPManifest.RunRequest
+        switch ACPManifest.parseRunRequest(req.body) {
+        case .success(let r):
+            runReq = r
+        case .failure(let err):
+            switch err {
+            case .badRequest(let msg):
+                return HTTPResponse.badRequest(msg)
+            case .agentNotFound(let name):
+                return HTTPResponse.json(
+                    ["error": "agent not found", "agent_name": name,
+                     "detail": "this server hosts a single agent: '\(ACPManifest.agentName)'"],
+                    status: 404
+                )
+            case .unsupportedMode(let mode):
+                return HTTPResponse.json(
+                    ["error": "unsupported mode", "mode": mode,
+                     "detail": "this agent only supports mode='sync'"],
+                    status: 501
+                )
+            }
+        }
+
+        guard let tool = ToolCatalog.find(runReq.toolName) else {
+            return HTTPResponse.json(
+                ACPManifest.runFailed(
+                    runId: runId, status: 404,
+                    message: "unknown tool '\(runReq.toolName)'",
+                    sessionId: runReq.sessionId,
+                    createdAt: createdAt, finishedAt: Date()
+                ),
+                status: 200
+            )
+        }
+
+        let inner = invokeToolByDispatch(tool: tool, arguments: runReq.arguments, headers: req.headers)
+        let finishedAt = Date()
+
+        if inner.status >= 400 {
+            let detail = String(data: inner.body, encoding: .utf8) ?? "error"
+            return HTTPResponse.json(
+                ACPManifest.runFailed(
+                    runId: runId, status: inner.status,
+                    message: detail,
+                    sessionId: runReq.sessionId,
+                    createdAt: createdAt, finishedAt: finishedAt
+                ),
+                status: 200
+            )
+        }
+
+        let resultObj: Any = (try? JSONSerialization.jsonObject(with: inner.body))
+            ?? ["ok": true]
+        return HTTPResponse.json(
+            ACPManifest.runSuccess(
+                runId: runId,
+                toolResult: resultObj,
+                sessionId: runReq.sessionId,
+                createdAt: createdAt,
+                finishedAt: finishedAt
+            ),
+            status: 200
+        )
+    }
+
+    @MainActor
+    private func handlePing() -> HTTPResponse {
+        HTTPResponse.json(["ok": true, "product": "FloatingMacro"])
+    }
+
+    /// 正規キー名カタログ。`settings_set_key_combo` や `button_add` 等の `combo`
+    /// 文字列にそのまま使える名前を、AI が discoverable にするためのエンドポイント。
+    @MainActor
+    private func handleKeyCodes() -> HTTPResponse {
+        func encode(_ entries: [KeyCombo.KeyEntry]) -> [[String: String]] {
+            entries.map { ["name": $0.name, "label": $0.label] }
+        }
+        let body: [String: Any] = [
+            "modifiers": KeyCombo.modifierNames,
+            "modifierAliases": KeyCombo.modifierAliases,
+            "specialKeys": encode(KeyCombo.specialKeys),
+            "functionKeys": encode(KeyCombo.functionKeys),
+            "keyAliases": KeyCombo.keyAliases,
+            "examples": [
+                "cmd+shift+v",
+                "f5",
+                "cmd+left",
+                "delete",
+                "option+forwarddelete",
+                "ctrl+pageup",
+            ],
+            "notes": "Compose with '+'. Modifier order is normalized internally. Letters/digits and US-layout symbols (a-z, 0-9, =, -, [, ], ;, ', \\, comma, period, slash, backtick) are also accepted as base keys."
+        ]
+        return HTTPResponse.json(body)
+    }
+
+    @MainActor
+    private func handleState() -> HTTPResponse {
+        var body: [String: Any] = [
+            "visible": panel?.isVisible ?? false,
+            "activePreset": presetManager.currentPreset?.name as Any? ?? NSNull(),
+            "displayName":  presetManager.currentPreset?.displayName as Any? ?? NSNull(),
+            "memo":         presetManager.currentPreset?.memo as Any? ?? NSNull(),
+            "errorMessage": presetManager.errorMessage as Any? ?? NSNull(),
+        ]
+        if let w = presetManager.appConfig?.window {
+            body["window"] = [
+                "x": w.x, "y": w.y,
+                "width": w.width, "height": w.height,
+                "opacity": w.opacity,
+                "orientation": w.orientation,
+                "alwaysOnTop": w.alwaysOnTop,
+            ]
+        }
+        if let f = panel?.frame {
+            body["actualFrame"] = [
+                "x": Double(f.origin.x),
+                "y": Double(f.origin.y),
+                "width": Double(f.size.width),
+                "height": Double(f.size.height),
+            ]
+        }
+        return HTTPResponse.json(body)
+    }
+
+    @MainActor
+    private func handleWindowShow() -> HTTPResponse {
+        panel?.orderFront(nil)
+        return HTTPResponse.json(["visible": panel?.isVisible ?? false])
+    }
+
+    @MainActor
+    private func handleWindowHide() -> HTTPResponse {
+        panel?.orderOut(nil)
+        return HTTPResponse.json(["visible": panel?.isVisible ?? false])
+    }
+
+    @MainActor
+    private func handleWindowToggle() -> HTTPResponse {
+        guard let p = panel else {
+            return HTTPResponse.internalError("panel not initialized")
+        }
+        if p.isVisible { p.orderOut(nil) } else { p.orderFront(nil) }
+        return HTTPResponse.json(["visible": p.isVisible])
+    }
+
+    @MainActor
+    private func handleWindowOpacity(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let value = (dict["value"] as? NSNumber)?.doubleValue else {
+            return HTTPResponse.badRequest("body must be {\"value\": Double}")
+        }
+        presetManager.setOpacity(value)
+        let clamped = presetManager.appConfig?.window.opacity ?? value
+        panel?.alphaValue = CGFloat(clamped)
+        return HTTPResponse.json(["opacity": clamped])
+    }
+
+    @MainActor
+    private func handlePresetReload() -> HTTPResponse {
+        presetManager.loadInitialConfig()
+        return HTTPResponse.json([
+            "activePreset": presetManager.currentPreset?.name as Any? ?? NSNull(),
+        ])
+    }
+
+    @MainActor
+    private func handlePresetSwitch(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let name = dict["name"] as? String else {
+            return HTTPResponse.badRequest("body must be {\"name\": String}")
+        }
+        presetManager.switchPreset(to: name)
+        return HTTPResponse.json([
+            "activePreset": presetManager.currentPreset?.name as Any? ?? NSNull(),
+            "loaded": presetManager.currentPreset?.name == name,
+        ])
+    }
+
+    @MainActor
+    private func handlePresetList() -> HTTPResponse {
+        let active = presetManager.appConfig?.activePreset
+        // Iterate over presetEntries so the response reflects the user's
+        // chosen display order (see preset_reorder), not the raw filesystem
+        // alphabetical sort.
+        let list: [[String: Any]] = presetManager.presetEntries.map { entry in
+            ["name": entry.name,
+             "displayName": entry.displayName,
+             "active": entry.name == active]
+        }
+        return HTTPResponse.json(["presets": list])
+    }
+
+    @MainActor
+    private func handleAction(_ req: HTTPRequest) -> HTTPResponse {
+        guard let action = req.jsonBody(as: Action.self) else {
+            return HTTPResponse.badRequest("body must be a valid Action JSON")
+        }
+        // Capture blacklist at dispatch time (presetManager is main-actor bound,
+        // but we're already on the main queue here via onMainSync).
+        let blacklist = presetManager.appConfig?.commandBlacklist
+        // Fire the action asynchronously; respond immediately with 202.
+        Task.detached {
+            do {
+                let onBlocked: MacroRunner.BlockedCommandHandler = { pattern, text in
+                    await MainActor.run {
+                        CommandConfirmation.askProceed(pattern: pattern, text: text)
+                    }
+                }
+                try await Self.runAction(action, blacklist: blacklist, onBlocked: onBlocked)
+            } catch {
+                LoggerContext.shared.error("ControlAPI", "Action failed", [
+                    "error": String(describing: error),
+                ])
+            }
+        }
+        return HTTPResponse.json(["accepted": true], status: 202)
+    }
+
+    // MARK: - Window move / resize
+
+    @MainActor
+    private func handleWindowMove(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let x = (dict["x"] as? NSNumber)?.doubleValue,
+              let y = (dict["y"] as? NSNumber)?.doubleValue else {
+            return HTTPResponse.badRequest("body must be {\"x\": Double, \"y\": Double}")
+        }
+        guard let p = panel else {
+            return HTTPResponse.internalError("panel not initialized")
+        }
+        var frame = p.frame
+        frame.origin.x = CGFloat(x)
+        frame.origin.y = CGFloat(y)
+        p.setFrame(frame, display: true, animate: false)
+        presetManager.setPanelFrame(
+            x: Double(frame.origin.x), y: Double(frame.origin.y),
+            width: Double(frame.size.width), height: Double(frame.size.height)
+        )
+        return HTTPResponse.json([
+            "x": Double(frame.origin.x),
+            "y": Double(frame.origin.y),
+        ])
+    }
+
+    @MainActor
+    private func handleWindowResize(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let w = (dict["width"]  as? NSNumber)?.doubleValue,
+              let h = (dict["height"] as? NSNumber)?.doubleValue else {
+            return HTTPResponse.badRequest("body must be {\"width\": Double, \"height\": Double}")
+        }
+        guard let p = panel else {
+            return HTTPResponse.internalError("panel not initialized")
+        }
+        var frame = p.frame
+        frame.size.width = max(120, CGFloat(w))
+        frame.size.height = max(80, CGFloat(h))
+        p.setFrame(frame, display: true, animate: false)
+        presetManager.setPanelFrame(
+            x: Double(frame.origin.x), y: Double(frame.origin.y),
+            width: Double(frame.size.width), height: Double(frame.size.height)
+        )
+        return HTTPResponse.json([
+            "width":  Double(frame.size.width),
+            "height": Double(frame.size.height),
+        ])
+    }
+
+    // MARK: - Panel (Phase 3 multi-panel)
+
+    /// 全パネルの一覧を JSON で返す。各エントリには id / presetName /
+    /// displayName / visible / window 形状 / dockedEdge を含む。
+    @MainActor
+    private func handlePanelList() -> HTTPResponse {
+        let panels = presetManager.appConfig?.panels ?? []
+        let entries: [[String: Any]] = panels.map { p in
+            let displayName = presetManager.preset(named: p.presetName)?.displayName ?? p.presetName
+            let isVisible = panelManager?.panel(id: p.id)?.isVisible ?? p.visible
+            var entry: [String: Any] = [
+                "id": p.id,
+                "presetName": p.presetName,
+                "displayName": displayName,
+                "visible": isVisible,
+                "window": {
+                    var w: [String: Any] = [
+                        "x": p.window.x,
+                        "y": p.window.y,
+                        "width": p.window.width,
+                        "height": p.window.height,
+                        "opacity": p.window.opacity,
+                    ]
+                    if let bg = p.window.backgroundColor {
+                        w["backgroundColor"] = bg
+                    }
+                    return w
+                }() as [String: Any],
+            ]
+            if let edge = p.dockedEdge {
+                entry["dockedEdge"] = edge.rawValue
+            } else {
+                entry["dockedEdge"] = NSNull()
+            }
+            return entry
+        }
+        return HTTPResponse.json(["panels": entries])
+    }
+
+    /// 新規パネルを生成。presetName 必須、x/y/width/height/opacity はオプション
+    /// (省略時はプライマリの隣にオフセット配置)。生成された id を返す。
+    @MainActor
+    private func handlePanelCreate(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let presetName = dict["presetName"] as? String, !presetName.isEmpty else {
+            return HTTPResponse.badRequest("body must include {\"presetName\": String}")
+        }
+        // 指定された preset が存在しない場合は失敗。
+        guard presetManager.preset(named: presetName) != nil else {
+            return HTTPResponse.badRequest("preset not found: \(presetName)")
+        }
+        // 開始位置・サイズの解決: 指定 → primary オフセット → デフォルト の順。
+        let primary = presetManager.appConfig?.panels.first
+        let baseX = primary?.window.x ?? 100
+        let baseY = primary?.window.y ?? 100
+        let baseW = primary?.window.width ?? 200
+        let baseH = primary?.window.height ?? 300
+        let offset: Double = 32
+        let win = WindowConfig(
+            x:               (dict["x"]      as? NSNumber)?.doubleValue ?? (baseX + offset),
+            y:               (dict["y"]      as? NSNumber)?.doubleValue ?? (baseY - offset),
+            width:           (dict["width"]  as? NSNumber)?.doubleValue ?? baseW,
+            height:          (dict["height"] as? NSNumber)?.doubleValue ?? baseH,
+            opacity:         (dict["opacity"] as? NSNumber)?.doubleValue ?? 1.0,
+            backgroundColor: dict["backgroundColor"] as? String
+        )
+        guard let id = presetManager.addPanel(presetName: presetName, window: win),
+              let newConfig = presetManager.appConfig?.panels.first(where: { $0.id == id })
+        else {
+            return HTTPResponse.internalError("failed to create panel")
+        }
+        // NSWindow の生成は AppDelegate の reconcile sink が自動で行う。
+        return HTTPResponse.json([
+            "id": id,
+            "presetName": presetName,
+            "window": [
+                "x": newConfig.window.x,
+                "y": newConfig.window.y,
+                "width": newConfig.window.width,
+                "height": newConfig.window.height,
+                "opacity": newConfig.window.opacity,
+            ] as [String: Any],
+        ])
+    }
+
+    /// パネルを削除。Core 側で最後の 1 件は削除拒否される。
+    /// NSWindow の破棄は AppDelegate の reconcile sink が自動で行う。
+    @MainActor
+    private func handlePanelClose(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String, !id.isEmpty else {
+            return HTTPResponse.badRequest("body must include {\"id\": String}")
+        }
+        let removed = presetManager.removePanel(id: id)
+        return HTTPResponse.json(["removed": removed, "id": id])
+    }
+
+    /// 指定 id のパネルを表示 (orderFront)。存在しない場合は 404。
+    @MainActor
+    private func handlePanelShow(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String, !id.isEmpty else {
+            return HTTPResponse.badRequest("body must include {\"id\": String}")
+        }
+        guard let p = panelManager?.panel(id: id) else {
+            return HTTPResponse.notFound("panel id: \(id)")
+        }
+        // ドック中 or ミニアイコン中なら展開してから親パネルを出す。
+        panelManager?.expandFromDock(id: id)
+        panelManager?.expandFromMini(id: id)
+        presetManager.undockPanel(id: id)
+        p.orderFront(nil)
+        presetManager.setPanelVisible(id: id, visible: true)
+        return HTTPResponse.json(["id": id, "visible": true])
+    }
+
+    /// 指定 id のパネルを非表示 (orderOut)。
+    @MainActor
+    private func handlePanelHide(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String, !id.isEmpty else {
+            return HTTPResponse.badRequest("body must include {\"id\": String}")
+        }
+        guard let p = panelManager?.panel(id: id) else {
+            return HTTPResponse.notFound("panel id: \(id)")
+        }
+        p.orderOut(nil)
+        panelManager?.miniIcon(id: id)?.orderOut(nil)
+        panelManager?.dockBar(id: id)?.orderOut(nil)
+        presetManager.setPanelVisible(id: id, visible: false)
+        return HTTPResponse.json(["id": id, "visible": false])
+    }
+
+    // MARK: - Panel (Phase 3.6 per-id move/resize/opacity/preset)
+
+    /// 指定 id のパネルを絶対座標に移動。NSWindow と config.json の両方を更新。
+    @MainActor
+    private func handlePanelMove(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String, !id.isEmpty,
+              let x = (dict["x"] as? NSNumber)?.doubleValue,
+              let y = (dict["y"] as? NSNumber)?.doubleValue else {
+            return HTTPResponse.badRequest("body must include {\"id\": String, \"x\": Double, \"y\": Double}")
+        }
+        guard let p = panelManager?.panel(id: id) else {
+            return HTTPResponse.notFound("panel id: \(id)")
+        }
+        var frame = p.frame
+        frame.origin.x = CGFloat(x)
+        frame.origin.y = CGFloat(y)
+        p.setFrame(frame, display: true, animate: false)
+        presetManager.updatePanelFrame(
+            id: id,
+            x: Double(frame.origin.x), y: Double(frame.origin.y),
+            width: Double(frame.size.width), height: Double(frame.size.height)
+        )
+        return HTTPResponse.json([
+            "id": id,
+            "x": Double(frame.origin.x),
+            "y": Double(frame.origin.y),
+        ])
+    }
+
+    /// 指定 id のパネルをリサイズ。Core 側で min 120×80 にクランプされる。
+    @MainActor
+    private func handlePanelResize(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String, !id.isEmpty,
+              let w = (dict["width"]  as? NSNumber)?.doubleValue,
+              let h = (dict["height"] as? NSNumber)?.doubleValue else {
+            return HTTPResponse.badRequest("body must include {\"id\": String, \"width\": Double, \"height\": Double}")
+        }
+        guard let p = panelManager?.panel(id: id) else {
+            return HTTPResponse.notFound("panel id: \(id)")
+        }
+        // Core の updatingPanelFrame と同じクランプを NSWindow にも適用。
+        let clampedW = max(120, CGFloat(w))
+        let clampedH = max(80, CGFloat(h))
+        var frame = p.frame
+        frame.size.width = clampedW
+        frame.size.height = clampedH
+        p.setFrame(frame, display: true, animate: false)
+        presetManager.updatePanelFrame(
+            id: id,
+            x: Double(frame.origin.x), y: Double(frame.origin.y),
+            width: Double(frame.size.width), height: Double(frame.size.height)
+        )
+        return HTTPResponse.json([
+            "id": id,
+            "width":  Double(frame.size.width),
+            "height": Double(frame.size.height),
+        ])
+    }
+
+    /// 指定 id のパネルの透明度を更新。Core 側で [0.25, 1.0] にクランプ。
+    @MainActor
+    private func handlePanelOpacity(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String, !id.isEmpty,
+              let value = (dict["opacity"] as? NSNumber)?.doubleValue else {
+            return HTTPResponse.badRequest("body must include {\"id\": String, \"opacity\": Double}")
+        }
+        guard panelManager?.panel(id: id) != nil else {
+            return HTTPResponse.notFound("panel id: \(id)")
+        }
+        presetManager.updatePanelOpacity(id: id, opacity: value)
+        let clamped = presetManager.appConfig?.panels.first(where: { $0.id == id })?.window.opacity ?? value
+        panelManager?.setOpacity(id: id, opacity: clamped)
+        return HTTPResponse.json(["id": id, "opacity": clamped])
+    }
+
+    /// 指定 id のパネルの背景色を更新。`#RRGGBB` hex 文字列、または null でリセット。
+    @MainActor
+    private func handlePanelBackgroundColor(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String, !id.isEmpty else {
+            return HTTPResponse.badRequest("body must include {\"id\": String}")
+        }
+        guard panelManager?.panel(id: id) != nil else {
+            return HTTPResponse.notFound("panel id: \(id)")
+        }
+        let hex = dict["color"] as? String
+        presetManager.updatePanelBackgroundColor(id: id, hex: hex)
+        panelManager?.setBackgroundColor(id: id, hex: hex)
+        return HTTPResponse.json(["id": id, "backgroundColor": hex as Any])
+    }
+
+    /// 指定 id のパネルが表示するプリセットを切り替え。
+    /// `presetName` は preset_list で取得できる内部 id (ファイル名)。
+    @MainActor
+    private func handlePanelSetPreset(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String, !id.isEmpty,
+              let presetName = dict["presetName"] as? String, !presetName.isEmpty else {
+            return HTTPResponse.badRequest("body must include {\"id\": String, \"presetName\": String}")
+        }
+        guard panelManager?.panel(id: id) != nil else {
+            return HTTPResponse.notFound("panel id: \(id)")
+        }
+        guard presetManager.preset(named: presetName) != nil else {
+            return HTTPResponse.badRequest("preset not found: \(presetName)")
+        }
+        presetManager.switchPanelPreset(panelID: id, to: presetName)
+        return HTTPResponse.json([
+            "id": id,
+            "presetName": presetName,
+        ])
+    }
+
+    // MARK: - Phase 3.5: edge dock
+
+    @MainActor
+    private func handlePanelDock(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String, !id.isEmpty else {
+            return HTTPResponse.badRequest("body must include {\"id\": String}")
+        }
+        guard let p = panelManager?.panel(id: id) else {
+            return HTTPResponse.notFound("panel id: \(id)")
+        }
+        let edge: DockEdge
+        if let edgeStr = dict["edge"] as? String {
+            guard let e = DockEdge(rawValue: edgeStr) else {
+                return HTTPResponse.badRequest("invalid edge: \(edgeStr). Must be left/right/top/bottom.")
+            }
+            edge = e
+        } else if let screen = NSScreen.main?.visibleFrame {
+            let center = CGPoint(x: p.frame.midX, y: p.frame.midY)
+            edge = EdgeDetector.nearestEdge(panelCenter: center, screenFrame: screen)
+        } else {
+            edge = .right
+        }
+
+        let presetName = presetManager.appConfig?.panels.first(where: { $0.id == id })?.presetName ?? "default"
+        let displayName = presetManager.preset(named: presetName)?.displayName ?? presetName
+        let iconName = presetManager.preset(named: presetName)?.groups.first?.buttons.first?.icon
+
+        let f = p.frame
+        presetManager.updatePanelFrame(
+            id: id,
+            x: Double(f.origin.x),
+            y: Double(f.origin.y),
+            width: Double(f.size.width),
+            height: Double(f.size.height)
+        )
+        panelManager?.collapseToDock(id: id, edge: edge, label: displayName, iconName: iconName)
+        presetManager.dockPanel(id: id, edge: edge)
+        return HTTPResponse.json(["id": id, "dockedEdge": edge.rawValue])
+    }
+
+    @MainActor
+    private func handlePanelUndock(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String, !id.isEmpty else {
+            return HTTPResponse.badRequest("body must include {\"id\": String}")
+        }
+        guard panelManager?.panel(id: id) != nil else {
+            return HTTPResponse.notFound("panel id: \(id)")
+        }
+        panelManager?.expandFromDock(id: id)
+        presetManager.undockPanel(id: id)
+        return HTTPResponse.json(["id": id, "dockedEdge": NSNull()])
+    }
+
+    private func handlePanelResetDockPosition(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String, !id.isEmpty else {
+            return HTTPResponse.badRequest("body must include {\"id\": String}")
+        }
+        guard panelManager?.panel(id: id) != nil else {
+            return HTTPResponse.notFound("panel id: \(id)")
+        }
+        panelManager?.resetDockBarPosition(id: id)
+        presetManager.clearDockBarPosition(id: id)
+        return HTTPResponse.json(["id": id, "dockBarPosition": NSNull()])
+    }
+
+    private func handlePanelGatherDockBars() -> HTTPResponse {
+        panelManager?.resetAllDockBarPositions()
+        presetManager.clearAllDockBarPositions()
+        return HTTPResponse.json(["gathered": true])
+    }
+
+    // MARK: - Settings window
+
+    @MainActor
+    private func handleSettingsOpen() -> HTTPResponse {
+        SettingsWindowController.shared.show(presetManager: presetManager)
+        return HTTPResponse.json(["visible": true])
+    }
+
+    @MainActor
+    private func handleSettingsClose() -> HTTPResponse {
+        SettingsWindowController.shared.window?.orderOut(nil)
+        return HTTPResponse.json(["visible": false])
+    }
+
+    // MARK: - AI Integration window
+
+    @MainActor
+    private func handleAIIntegrationOpen() -> HTTPResponse {
+        AIIntegrationWindowController.shared.show(presetManager: presetManager)
+        return HTTPResponse.json(["visible": true])
+    }
+
+    @MainActor
+    private func handleAIIntegrationClose() -> HTTPResponse {
+        AIIntegrationWindowController.shared.window?.orderOut(nil)
+        return HTTPResponse.json(["visible": false])
+    }
+
+    /// Convenience for AI screenshot workflows: opens the settings window if
+    /// it isn't already, then requests the SF Symbol picker sheet.
+    @MainActor
+    private func handleSettingsOpenSFPicker() -> HTTPResponse {
+        SettingsWindowController.shared.show(presetManager: presetManager)
+        // Give SwiftUI one tick to mount before we flip the nonce.
+        DispatchQueue.main.async { [presetManager = self.presetManager] in
+            presetManager.requestSFPicker()
+        }
+        return HTTPResponse.json(["opened": true])
+    }
+
+    @MainActor
+    private func handleSettingsSelectButton(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String else {
+            return HTTPResponse.badRequest("body must be {\"id\": String}")
+        }
+        SettingsWindowController.shared.show(presetManager: presetManager)
+        presetManager.externalSelectButtonRequest = id
+        return HTTPResponse.json(["id": id])
+    }
+
+    @MainActor
+    private func handleSettingsSelectGroup(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String else {
+            return HTTPResponse.badRequest("body must be {\"id\": String}")
+        }
+        SettingsWindowController.shared.show(presetManager: presetManager)
+        presetManager.externalSelectGroupRequest = id
+        return HTTPResponse.json(["id": id])
+    }
+
+    @MainActor
+    private func handleSettingsOpenAppIconPicker() -> HTTPResponse {
+        SettingsWindowController.shared.show(presetManager: presetManager)
+        // Give SwiftUI one tick to mount before we flip the nonce.
+        DispatchQueue.main.async { [presetManager = self.presetManager] in
+            presetManager.requestAppIconPicker()
+        }
+        return HTTPResponse.json(["opened": true])
+    }
+
+    @MainActor
+    private func handleSettingsDismissPicker() -> HTTPResponse {
+        presetManager.requestDismissPicker()
+        return HTTPResponse.json(["dismissed": true])
+    }
+
+    @MainActor
+    private func handleSettingsClearSelection() -> HTTPResponse {
+        presetManager.requestClearSelection()
+        return HTTPResponse.json(["cleared": true])
+    }
+
+    @MainActor
+    private func handleSettingsCommit() -> HTTPResponse {
+        presetManager.requestCommit()
+        return HTTPResponse.json(["committed": true])
+    }
+
+    @MainActor
+    private func handleSettingsSetBackgroundColor(_ req: HTTPRequest) -> HTTPResponse {
+        let dict = req.jsonDictionary() ?? [:]
+        // enabled:false → disable. color:"#RRGGBB" → enable with that color.
+        if let enabled = dict["enabled"] as? Bool, !enabled {
+            presetManager.requestSetBackgroundColor(hex: nil)
+            return HTTPResponse.json(["enabled": false])
+        }
+        guard let hex = dict["color"] as? String else {
+            return HTTPResponse.badRequest("body must be {\"color\": \"#RRGGBB\"} or {\"enabled\": false}")
+        }
+        presetManager.requestSetBackgroundColor(hex: hex)
+        return HTTPResponse.json(["color": hex])
+    }
+
+    @MainActor
+    private func handleSettingsSetTextColor(_ req: HTTPRequest) -> HTTPResponse {
+        let dict = req.jsonDictionary() ?? [:]
+        if let enabled = dict["enabled"] as? Bool, !enabled {
+            presetManager.requestSetTextColor(hex: nil)
+            return HTTPResponse.json(["enabled": false])
+        }
+        guard let hex = dict["color"] as? String else {
+            return HTTPResponse.badRequest("body must be {\"color\": \"#RRGGBB\"} or {\"enabled\": false}")
+        }
+        presetManager.requestSetTextColor(hex: hex)
+        return HTTPResponse.json(["color": hex])
+    }
+
+    @MainActor
+    private func handleSettingsMove(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let x = (dict["x"] as? NSNumber)?.doubleValue,
+              let y = (dict["y"] as? NSNumber)?.doubleValue else {
+            return HTTPResponse.badRequest("body must be {\"x\": Double, \"y\": Double}")
+        }
+        guard let w = SettingsWindowController.shared.window else {
+            return HTTPResponse.internalError("Settings window not open")
+        }
+        var frame = w.frame
+        frame.origin.x = CGFloat(x)
+        frame.origin.y = CGFloat(y)
+        w.setFrame(frame, display: true, animate: false)
+        return HTTPResponse.json([
+            "x": Double(frame.origin.x),
+            "y": Double(frame.origin.y),
+        ])
+    }
+
+    /// Arrange the floating panel and Settings window so they don't overlap.
+    ///
+    /// Layout (macOS screen coordinates, origin = bottom-left):
+    ///   - If the screen is wide enough (≥ 1440 px), the Settings window goes
+    ///     on the right half and the panel is placed in the upper-left corner.
+    ///   - On narrower screens the Settings window is placed at the bottom and
+    ///     the panel at the top-left.
+    ///
+    /// Body (all fields optional):
+    ///   { "open_settings": true }   — also open the Settings window if not visible
+    @MainActor
+    private func handleArrange(_ req: HTTPRequest) -> HTTPResponse {
+        let dict = req.jsonDictionary() ?? [:]
+        let openSettings = (dict["open_settings"] as? Bool) ?? false
+
+        guard let screen = NSScreen.main else {
+            return HTTPResponse.internalError("no main screen")
+        }
+
+        let visible = screen.visibleFrame   // excludes menu bar + Dock
+        let margin: CGFloat = 12
+
+        // Settings window size (keep current size if already open)
+        let settingsW: CGFloat
+        let settingsH: CGFloat
+        if let sw = SettingsWindowController.shared.window {
+            settingsW = sw.frame.width
+            settingsH = sw.frame.height
+        } else {
+            settingsW = 820
+            settingsH = 680
+        }
+
+        let panelFrame: NSRect
+        let settingsOrigin: NSPoint
+
+        let panelSize = panel?.frame.size ?? NSSize(width: 200, height: 120)
+
+        if visible.width >= settingsW + panelSize.width + margin * 3 {
+            // Wide enough: settings on left, panel top-right (no overlap)
+            let settingsX = visible.minX + margin
+            let settingsY = visible.minY + margin
+            settingsOrigin = NSPoint(x: settingsX, y: settingsY)
+
+            let panelX = settingsX + settingsW + margin
+            let panelY = visible.maxY - panelSize.height - margin
+            panelFrame = NSRect(origin: NSPoint(x: panelX, y: panelY), size: panelSize)
+        } else {
+            // Narrow screen: settings bottom-left, panel top-right.
+            // Ensure the panel clears the top of the settings window vertically
+            // so both remain fully visible without user intervention.
+            let settingsX = visible.minX + margin
+            let settingsY = visible.minY + margin
+            settingsOrigin = NSPoint(x: settingsX, y: settingsY)
+
+            let panelX = visible.maxX - panelSize.width - margin
+            let settingsTop = settingsY + settingsH
+            // Prefer the top-right corner; if that would overlap the settings
+            // window vertically, push the panel above the settings top edge.
+            let panelY = max(visible.maxY - panelSize.height - margin,
+                             settingsTop + margin)
+            panelFrame = NSRect(origin: NSPoint(x: panelX, y: panelY), size: panelSize)
+        }
+
+        // Move floating panel
+        if let p = panel {
+            var f = p.frame
+            f.origin = panelFrame.origin
+            p.setFrame(f, display: true, animate: false)
+            presetManager.setPanelFrame(
+                x: Double(f.origin.x), y: Double(f.origin.y),
+                width: Double(f.size.width), height: Double(f.size.height)
+            )
+        }
+
+        // Open Settings if requested, then move it
+        if openSettings {
+            SettingsWindowController.shared.show(presetManager: presetManager)
+        }
+        if let sw = SettingsWindowController.shared.window {
+            var sf = sw.frame
+            sf.origin = settingsOrigin
+            sw.setFrame(sf, display: true, animate: false)
+        }
+
+        var result: [String: Any] = [
+            "screen": ["width": Double(visible.width), "height": Double(visible.height)],
+            "settings": ["x": Double(settingsOrigin.x), "y": Double(settingsOrigin.y)],
+        ]
+        if let p = panel {
+            result["panel"] = ["x": Double(p.frame.origin.x), "y": Double(p.frame.origin.y)]
+        }
+        return HTTPResponse.json(result)
+    }
+
+    @MainActor
+    private func handleSettingsSetActionType(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let type = dict["type"] as? String else {
+            return HTTPResponse.badRequest("body must be {\"type\": String}")
+        }
+        guard ["text", "key", "launch", "terminal"].contains(type) else {
+            return HTTPResponse.badRequest("type must be one of: text, key, launch, terminal")
+        }
+        presetManager.externalActionTypeRequest = type
+        return HTTPResponse.json(["type": type])
+    }
+
+    /// Set the key combo in the ButtonEditor key-action fields.
+    /// Accepts either `{"combo": "cmd+shift+v"}` or individual modifier flags
+    /// `{"cmd": true, "shift": false, "option": false, "ctrl": false, "key": "v"}`.
+    @MainActor
+    private func handleSettingsSetKeyCombo(_ req: HTTPRequest) -> HTTPResponse {
+        let dict = req.jsonDictionary() ?? [:]
+        let combo: String
+        if let c = dict["combo"] as? String {
+            combo = c
+        } else {
+            var parts: [String] = []
+            if (dict["cmd"]    as? Bool) == true { parts.append("cmd") }
+            if (dict["shift"]  as? Bool) == true { parts.append("shift") }
+            if (dict["option"] as? Bool) == true { parts.append("option") }
+            if (dict["ctrl"]   as? Bool) == true { parts.append("ctrl") }
+            if let key = dict["key"] as? String, !key.isEmpty {
+                parts.append(key.lowercased())
+            }
+            combo = parts.joined(separator: "+")
+        }
+        guard !combo.isEmpty else {
+            return HTTPResponse.badRequest(
+                "body must be {\"combo\": String} or modifier booleans + {\"key\": String}"
+            )
+        }
+        presetManager.requestSetKeyCombo(combo: combo)
+        return HTTPResponse.json(["combo": combo])
+    }
+
+    /// Set the value field for the currently active action type in ButtonEditor.
+    /// `type` must be "text", "launch", or "terminal". Also switches the
+    /// action type tab to match.
+    @MainActor
+    private func handleSettingsSetActionValue(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let type  = dict["type"]  as? String,
+              let value = dict["value"] as? String else {
+            return HTTPResponse.badRequest(
+                "body must be {\"type\": \"text\"|\"launch\"|\"terminal\", \"value\": String}"
+            )
+        }
+        guard ["text", "launch", "terminal"].contains(type) else {
+            return HTTPResponse.badRequest("type must be one of: text, launch, terminal")
+        }
+        presetManager.requestSetActionValue(type: type, value: value)
+        return HTTPResponse.json(["type": type, "value": value])
+    }
+
+    // MARK: - Preset CRUD
+
+    @MainActor
+    private func handlePresetCurrent() -> HTTPResponse {
+        guard let preset = presetManager.currentPreset else {
+            return HTTPResponse.json(["preset": NSNull()])
+        }
+        if let data = try? JSONEncoder().encode(preset),
+           let obj = try? JSONSerialization.jsonObject(with: data) {
+            return HTTPResponse.json(["preset": obj])
+        }
+        return HTTPResponse.internalError("failed to encode preset")
+    }
+
+    /// 指定名のプリセットを読み取る (read-only)。Phase 5 で Web Panel が
+    /// パネルごとの URL から preset を選んで開くために使う。
+    @MainActor
+    private func handlePresetGet(_ req: HTTPRequest) -> HTTPResponse {
+        guard let name = req.query["name"], !name.isEmpty else {
+            return HTTPResponse.badRequest("missing 'name' query parameter")
+        }
+        guard let preset = presetManager.preset(named: name) else {
+            return HTTPResponse.json(["preset": NSNull(), "error": "not found"], status: 404)
+        }
+        if let data = try? JSONEncoder().encode(preset),
+           let obj = try? JSONSerialization.jsonObject(with: data) {
+            return HTTPResponse.json(["preset": obj])
+        }
+        return HTTPResponse.internalError("failed to encode preset")
+    }
+
+    @MainActor
+    private func handlePresetCreate(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary() else {
+            return HTTPResponse.badRequest("body must be a JSON object")
+        }
+        // All keys are optional. Missing `name` → auto-number; missing
+        // `displayName` → fall back to the resolved name. `memo` lets AI
+        // agents seed the usage note at creation time without an extra call.
+        let name = (dict["name"] as? String) ?? presetManager.nextPresetName()
+        let displayName = (dict["displayName"] as? String) ?? name
+        let memo = dict["memo"] as? String
+        let ok = presetManager.createPreset(name: name, displayName: displayName, memo: memo)
+        return HTTPResponse.json(["ok": ok, "name": name, "displayName": displayName])
+    }
+
+    @MainActor
+    private func handlePresetRename(_ req: HTTPRequest) -> HTTPResponse {
+        // Despite the legacy name "rename", this endpoint now updates any
+        // preset-level metadata: `displayName` and/or `memo`. Both are
+        // optional so callers can update one without touching the other.
+        // Pass `memo: ""` (empty string) to clear the memo; omit the key
+        // entirely to leave the existing memo intact.
+        guard let dict = req.jsonDictionary(),
+              let name = dict["name"] as? String else {
+            return HTTPResponse.badRequest("body must contain {name}")
+        }
+        let display = dict["displayName"] as? String
+        let memoProvided = dict.keys.contains("memo")
+        let memo = dict["memo"] as? String
+
+        if display == nil && !memoProvided {
+            return HTTPResponse.badRequest("body must contain at least one of {displayName, memo}")
+        }
+
+        var renameOk = true
+        if let display = display, !display.isEmpty {
+            renameOk = presetManager.renamePreset(name: name, displayName: display)
+        }
+        var memoOk = true
+        if memoProvided {
+            memoOk = presetManager.updatePresetMemo(name: name, memo: memo)
+        }
+        return HTTPResponse.json(["ok": renameOk && memoOk])
+    }
+
+    @MainActor
+    private func handlePresetExport(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let name = dict["name"] as? String else {
+            return HTTPResponse.badRequest("body must contain {name: String}")
+        }
+        guard let data = presetManager.exportPresetData(name: name),
+              let preset = try? JSONSerialization.jsonObject(with: data) else {
+            return HTTPResponse.badRequest("preset not found: \(name)")
+        }
+        return HTTPResponse.json(["ok": true, "name": name, "preset": preset])
+    }
+
+    @MainActor
+    private func handlePresetExportBundle() -> HTTPResponse {
+        guard let data = presetManager.exportAllPresetsData(),
+              let bundle = try? JSONSerialization.jsonObject(with: data) else {
+            return HTTPResponse.json(["ok": false, "error": "failed to encode bundle"])
+        }
+        return HTTPResponse.json(["ok": true, "bundle": bundle])
+    }
+
+    /// Accepts either:
+    ///  - `{ "preset": {...} }` — single preset payload
+    ///  - `{ "bundle": { "version": 1, "presets": [...] } }` — multiple
+    /// Imported presets are saved with fresh internal ids via
+    /// `nextPresetName()`, so existing files are never overwritten.
+    @MainActor
+    private func handlePresetImport(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary() else {
+            return HTTPResponse.badRequest("body must be a JSON object")
+        }
+        // Re-serialize the inner payload so we can reuse the existing
+        // file-based importer, which auto-detects single vs bundle.
+        let payload: Any
+        if let p = dict["preset"] {
+            payload = p
+        } else if let b = dict["bundle"] {
+            payload = b
+        } else {
+            return HTTPResponse.badRequest("body must contain {preset: {...}} or {bundle: {...}}")
+        }
+        guard let data = try? JSONSerialization.data(withJSONObject: payload) else {
+            return HTTPResponse.badRequest("payload is not valid JSON")
+        }
+        // Write to a temp file so importPresets(from:) can decode it.
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("fm-import-\(UUID().uuidString).json")
+        do { try data.write(to: tmp) } catch {
+            return HTTPResponse.badRequest("failed to stage payload: \(error.localizedDescription)")
+        }
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let before = Set(presetManager.presetEntries.map { $0.name })
+        let imported = presetManager.importPresets(from: tmp)
+        let after = presetManager.presetEntries.map { $0.name }
+        let names = after.filter { !before.contains($0) }
+        return HTTPResponse.json(["ok": imported > 0, "imported": imported, "names": names])
+    }
+
+    @MainActor
+    private func handlePresetInstallSeeds(_ req: HTTPRequest) -> HTTPResponse {
+        let force = (req.jsonDictionary()?["force"] as? Bool) ?? false
+        guard let result = presetManager.reinstallSeedPresets(force: force) else {
+            return HTTPResponse.json(["ok": false, "error": "install failed"])
+        }
+        return HTTPResponse.json([
+            "ok":        true,
+            "installed": result.installed,
+            "skipped":   result.skipped,
+            "force":     force,
+        ])
+    }
+
+    @MainActor
+    private func handlePresetDelete(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let name = dict["name"] as? String else {
+            return HTTPResponse.badRequest("body must contain {name: String}")
+        }
+        let ok = presetManager.deletePreset(name: name)
+        return HTTPResponse.json(["ok": ok])
+    }
+
+    // MARK: - Group CRUD
+
+    @MainActor
+    private func handleGroupAdd(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String,
+              let label = dict["label"] as? String else {
+            return HTTPResponse.badRequest("body must contain {id, label}")
+        }
+        let collapsed = (dict["collapsed"] as? Bool) ?? false
+        let displayType: GroupDisplayType = {
+            guard let raw = dict["displayType"] as? String,
+                  let value = GroupDisplayType(rawValue: raw) else { return .icon }
+            return value
+        }()
+        let columns: GroupColumns = Self.parseColumns(dict["columns"])
+        let iconSize: IconSize = {
+            guard let raw = dict["iconSize"] as? String,
+                  let value = IconSize(rawValue: raw) else { return .medium }
+            return value
+        }()
+        let showLabels = (dict["showLabels"] as? Bool) ?? true
+        let group = ButtonGroup(id: id, label: label, collapsed: collapsed,
+                                displayType: displayType, columns: columns,
+                                iconSize: iconSize, showLabels: showLabels, buttons: [])
+        let ok = presetManager.addGroup(group)
+        return HTTPResponse.json(["ok": ok, "id": id])
+    }
+
+    @MainActor
+    private func handleGroupUpdate(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String else {
+            return HTTPResponse.badRequest("body must contain {id: String}")
+        }
+        let label = dict["label"] as? String
+        let icon: String?? = dict.keys.contains("icon")
+            ? .some(dict["icon"] as? String) : nil
+        let iconText: String?? = dict.keys.contains("iconText")
+            ? .some(dict["iconText"] as? String) : nil
+        let bgColor: String?? = dict.keys.contains("backgroundColor")
+            ? .some(dict["backgroundColor"] as? String) : nil
+        let txtColor: String?? = dict.keys.contains("textColor")
+            ? .some(dict["textColor"] as? String) : nil
+        let tip: String?? = dict.keys.contains("tooltip")
+            ? .some(dict["tooltip"] as? String) : nil
+        let collapsed = dict["collapsed"] as? Bool
+        // displayType: 文字列 ("icon" | "wide" | "card") を enum に解決。
+        // 不正値は無視 (nil = 変更なし) して既存挙動を保つ。
+        let displayType: GroupDisplayType? = {
+            guard let raw = dict["displayType"] as? String else { return nil }
+            return GroupDisplayType(rawValue: raw)
+        }()
+        let columns: GroupColumns? = dict.keys.contains("columns")
+            ? Self.parseColumns(dict["columns"]) : nil
+        let iconSize: IconSize? = {
+            guard let raw = dict["iconSize"] as? String else { return nil }
+            return IconSize(rawValue: raw)
+        }()
+        let showLabels = dict["showLabels"] as? Bool
+        let ok = presetManager.updateGroup(
+            id: id, label: label, icon: icon, iconText: iconText,
+            backgroundColor: bgColor, textColor: txtColor,
+            tooltip: tip, collapsed: collapsed,
+            displayType: displayType, columns: columns,
+            iconSize: iconSize, showLabels: showLabels
+        )
+        return HTTPResponse.json(["ok": ok])
+    }
+
+    @MainActor
+    private func handleGroupDelete(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String else {
+            return HTTPResponse.badRequest("body must contain {id: String}")
+        }
+        let ok = presetManager.deleteGroup(id: id)
+        return HTTPResponse.json(["ok": ok])
+    }
+
+    private static func parseColumns(_ value: Any?) -> GroupColumns {
+        if let n = value as? Int, (1...3).contains(n) { return .fixed(n) }
+        if let s = value as? String {
+            if s == "auto" { return .auto }
+            if let n = Int(s), (1...3).contains(n) { return .fixed(n) }
+        }
+        return .auto
+    }
+
+    // MARK: - Button CRUD
+
+    @MainActor
+    private func handleButtonAdd(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let groupId = dict["groupId"] as? String,
+              let buttonDict = dict["button"] as? [String: Any] else {
+            return HTTPResponse.badRequest("body must be {groupId, button: {...}}")
+        }
+        // Re-encode the button dict back through JSONDecoder to enforce schema.
+        guard let data = try? JSONSerialization.data(withJSONObject: buttonDict),
+              let button = try? JSONDecoder().decode(ButtonDefinition.self, from: data) else {
+            return HTTPResponse.badRequest("button dict is not a valid ButtonDefinition")
+        }
+        let ok = presetManager.addButton(button, toGroupId: groupId)
+        return HTTPResponse.json(["ok": ok, "id": button.id])
+    }
+
+    @MainActor
+    private func handleButtonUpdate(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String else {
+            return HTTPResponse.badRequest("body must contain {id: String}")
+        }
+        let label = dict["label"] as? String
+        let icon: String??      = dict.keys.contains("icon") ? .some(dict["icon"] as? String) : nil
+        let iconText: String??  = dict.keys.contains("iconText") ? .some(dict["iconText"] as? String) : nil
+        let bg: String??        = dict.keys.contains("backgroundColor") ? .some(dict["backgroundColor"] as? String) : nil
+        let tc: String??        = dict.keys.contains("textColor") ? .some(dict["textColor"] as? String) : nil
+        let width: Double??     = dict.keys.contains("width")  ? .some((dict["width"]  as? NSNumber)?.doubleValue) : nil
+        let height: Double??    = dict.keys.contains("height") ? .some((dict["height"] as? NSNumber)?.doubleValue) : nil
+        let tooltip: String??   = dict.keys.contains("tooltip") ? .some(dict["tooltip"] as? String) : nil
+        let confirm: Bool?            = dict["confirm"] as? Bool
+        let confirmDestructive: Bool? = dict["confirmDestructive"] as? Bool
+        let confirmMessage: String??  = dict.keys.contains("confirmMessage")
+            ? .some(dict["confirmMessage"] as? String) : nil
+        let thumbnail: String?? = dict.keys.contains("thumbnail")
+            ? .some(dict["thumbnail"] as? String) : nil
+        let cardThumbnailMode: CardThumbnailMode? = {
+            guard let raw = dict["cardThumbnailMode"] as? String else { return nil }
+            return CardThumbnailMode(rawValue: raw)
+        }()
+
+        var action: Action?
+        if let actionDict = dict["action"] as? [String: Any] {
+            if let data = try? JSONSerialization.data(withJSONObject: actionDict),
+               let a = try? JSONDecoder().decode(Action.self, from: data) {
+                action = a
+            } else {
+                return HTTPResponse.badRequest("action is not a valid Action")
+            }
+        }
+
+        let ok = presetManager.updateButton(
+            id: id, label: label,
+            icon: icon, iconText: iconText,
+            backgroundColor: bg, textColor: tc,
+            width: width, height: height, tooltip: tooltip,
+            confirm: confirm,
+            confirmMessage: confirmMessage,
+            confirmDestructive: confirmDestructive,
+            thumbnail: thumbnail,
+            cardThumbnailMode: cardThumbnailMode,
+            action: action
+        )
+        return HTTPResponse.json(["ok": ok])
+    }
+
+    @MainActor
+    private func handleButtonDelete(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String else {
+            return HTTPResponse.badRequest("body must contain {id}")
+        }
+        let ok = presetManager.deleteButton(id: id)
+        return HTTPResponse.json(["ok": ok])
+    }
+
+    @MainActor
+    private func handlePresetReorder(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let ids = dict["ids"] as? [String] else {
+            return HTTPResponse.badRequest("body must be {ids: [String]}")
+        }
+        let ok = presetManager.reorderPresets(ids: ids)
+        let order = presetManager.appConfig?.presetOrder ?? []
+        return HTTPResponse.json(["ok": ok, "order": order])
+    }
+
+    @MainActor
+    private func handleButtonReorder(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let groupId = dict["groupId"] as? String,
+              let ids = dict["ids"] as? [String] else {
+            return HTTPResponse.badRequest("body must be {groupId, ids: [String]}")
+        }
+        let ok = presetManager.reorderButtons(ids: ids, inGroupId: groupId)
+        return HTTPResponse.json(["ok": ok])
+    }
+
+    @MainActor
+    private func handleButtonMove(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String,
+              let toGroupId = dict["toGroupId"] as? String else {
+            return HTTPResponse.badRequest("body must contain {id, toGroupId}")
+        }
+        let position = (dict["position"] as? NSNumber)?.intValue
+        let ok = presetManager.moveButton(id: id, toGroupId: toGroupId, at: position)
+        return HTTPResponse.json(["ok": ok])
+    }
+
+    /// Press a button by id by **synthesizing a real mouse click** at the
+    /// button's screen location (via Accessibility lookup + CGEvent). This
+    /// means a test that calls `button_press` exercises the same OS event
+    /// dispatch chain a Magic Mouse click takes — window manager, hit-test,
+    /// SwiftUI gesture recognizer, Button.action — so failure modes that
+    /// `executeButton` would mask (window obstruction, broken hit-test,
+    /// disabled views) are caught.
+    ///
+    /// On success: 202 + visual press feedback in the panel, the human
+    /// observer sees the cursor zip to the button and the button flash.
+    /// On AX-lookup or CGEvent failure: 502 with a description so the
+    /// caller can act (panel hidden, group collapsed, AX permission
+    /// missing, etc.).
+    @MainActor
+    private func handleButtonPress(_ req: HTTPRequest) -> HTTPResponse {
+        guard let dict = req.jsonDictionary(),
+              let id = dict["id"] as? String else {
+            return HTTPResponse.badRequest("body must contain {id: String}")
+        }
+
+        // Phase 5: Web Panel から開かれたパネル (active preset とは違う preset
+        // を表示している iPhone) の button_press を受けるため、active preset
+        // 限定ではなく **全プリセット** から id を探す。
+        let activePresetName = presetManager.currentPreset?.name
+        var foundButton: ButtonDefinition? = nil
+        var foundInPreset: String? = nil
+        for panelCfg in (presetManager.appConfig?.panels ?? []) {
+            guard let preset = presetManager.preset(named: panelCfg.presetName) else { continue }
+            if let btn = preset.groups.flatMap({ $0.buttons }).first(where: { $0.id == id }) {
+                foundButton = btn
+                foundInPreset = preset.name
+                if preset.name == activePresetName { break } // active を優先
+            }
+        }
+        guard let button = foundButton, let presetName = foundInPreset else {
+            return HTTPResponse.json([
+                "error": "button not found in any panel preset",
+                "id":    id,
+            ], status: 404)
+        }
+
+        // Active preset のボタンは AX クリック (実際にカーソルが動いて押される
+        // ので一連の OS event chain が検証される)。違うプリセットのボタンは
+        // 直接 action を実行する (Web Panel の主用途で、AX クリック先のパネル
+        // が画面上に無いケースを救う)。
+        if presetName == activePresetName {
+            panel?.orderFront(nil)
+            Task.detached {
+                try? await Task.sleep(nanoseconds: 80_000_000)
+                if let err = ButtonClicker.click(buttonId: id) {
+                    LoggerContext.shared.error("ControlAPI",
+                        "button_press click failed",
+                        ["id": id, "error": err])
+                }
+            }
+        } else {
+            LoggerContext.shared.info("ControlAPI", "button_press direct execute", [
+                "id":     id,
+                "preset": presetName,
+            ])
+            presetManager.executeButton(button)
+        }
+
+        return HTTPResponse.json([
+            "accepted":   true,
+            "id":         button.id,
+            "label":      button.label,
+            "actionType": String(describing: button.action).split(separator: "(").first.map(String.init) ?? "?",
+            "via":        "synthesized-mouse-click",
+        ], status: 202)
+    }
+
+    // MARK: - Icon
+
+    @MainActor
+    private func handleIconForApp(_ req: HTTPRequest) -> HTTPResponse {
+        let bid = req.query["bundleId"]
+        let path = req.query["path"]
+        guard bid != nil || path != nil else {
+            return HTTPResponse.badRequest("provide ?bundleId= or ?path=")
+        }
+        guard let data = IconLoader.pngForApp(bundleIdentifier: bid, path: path) else {
+            return HTTPResponse.json(["error": "icon not found"], status: 404)
+        }
+        let base64 = data.base64EncodedString()
+        let body: [String: Any] = [
+            "bundleId":   bid as Any? ?? NSNull(),
+            "path":       path as Any? ?? NSNull(),
+            "bytes":      data.count,
+            "png_base64": base64,
+        ]
+        return HTTPResponse.json(body)
+    }
+
+    // MARK: - Log tail (existing)
+
+    @MainActor
+    private func handleLogTail(_ req: HTTPRequest) -> HTTPResponse {
+        let level = req.query["level"].flatMap(LogLevel.parse)
+        let since = req.query["since"].flatMap(Self.parseDuration)
+        let limit = req.query["limit"].flatMap(Int.init)
+
+        guard FileManager.default.fileExists(atPath: logURL.path),
+              let raw = try? String(contentsOf: logURL, encoding: .utf8) else {
+            return HTTPResponse.json(["events": [String]()])
+        }
+
+        let cutoff = since.map { Date().addingTimeInterval(-$0) }
+        var events: [[String: Any]] = []
+        let decoder = JSONDecoder.fmLogDecoder
+
+        for line in raw.split(separator: "\n", omittingEmptySubsequences: true) {
+            guard let data = line.data(using: .utf8),
+                  let event = try? decoder.decode(LogEvent.self, from: data) else { continue }
+            if let level = level, event.level < level { continue }
+            if let cutoff = cutoff, event.timestamp < cutoff { continue }
+            // Re-emit as a plain dict (matches the on-disk JSON shape).
+            if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                events.append(obj)
+            }
+        }
+        if let limit = limit, events.count > limit {
+            events = Array(events.suffix(limit))
+        }
+        return HTTPResponse.json(["events": events])
+    }
+
+    // MARK: - Helpers
+
+    nonisolated private static func parseDuration(_ s: String) -> TimeInterval? {
+        guard !s.isEmpty, let last = s.last else { return nil }
+        let body = s.dropLast()
+        guard let n = Double(body) else {
+            return Double(s)
+        }
+        switch last {
+        case "s": return n
+        case "m": return n * 60
+        case "h": return n * 3600
+        case "d": return n * 86400
+        default:  return Double(s)
+        }
+    }
+
+    nonisolated private static func runAction(_ action: Action,
+                                              blacklist: CommandBlacklist? = nil,
+                                              onBlocked: MacroRunner.BlockedCommandHandler? = nil) async throws {
+        // Blacklist check for direct terminal/text actions.
+        if let bl = blacklist, !bl.autopilotEnabled {
+            switch action {
+            case .terminal(_, let command, _, _, _):
+                if let pattern = CommandGuard.check(command, against: bl) {
+                    if let handler = onBlocked {
+                        let proceed = await handler(pattern, command)
+                        if !proceed { throw ActionError.commandBlocked(pattern: pattern) }
+                    } else {
+                        throw ActionError.commandBlocked(pattern: pattern)
+                    }
+                }
+            case .text(let content, _, _, _):
+                if let pattern = CommandGuard.check(content, against: bl) {
+                    if let handler = onBlocked {
+                        let proceed = await handler(pattern, content)
+                        if !proceed { throw ActionError.commandBlocked(pattern: pattern) }
+                    } else {
+                        throw ActionError.commandBlocked(pattern: pattern)
+                    }
+                }
+            default: break
+            }
+        }
+        switch action {
+        case .key(let combo):
+            let kc = try KeyCombo.parse(combo)
+            try KeyActionExecutor.execute(kc)
+        case .text(let content, let pasteDelayMs, let restoreClipboard, let appendMode):
+            try TextActionExecutor.execute(
+                content: content,
+                pasteDelayMs: pasteDelayMs,
+                restoreClipboard: restoreClipboard,
+                appendMode: appendMode
+            )
+        case .launch(let target):
+            try LaunchActionExecutor.execute(target: target)
+        case .terminal(let app, let command, let newWindow, let execute, let profile):
+            try TerminalActionExecutor.execute(
+                app: app, command: command, newWindow: newWindow,
+                execute: execute, profile: profile
+            )
+        case .delay(let ms):
+            try await Task.sleep(nanoseconds: UInt64(ms) * 1_000_000)
+        case .macro(let actions, let stopOnError):
+            try await MacroRunner.run(actions: actions, stopOnError: stopOnError,
+                                      blacklist: blacklist, onBlocked: onBlocked)
+        }
+    }
+}
+
+/// Run `block` synchronously on the main queue and return its value.
+/// Safe to call from any background queue. If called on the main queue,
+/// executes immediately to avoid deadlock.
+nonisolated func onMainSync<T>(_ block: @MainActor () -> T) -> T {
+    if Thread.isMainThread {
+        return MainActor.assumeIsolated { block() }
+    } else {
+        return DispatchQueue.main.sync {
+            MainActor.assumeIsolated { block() }
+        }
+    }
+}
+
+/// Bearer トークン認証ミドルウェア。
+///
+/// `token` が `nil` のときは認証なしでスルーする（testMode 用）。
+/// `/ping` と `/health` は認証除外（死活監視用）。
+/// それ以外のエンドポイントは `Authorization: Bearer <token>` が必須。
+func wrapWithAuth(token: String?,
+                  handler: @escaping ControlServer.Handler) -> ControlServer.Handler {
+    return { req in
+        guard let expectedToken = token else { return handler(req) }
+
+        // Discovery endpoints must be reachable without a token: an AI agent
+        // bootstraps by GET /manifest (or /.well-known/agent.json) to learn
+        // *that* a token is required and *how* to obtain one. Gating these
+        // behind auth would create a chicken-and-egg problem. Action-executing
+        // endpoints below the discovery layer remain protected.
+        let publicPaths: Set<String> = [
+            "/ping", "/health",
+            "/manifest", "/help",
+            "/.well-known/agent.json",
+            "/openapi.json",
+            // ACP discovery: clients must be able to find the agent and read
+            // its manifest before authenticating, mirroring /manifest.
+            "/agents",
+            "/agents/floatingmacro",
+        ]
+        if publicPaths.contains(req.path) { return handler(req) }
+
+        // Phase 5: Web Panel 系は ephemeral LAN token で独自に守られている
+        // (handleWebPanel* の中でクエリ / Authorization を検証する) ため、
+        // 永続 Bearer トークン認証はスキップする。これがないとスマホは
+        // 永続トークンを知らないので /webpanel に到達した時点で 401 になる。
+        if req.path.hasPrefix("/webpanel") { return handler(req) }
+
+        guard let authHeader = req.header("Authorization"),
+              authHeader.hasPrefix("Bearer "),
+              authHeader.dropFirst("Bearer ".count) == expectedToken else {
+            return HTTPResponse(
+                status: 401,
+                reason: "Unauthorized",
+                headers: [
+                    ("Content-Type", "application/json"),
+                    ("WWW-Authenticate", #"Bearer realm="FloatingMacro""#),
+                ],
+                body: #"{"error":"invalid or missing token"}"#.data(using: .utf8)!
+            )
+        }
+
+        return handler(req)
+    }
+}

@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "name": "reaper",
+  "displayName": "🎛 REAPER",
+  "memo": "使う前に確認:\n\n• REAPER のウィンドウを前面にしてから押す\n• ショートカットキーは REAPER のデフォルト設定に準拠\n• カスタムキーバインドを使っている場合は、AI に「REAPER のキーバインドは○○に変更してある」と伝えれば調整可能",
+  "groups": [
+    {
+      "id": "g-rp-transport",
+      "label": "トランスポート",
+      "buttons": [
+        {
+          "id": "b-rp-play",
+          "label": "再生/停止",
+          "icon": "sf:play.fill",
+          "backgroundColor": "#34C759",
+          "action": { "type": "key", "combo": "space" }
+        },
+        {
+          "id": "b-rp-stop",
+          "label": "停止",
+          "icon": "sf:stop.fill",
+          "backgroundColor": "#FF3B30",
+          "action": { "type": "key", "combo": "space" }
+        },
+        {
+          "id": "b-rp-record",
+          "label": "録音",
+          "icon": "sf:record.circle",
+          "backgroundColor": "#FF2D55",
+          "action": { "type": "key", "combo": "r" }
+        },
+        {
+          "id": "b-rp-rewind",
+          "label": "先頭",
+          "icon": "sf:backward.end.fill",
+          "action": { "type": "key", "combo": "w" }
+        },
+        {
+          "id": "b-rp-loop",
+          "label": "ループ",
+          "icon": "sf:repeat",
+          "backgroundColor": "#5856D6",
+          "action": { "type": "key", "combo": "r" }
+        }
+      ]
+    },
+    {
+      "id": "g-rp-edit",
+      "label": "編集",
+      "displayType": "wide",
+      "buttons": [
+        {
+          "id": "b-rp-undo",
+          "label": "取り消し",
+          "icon": "sf:arrow.uturn.backward",
+          "action": { "type": "key", "combo": "cmd+z" }
+        },
+        {
+          "id": "b-rp-split",
+          "label": "分割",
+          "icon": "sf:scissors",
+          "action": { "type": "key", "combo": "s" }
+        },
+        {
+          "id": "b-rp-delete",
+          "label": "削除",
+          "icon": "sf:trash",
+          "backgroundColor": "#FF3B30",
+          "action": { "type": "key", "combo": "delete" }
+        },
+        {
+          "id": "b-rp-duplicate",
+          "label": "複製",
+          "icon": "sf:plus.rectangle.on.rectangle",
+          "action": { "type": "key", "combo": "cmd+d" }
+        },
+        {
+          "id": "b-rp-glue",
+          "label": "グルー",
+          "icon": "sf:link",
+          "action": { "type": "key", "combo": "shift+g" }
+        }
+      ]
+    },
+    {
+      "id": "g-rp-mixer",
+      "label": "ミキサー",
+      "buttons": [
+        {
+          "id": "b-rp-mixer",
+          "label": "ミキサー",
+          "icon": "sf:slider.horizontal.3",
+          "action": { "type": "key", "combo": "cmd+m" }
+        },
+        {
+          "id": "b-rp-fx",
+          "label": "FX",
+          "icon": "sf:wand.and.stars",
+          "backgroundColor": "#AF52DE",
+          "action": { "type": "key", "combo": "f" }
+        },
+        {
+          "id": "b-rp-solo",
+          "label": "ソロ",
+          "icon": "sf:headphones",
+          "backgroundColor": "#FFD60A",
+          "action": { "type": "key", "combo": "alt+s" }
+        },
+        {
+          "id": "b-rp-mute",
+          "label": "ミュート",
+          "icon": "sf:speaker.slash.fill",
+          "backgroundColor": "#FF9500",
+          "action": { "type": "key", "combo": "alt+m" }
+        }
+      ]
+    }
+  ]
+}

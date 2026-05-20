@@ -1,0 +1,250 @@
+{
+  "version": 1,
+  "name": "midjourney-gallery",
+  "displayName": "MidJourney プロンプトギャラリー",
+  "memo": "card 表示タイプ + 追記モードの組み合わせサンプル（v0.11 で追加）。\n\n使い方:\n• 各グループは displayType=\"card\" でサムネイル付きカードに並ぶ\n• 各ボタンは text アクションの appendMode=true で、押した瞬間にクリップボードへ断片を「連結」する（ペーストはしない）\n• 「画風 → ポーズ → 服装 → 背景」の順にカードを押していき、最後に Discord の入力欄で Cmd+V する\n• カードに大きな画像を出したいときはボタン編集で thumbnail フィールドにファイルパスを入れる（このサンプルは絵文字フォールバックで動く）\n• クリップボードを途中で別のテキストに上書きしてもよい — 次のボタン押下から末尾に積まれていく",
+  "groups": [
+    {
+      "id": "g-mj-style",
+      "label": "画風",
+      "iconText": "🎨",
+      "displayType": "card",
+      "buttons": [
+        {
+          "id": "b-mj-card-photo",
+          "label": "写実",
+          "iconText": "📸",
+          "action": {
+            "type": "text",
+            "content": "photorealistic, ",
+            "appendMode": true
+          }
+        },
+        {
+          "id": "b-mj-card-anime",
+          "label": "アニメ",
+          "iconText": "🌸",
+          "action": {
+            "type": "text",
+            "content": "anime style, ",
+            "appendMode": true
+          }
+        },
+        {
+          "id": "b-mj-card-watercolor",
+          "label": "水彩",
+          "iconText": "💧",
+          "action": {
+            "type": "text",
+            "content": "watercolor, ",
+            "appendMode": true
+          }
+        },
+        {
+          "id": "b-mj-card-oil",
+          "label": "油絵",
+          "iconText": "🖌️",
+          "action": {
+            "type": "text",
+            "content": "oil painting, ",
+            "appendMode": true
+          }
+        },
+        {
+          "id": "b-mj-card-cinematic",
+          "label": "映画的",
+          "iconText": "🎬",
+          "action": {
+            "type": "text",
+            "content": "cinematic lighting, ",
+            "appendMode": true
+          }
+        },
+        {
+          "id": "b-mj-card-concept",
+          "label": "コンセプト",
+          "iconText": "💡",
+          "action": {
+            "type": "text",
+            "content": "concept art, ",
+            "appendMode": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "g-mj-pose",
+      "label": "ポーズ",
+      "iconText": "🕺",
+      "displayType": "card",
+      "buttons": [
+        {
+          "id": "b-mj-pose-running",
+          "label": "走る",
+          "iconText": "🏃",
+          "action": {
+            "type": "text",
+            "content": "running pose, ",
+            "appendMode": true
+          }
+        },
+        {
+          "id": "b-mj-pose-sitting",
+          "label": "座る",
+          "iconText": "🪑",
+          "action": {
+            "type": "text",
+            "content": "sitting on a bench, ",
+            "appendMode": true
+          }
+        },
+        {
+          "id": "b-mj-pose-jumping",
+          "label": "跳ねる",
+          "iconText": "🤸",
+          "action": {
+            "type": "text",
+            "content": "mid-air jumping pose, ",
+            "appendMode": true
+          }
+        },
+        {
+          "id": "b-mj-pose-standing",
+          "label": "立ち姿",
+          "iconText": "🧍",
+          "action": {
+            "type": "text",
+            "content": "standing pose, hands in pockets, ",
+            "appendMode": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "g-mj-outfit",
+      "label": "服装",
+      "iconText": "👗",
+      "displayType": "card",
+      "buttons": [
+        {
+          "id": "b-mj-outfit-school",
+          "label": "学生服",
+          "iconText": "🎒",
+          "action": {
+            "type": "text",
+            "content": "wearing a school uniform, ",
+            "appendMode": true
+          }
+        },
+        {
+          "id": "b-mj-outfit-suit",
+          "label": "スーツ",
+          "iconText": "👔",
+          "action": {
+            "type": "text",
+            "content": "wearing a sharp business suit, ",
+            "appendMode": true
+          }
+        },
+        {
+          "id": "b-mj-outfit-kimono",
+          "label": "着物",
+          "iconText": "👘",
+          "action": {
+            "type": "text",
+            "content": "wearing a traditional kimono, ",
+            "appendMode": true
+          }
+        },
+        {
+          "id": "b-mj-outfit-hoodie",
+          "label": "パーカー",
+          "iconText": "🧥",
+          "action": {
+            "type": "text",
+            "content": "wearing an oversized hoodie, ",
+            "appendMode": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "g-mj-background",
+      "label": "背景",
+      "iconText": "🏞️",
+      "displayType": "card",
+      "buttons": [
+        {
+          "id": "b-mj-bg-cyberpunk",
+          "label": "サイバー街",
+          "iconText": "🌃",
+          "action": {
+            "type": "text",
+            "content": "in a neon-lit cyberpunk city, ",
+            "appendMode": true
+          }
+        },
+        {
+          "id": "b-mj-bg-forest",
+          "label": "森",
+          "iconText": "🌲",
+          "action": {
+            "type": "text",
+            "content": "in a misty pine forest, ",
+            "appendMode": true
+          }
+        },
+        {
+          "id": "b-mj-bg-beach",
+          "label": "海岸",
+          "iconText": "🏖️",
+          "action": {
+            "type": "text",
+            "content": "on a sunset beach, ",
+            "appendMode": true
+          }
+        },
+        {
+          "id": "b-mj-bg-cafe",
+          "label": "カフェ",
+          "iconText": "☕",
+          "action": {
+            "type": "text",
+            "content": "in a cozy cafe with warm lighting, ",
+            "appendMode": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "g-mj-finalize",
+      "label": "仕上げ",
+      "iconText": "🎯",
+      "displayType": "wide",
+      "buttons": [
+        {
+          "id": "b-mj-finalize-ar",
+          "label": "アスペクト比 16:9 を追加",
+          "iconText": "🖥️",
+          "tooltip": "16:9 を末尾に追加（card と違いペーストはしない、自分で Cmd+V）",
+          "action": {
+            "type": "text",
+            "content": " --ar 16:9",
+            "appendMode": true
+          }
+        },
+        {
+          "id": "b-mj-finalize-quality",
+          "label": "Quality 2 を追加",
+          "iconText": "✨",
+          "tooltip": "GPU 時間 2 倍、最終仕上げで使う",
+          "action": {
+            "type": "text",
+            "content": " --q 2",
+            "appendMode": true
+          }
+        }
+      ]
+    }
+  ]
+}

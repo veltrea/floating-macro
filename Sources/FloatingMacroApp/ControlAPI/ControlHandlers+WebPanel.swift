@@ -21,7 +21,7 @@ extension ControlHandlers {
         let presetName = req.query["preset"]
         let preset = resolvePresetForSSR(name: presetName)
         let presetJSON = encodePresetJSONString(preset) ?? "null"
-        let presetDisplay = preset?.displayName ?? presetName ?? L("現在のプリセット_95367b")
+        let presetDisplay = preset?.displayName ?? presetName ?? L("Current preset: 95367b")
         let ssrHTML = WebPanelSSR.renderInnerHTML(preset: preset)
 
         if let preset = preset {

@@ -9,7 +9,7 @@ final class WebPanelAssetsTests: XCTestCase {
 
     func testHTMLAssetIsBundled() {
         let data = WebPanelAssets.data(.html)
-        XCTAssertNotNil(data, "panel.html がバンドルから読めること")
+        XCTAssertNotNil(data, "panel.html Cannot read from bundle")
         XCTAssertGreaterThan(data?.count ?? 0, 0)
     }
 
@@ -41,9 +41,9 @@ final class WebPanelAssetsTests: XCTestCase {
             token: token, presetJSON: "null", presetDisplay: "test", ssrHTML: ""
         ))
         let html = try XCTUnwrap(String(data: data, encoding: .utf8))
-        XCTAssertTrue(html.contains(token), "実トークンが HTML に注入されること")
+        XCTAssertTrue(html.contains(token), "The injected token into HTML")
         XCTAssertFalse(html.contains("{{TOKEN}}"),
-                       "プレースホルダが残っていないこと")
+                       "No placeholder left")
         XCTAssertFalse(html.contains("{{PRESET_JSON}}"))
         XCTAssertFalse(html.contains("{{SSR_HTML}}"))
     }
@@ -57,7 +57,7 @@ final class WebPanelAssetsTests: XCTestCase {
         ))
         let html = try XCTUnwrap(String(data: data, encoding: .utf8))
         XCTAssertFalse(html.contains("</script><script>alert"),
-                       "エスケープなしで script タグを差し込ませてはいけない")
+                       "Must not inject script tags without escaping")
         // <>, &, and are being converted to Unicode escapes.
         XCTAssertTrue(html.contains("\\u003c") || html.contains("\\u003C"))
     }

@@ -141,7 +141,7 @@ final class ConfigLoaderTests: XCTestCase {
     func testPresetRoundTrip() throws {
         let preset = Preset(
             name: "test",
-            displayName: "テスト",
+            displayName: "Test",
             groups: [
                 ButtonGroup(
                     id: "g1",
@@ -378,7 +378,7 @@ final class ConfigLoaderTests: XCTestCase {
         { "id": "p1", "presetName": "default", "minimizedToEdge": true }
         """#.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(PanelConfig.self, from: json)
-        XCTAssertEqual(decoded.dockedEdge, .right, "旧 minimizedToEdge: true は .right に移行")
+        XCTAssertEqual(decoded.dockedEdge, .right, "Minimized to Edge: true .right Migrate")
     }
 
     func testPanelConfigDockedEdgeMigrationFalseBecomesNil() throws {
@@ -386,15 +386,15 @@ final class ConfigLoaderTests: XCTestCase {
         { "id": "p1", "presetName": "default", "minimizedToEdge": false }
         """#.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(PanelConfig.self, from: json)
-        XCTAssertNil(decoded.dockedEdge, "旧 minimizedToEdge: false は nil")
+        XCTAssertNil(decoded.dockedEdge, "minimizedToEdge: false is nil")
     }
 
     func testPanelConfigDockedEdgeNilOmitted() throws {
         let panel = PanelConfig(id: "p1", presetName: "default")
         let data = try JSONEncoder().encode(panel)
         let obj = try JSONSerialization.jsonObject(with: data) as! [String: Any]
-        XCTAssertNil(obj["dockedEdge"], "dockedEdge が nil なら JSON キーを省略")
-        XCTAssertNil(obj["minimizedToEdge"], "旧キーは書き出さない")
+        XCTAssertNil(obj["dockedEdge"], "dockedEdge If nil, omit JSON key")
+        XCTAssertNil(obj["minimizedToEdge"], "Do not write out old keys")
     }
 
     func testAppConfigExplicitPanelsTakePrecedenceOverLegacyFields() throws {
@@ -432,7 +432,7 @@ final class ConfigLoaderTests: XCTestCase {
         {
           "version": 1,
           "name": "default",
-          "displayName": "デフォルト",
+          "displayName": "Default",
           "groups": [
             {
               "id": "group-1",
@@ -446,7 +446,7 @@ final class ConfigLoaderTests: XCTestCase {
                   "iconText": "🧠",
                   "action": {
                     "type": "text",
-                    "content": "ultrathink で次のタスクに取り組んでください。"
+                    "content": "ultrathink Please proceed with the next task."
                   }
                 }
               ]

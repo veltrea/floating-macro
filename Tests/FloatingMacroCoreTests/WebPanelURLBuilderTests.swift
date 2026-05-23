@@ -23,7 +23,7 @@ final class WebPanelURLBuilderTests: XCTestCase {
     func testBuildURLBracketsIPv6() {
         let url = WebPanelURLBuilder.make(host: "fe80::1", port: 17430, token: "xx")
         XCTAssertTrue(url.contains("[fe80::1]"),
-                      "IPv6 リテラルは [] で括る必要がある")
+                      "IPv6 Literal is [] needs to be enclosed")
     }
 
     func testBuildURLWithPresetParameter() {
@@ -41,7 +41,7 @@ final class WebPanelURLBuilderTests: XCTestCase {
             token: "abc", preset: ""
         )
         XCTAssertFalse(url.contains("preset="),
-                       "空文字 preset は URL に出さない")
+                       "Empty preset does not display in URL")
     }
 
     func testBuildURLWithNilPresetSkipsParam() {
@@ -66,7 +66,7 @@ final class WebPanelURLBuilderTests: XCTestCase {
         let url = WebPanelURLBuilder.make(host: "127.0.0.1",
                                           port: 80,
                                           token: "a/b c")
-        XCTAssertFalse(url.contains(" "), "URL に生のスペースが残っていない")
+        XCTAssertFalse(url.contains(" "), "URL No spaces left")
     }
 
     // MARK: - preferredHost

@@ -485,7 +485,7 @@ Here, calling openSystemPreferences or adding an additional alert will cause a w
                     .withSymbolConfiguration(cfg)
                 img?.isTemplate = false
                 button.image = img
-                button.toolTip = L("FloatingMacro_LAN_公開中_Phase_5_140d2a")
+                button.toolTip = L("FloatingMacro_LAN_Public Phase 5 140d2a")
             } else {
                 let img = NSImage(systemSymbolName: "command.square",
                                   accessibilityDescription: "FloatingMacro")
@@ -695,11 +695,11 @@ Here, calling openSystemPreferences or adding an additional alert will cause a w
 
     private func showAccessibilityAlert() {
         let alert = NSAlert()
-        alert.messageText = L("Accessibility_権限が必要です_c1ef75")
-        alert.informativeText = L("FloatingMacro_がキーボードショートカットを送出するには_Accessibility_権_df566b")
+        alert.messageText = L("Accessibility_Permission required")
+        alert.informativeText = L("FloatingMacro_To send keyboard shortcuts, enable _Accessibility_ permissions df566b")
         alert.alertStyle = .warning
-        alert.addButton(withTitle: L("システム設定を開く_ea27bb"))
-        alert.addButton(withTitle: L("後で_1d5321"))
+        alert.addButton(withTitle: L("Open System Settings"))
+        alert.addButton(withTitle: L("Later _1d5321"))
 
         if alert.runModal() == .alertFirstButtonReturn {
             AccessibilityChecker.openSystemPreferences()

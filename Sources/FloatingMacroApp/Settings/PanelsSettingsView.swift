@@ -17,9 +17,9 @@ struct PanelsSettingsView: View {
             // Header: New Add Button and Description
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(L("フローティングパネル_9df495"))
+                    Text(L("Floating Panel 9df495"))
                         .font(.system(size: 14, weight: .semibold))
-                    Text(L("複数のパネルを同時表示し_用途別に違うプリセットを割り当てられます_9d08cd"))
+                    Text(L("Display multiple panels simultaneously and assign different presets for each panel based on their purpose. 9d08cd"))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
@@ -27,7 +27,7 @@ struct PanelsSettingsView: View {
                 Button {
                     addNewPanel()
                 } label: {
-                    Label(L("新しいパネルを追加_83bc2f"), systemImage: "plus.rectangle")
+                    Label(L("Add new panel _83bc2f"), systemImage: "plus.rectangle")
                 }
                 .controlSize(.regular)
             }
@@ -46,7 +46,7 @@ struct PanelsSettingsView: View {
                         )
                     }
                     if panels.isEmpty {
-                        Text(L("パネルが設定されていません_a8a5cd"))
+                        Text(L("Panel not set_a8a5cd"))
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                             .padding(.top, 32)
@@ -154,7 +154,7 @@ private struct PanelRowView: View {
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
                 .fixedSize()
-                .help(L("このパネルが表示するプリセットを切り替え_1e7816"))
+                .help(L("Switch preset displayed on this panel _1e7816"))
 
                 // Delete button
                 Button(role: .destructive) {
@@ -167,13 +167,13 @@ private struct PanelRowView: View {
                 .controlSize(.small)
                 .disabled(!canDelete)
                 .help(canDelete
-                      ? L("このパネルを設定から削除_8504d8")
-                      : L("最後の_1_件は削除できません_81a5fa"))
+                      ? L("Delete this panel from Settings _8504d8")
+                      : L("The last _1_ item cannot be deleted_81a5fa"))
             }
 
             // background color
             HStack(spacing: 8) {
-                Text(L("背景色_2f97db"))
+                Text(L("Background color_2f97db"))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
                 Toggle("", isOn: $useBgColor)
@@ -209,7 +209,7 @@ private struct PanelRowView: View {
                             }
                         }
                 } else {
-                    Text(L("システム既定_9f951e"))
+                    Text(L("System Default_9f951e"))
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
                 }

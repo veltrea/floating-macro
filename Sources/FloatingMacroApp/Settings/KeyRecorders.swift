@@ -64,7 +64,7 @@ struct KeyRecorderButton: View {
             HStack(spacing: 4) {
                 Image(systemName: isRecording ? "record.circle.fill" : "keyboard")
                     .foregroundColor(isRecording ? .red : .accentColor)
-                Text(isRecording ? L("押してください_Esc_で取消_1ccbec") : L("キーを押して記録_e8d275"))
+                Text(isRecording ? L("Press to cancel _Esc_ 1ccbec") : L("Press key to record _e8d275"))
             }
         }
         .onDisappear { stopRecording() }
@@ -123,7 +123,7 @@ struct SpecialKeyMenu: View {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "list.bullet")
-                Text(L("特殊キー_cdc3db"))
+                Text(L("Special key_cdc3db"))
             }
         }
         .menuStyle(.borderlessButton)
@@ -142,7 +142,7 @@ struct ComboKeyRecorderButton: View {
             Image(systemName: isRecording ? "record.circle.fill" : "keyboard")
                 .foregroundColor(isRecording ? .red : .accentColor)
         }
-        .help(isRecording ? L("押してください_Esc_で取消_1ccbec") : L("キーを押して記録_e8d275"))
+        .help(isRecording ? L("Press to cancel _Esc_ 1ccbec") : L("Press key to record _e8d275"))
         .buttonStyle(.borderless)
         .onDisappear { stopRecording() }
     }
@@ -201,7 +201,7 @@ struct ComboSpecialKeyMenu: View {
         } label: {
             Image(systemName: "list.bullet")
         }
-        .help(L("特殊キーを選択_b5bdcd"))
+        .help(L("Select special key _b5bdcd"))
         .menuStyle(.borderlessButton)
         .fixedSize()
     }

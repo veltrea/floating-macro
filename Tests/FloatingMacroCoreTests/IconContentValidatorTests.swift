@@ -55,7 +55,7 @@ final class IconContentValidatorTests: XCTestCase {
         // PNG obtained via ImageIO is fully transparent (verified on device: alpha=0, RGB=0).
         let png = try ImageIOIconExtractor().extractPNG(from: books, size: 128)
         XCTAssertFalse(IconContentValidator.hasMeaningfulContent(pngData: png),
-                       "Books.app の icns は空プレースホルダ → validator が reject すべき")
+                       "Books.app The empty .icns should be rejected by the validator.")
     }
 
     // MARK: - Helpers

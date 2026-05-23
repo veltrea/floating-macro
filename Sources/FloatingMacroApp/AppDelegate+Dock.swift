@@ -69,10 +69,10 @@ extension AppDelegate {
 
     func edgeLabel(_ edge: DockEdge) -> String {
         switch edge {
-        case .left:   return L("左_d2aff1")
-        case .right:  return L("右_4d9c32")
-        case .top:    return L("上_af767b")
-        case .bottom: return L("下_3850a1")
+        case .left:   return L("Left d2aff1")
+        case .right:  return L("Right 4d9c32")
+        case .top:    return L("Uploading preset...")
+        case .bottom: return L("Error: Invalid argument '-3850a1'")
         }
     }
 

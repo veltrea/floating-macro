@@ -14,7 +14,7 @@ final class AboutWindowController: NSWindowController {
                 backing: .buffered,
                 defer: false
             )
-            w.title = L("FloatingMacro_について_about_title")
+            w.title = L("FloatingMacro_About")
             w.contentView = hosting
             w.isReleasedWhenClosed = false
             w.hidesOnDeactivate = false

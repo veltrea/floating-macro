@@ -38,7 +38,7 @@ struct GroupEditor: View {
 
                     // Group header editor preview
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(L("プレビュー_21b7d4")).font(.caption).foregroundColor(.secondary)
+                        Text(L("Preview 21b7d4")).font(.caption).foregroundColor(.secondary)
                         HStack {
                             HStack(spacing: 4) {
                                 Image(systemName: "chevron.down")
@@ -66,17 +66,17 @@ struct GroupEditor: View {
                     }
 
                     Group {
-                        labeled(L("グループ名_0a11c7")) {
-                            TextField(L("グループの見出し_f24511"), text: $label)
+                        labeled(L("Group name_0a11c7")) {
+                            TextField(L("Group Header _f24511"), text: $label)
                                 .textFieldStyle(.roundedBorder)
                         }
 
-                        labeled(L("アイコンテキスト_絵文字など_c666a5")) {
-                            TextField(L("や_など_49750c"), text: $iconText)
+                        labeled(L("Icon context: Emoji and other symbols c666a5")) {
+                            TextField(L("or... 49750c"), text: $iconText)
                                 .textFieldStyle(.roundedBorder)
                         }
 
-                        labeled(L("アイコン_d160a5")) {
+                        labeled(L("icon_d160a5")) {
                             HStack(alignment: .top, spacing: 12) {
                                 IconDropZoneView(
                                     iconRef: iconPath,
@@ -86,12 +86,12 @@ struct GroupEditor: View {
                                 )
                                 VStack(alignment: .leading, spacing: 6) {
                                     Button("SF Symbol...") { showingSFSymbolPicker = true }
-                                        .help(L("SF_Symbol_を一覧から選ぶ_ab178d"))
-                                    Button(L("アプリから_29035e")) { showingAppIconPicker = true }
-                                        .help(L("インストール済みアプリのアイコンから選ぶ_8d8c57"))
-                                    Button(L("クリア_deba64")) { iconPath = "" }
+                                        .help(L("SF_Symbol_Select from list _ab178d"))
+                                    Button(L("From the app _29035e")) { showingAppIconPicker = true }
+                                        .help(L("Select Icon from Installed Apps: 8d8c57"))
+                                    Button(L("clear_deba64")) { iconPath = "" }
                                         .disabled(iconPath.isEmpty)
-                                    Text(L("画像をドロップするか枠をクリックすると_preset_配下にコピーして登録します_e6c5e7"))
+                                    Text(L("Drop an image or click the frame to copy under _preset_ and register _e6c5e7_."))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                         .fixedSize(horizontal: false, vertical: true)
@@ -102,9 +102,9 @@ struct GroupEditor: View {
                     }
 
                     Group {
-                        labeled(L("背景色_2f97db")) {
+                        labeled(L("Background color_2f97db")) {
                             HStack {
-                                Toggle(L("有効_ce1518"), isOn: $useBackgroundColor)
+                                Toggle(L("Valid_ce1518"), isOn: $useBackgroundColor)
                                 if useBackgroundColor {
                                     ContinuousColorPicker(color: $backgroundColor)
                                         .frame(width: 44, height: 24)
@@ -118,9 +118,9 @@ struct GroupEditor: View {
                             }
                         }
 
-                        labeled(L("文字色_94e49c")) {
+                        labeled(L("Text color_94e49c")) {
                             HStack {
-                                Toggle(L("有効_ce1518"), isOn: $useTextColor)
+                                Toggle(L("Valid_ce1518"), isOn: $useTextColor)
                                 if useTextColor {
                                     ContinuousColorPicker(color: $textColor)
                                         .frame(width: 44, height: 24)
@@ -131,7 +131,7 @@ struct GroupEditor: View {
                                         .textFieldStyle(.roundedBorder)
                                         .frame(width: 110)
                                 } else {
-                                    Text(L("自動_背景色があれば白_なければシステム既定_22d22a"))
+                                    Text(L("Background color: white if available, otherwise system default #22d22a"))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -143,8 +143,8 @@ struct GroupEditor: View {
 
                     displayTypeSection
 
-                    labeled(L("ツールチップ_ホバー時に表示_e40d98")) {
-                        TextField(L("グループの用途を説明_5a4540"), text: $tooltip)
+                    labeled(L("Tooltip displayed on hover for e40d98")) {
+                        TextField(L("Purpose of Group: 5a4540"), text: $tooltip)
                             .textFieldStyle(.roundedBorder)
                     }
 
@@ -163,11 +163,11 @@ struct GroupEditor: View {
                     Button(role: .destructive) {
                         confirmingDelete = true
                     } label: {
-                        Label(L("削除_c6577c"), systemImage: "trash")
+                        Label(L("Delete c6577c"), systemImage: "trash")
                     }
                 }
                 Button(action: commit) {
-                    Label(L("保存_be5fbb"), systemImage: "checkmark.circle.fill")
+                    Label(L("Save be5fbb"), systemImage: "checkmark.circle.fill")
                 }
                 .keyboardShortcut(.defaultAction)
             }
@@ -222,14 +222,14 @@ struct GroupEditor: View {
             )
         }
         .confirmationDialog(
-            L("このグループを削除しますか_fd0e79"),
+            L("Are you sure you want to delete this group? _fd0e79"),
             isPresented: $confirmingDelete,
             titleVisibility: .visible
         ) {
             Button(L_("delete_named_item", group.label), role: .destructive) { onDelete?() }
-            Button(L("キャンセル_6ef349"), role: .cancel) {}
+            Button(L("Cancel 6ef349"), role: .cancel) {}
         } message: {
-            Text(L("グループ内のボタンもすべて削除されます_この操作は元に戻せません_4da004"))
+            Text(L("All buttons in the group will be deleted. This operation cannot be undone. 4da004"))
         }
     }
 
@@ -293,13 +293,13 @@ struct GroupEditor: View {
 
     @ViewBuilder
     private var displayTypeSection: some View {
-        labeled(L("ボタンの表示タイプ_4d03fd")) {
+        labeled(L("Button display type_4d03fd")) {
             VStack(alignment: .leading, spacing: 4) {
                 Picker("", selection: $displayType) {
-                    Text(L("icon_小さなアイコン_9d9c3e")).tag(GroupDisplayType.icon)
-                    Text(L("wide_横長セル_9e31df")).tag(GroupDisplayType.wide)
-                    Text(L("card_大きなサムネイル_ed0037")).tag(GroupDisplayType.card)
-                    Text(L("grid_アイコングリッド_d4e92a")).tag(GroupDisplayType.grid)
+                    Text(L("icon_Small icon_9d9c3e")).tag(GroupDisplayType.icon)
+                    Text(L("wide_Landscape Cell_9e31df")).tag(GroupDisplayType.wide)
+                    Text(L("card_Large thumbnail_ed0037")).tag(GroupDisplayType.card)
+                    Text(L("grid_iconGrid_d4e92a")).tag(GroupDisplayType.grid)
                 }
                 .labelsHidden()
                 .pickerStyle(.segmented)
@@ -310,11 +310,11 @@ struct GroupEditor: View {
             }
         }
         if displayType == .card || displayType == .grid {
-            labeled(L("列数_b2c7f3")) {
+            labeled(L("Column b2c7f3")) {
                 columnsPickerContent
             }
         }
-        labeled(L("アイコンサイズ_f7a3c2")) {
+        labeled(L("Icon size")) {
             VStack(alignment: .leading, spacing: 4) {
                 Picker("", selection: $iconSize) {
                     Text("S (16pt)").tag(IconSize.small)
@@ -324,15 +324,15 @@ struct GroupEditor: View {
                 }
                 .labelsHidden()
                 .pickerStyle(.segmented)
-                Text(L("アプリアイコンや絵文字の表示サイズを変更します_b8e1d4"))
+                Text(L("Change app icon and emoji display size_b8e1d4"))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         if displayType == .grid {
-            labeled(L("ラベル表示_a1d5f8")) {
-                Toggle(L("アイコンの下に名前を表示_c3b7e2"), isOn: $showLabels)
+            labeled(L("Label display _a1d5f8")) {
+                Toggle(L("Display name below icon_c3b7e2"), isOn: $showLabels)
             }
         }
     }
@@ -342,7 +342,7 @@ struct GroupEditor: View {
         VStack(alignment: .leading, spacing: 4) {
             let maxColumns = displayType == .grid ? 12 : 3
             Picker("", selection: $columns) {
-                Text(L("自動_5c8b29")).tag(GroupColumns.auto)
+                Text(L("Automatic 5c8b29")).tag(GroupColumns.auto)
                 ForEach(1...maxColumns, id: \.self) { n in
                     Text("\(n)").tag(GroupColumns.fixed(n))
                 }
@@ -359,16 +359,16 @@ struct GroupEditor: View {
     /// Explanation of the differences in display types in one line.
     private func displayTypeHint(_ type: GroupDisplayType) -> String {
         switch type {
-        case .icon: return L("既存の小さなアイコン_ラベルを縦に並べる_コンパクトな表示_08324c")
-        case .wide: return L("全幅の横長セル_長いラベルや_視認性を優先したいボタンに_70ed46")
-        case .card: return L("サムネイル画像_タイトルを_2_列のグリッドに配置_プロンプトギャラリー向け_3fed87")
-        case .grid: return L("アイコンをグリッド状に並べる_ランチャー風_列数を自由に設定可_7f1e3b")
+        case .icon: return L("Compact display of small icon labels vertically 08324c")
+        case .wide: return L("Full-width long cell for long labels and buttons prioritizing visibility with color 70ed46")
+        case .card: return L("Thumbnail image title arranged in a 2-column grid for prompt gallery 3fed87")
+        case .grid: return L("Set Grid Icon Launcher Style: Free Column Count 7F1E3B")
         }
     }
 
     private func columnsHint(_ cols: GroupColumns) -> String {
         switch cols {
-        case .auto: return L("ウィンドウ幅に応じて列数が自動で変わります_最小セル幅_120pt_a3f8b1")
+        case .auto: return L("Column count automatically changes based on window width_ Minimum cell width: 120pt_a3f8b1")
         case .fixed(let n): return L_("fixed_columns_hint", n)
         }
     }
@@ -378,7 +378,7 @@ struct GroupEditor: View {
         panel.allowedContentTypes = [.image, .png, .jpeg]
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.prompt = L("選択_8ba15a")
+        panel.prompt = L("Selection 8ba15a")
         if panel.runModal() == .OK, let url = panel.url {
             importIconFile(from: url)
         }

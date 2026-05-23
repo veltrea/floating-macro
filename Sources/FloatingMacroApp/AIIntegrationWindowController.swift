@@ -28,7 +28,7 @@ final class AIIntegrationWindowController: NSWindowController {
                 backing: .buffered,
                 defer: false
             )
-            w.title = L("FloatingMacro_AI_連携_330972")
+            w.title = L("FloatingMacro_AI_Integration_330972")
             w.contentView = hosting
             w.setFrameAutosaveName("AIIntegrationWindow")
             if !w.setFrameUsingName("AIIntegrationWindow") {

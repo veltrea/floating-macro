@@ -52,7 +52,19 @@ final class TextActionExecutorTests: XCTestCase {
     }
 
     func testUnicodeContentPreserved() throws {
-        let content = "ultrathink で考えて 🧠 日本語 العربية"
+        let content = "ultrathink Please think 🧠 English UI text translation for a Swift CLI application:
+
+Error: \(error)
+Usage: \(command) [options]
+
+Preset file not found at \(path).
+Please check the path and try again.
+
+Token generation failed.
+Please ensure you have provided valid arguments.
+
+Accessibility mode enabled.
+This will allow the app to interact with system accessibility features."
         try TextActionExecutor.execute(content: content, pasteDelayMs: 0, restoreClipboard: true)
         XCTAssertEqual(mocks.clipboard.setStrings, [content])
     }

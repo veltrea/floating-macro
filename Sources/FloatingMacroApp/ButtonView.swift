@@ -129,19 +129,19 @@ struct MacroButtonView: View {
                 Button {
                     onCut()
                 } label: {
-                    Label(L("切り取り_cut"), systemImage: "scissors")
+                    Label(L("Cut"), systemImage: "scissors")
                 }
             }
             Button {
                 PasteboardHelper.copyButton(button)
             } label: {
-                Label(L("コピー_copy"), systemImage: "doc.on.doc")
+                Label(L("copy"), systemImage: "doc.on.doc")
             }
             if let onPasteButton = onPasteButton {
                 Button {
                     onPasteButton(button.id)
                 } label: {
-                    Label(L("貼り付け_paste"), systemImage: "doc.on.clipboard")
+                    Label(L("paste"), systemImage: "doc.on.clipboard")
                 }
                 .disabled(!PasteboardHelper.hasButton())
             }
@@ -149,7 +149,7 @@ struct MacroButtonView: View {
                 Button {
                     onDuplicate()
                 } label: {
-                    Label(L("複製_duplicate"), systemImage: "plus.square.on.square")
+                    Label(L("duplicate"), systemImage: "plus.square.on.square")
                 }
             }
             Divider()
@@ -157,14 +157,14 @@ struct MacroButtonView: View {
                 Button {
                     onEdit()
                 } label: {
-                    Label(L("編集_ac1264"), systemImage: "pencil")
+                    Label(L("edit_ac1264"), systemImage: "pencil")
                 }
             }
             if let onAddToGroup = onAddToGroup {
                 Button {
                     onAddToGroup()
                 } label: {
-                    Label(L("新規ボタンを追加_03ae9c"), systemImage: "plus.circle")
+                    Label(L("Add New Button 03ae9c"), systemImage: "plus.circle")
                 }
             }
             if onDelete != nil {
@@ -172,21 +172,21 @@ struct MacroButtonView: View {
                 Button(role: .destructive) {
                     confirmingDelete = true
                 } label: {
-                    Label(L("削除_eec57b"), systemImage: "trash")
+                    Label(L("Delete eec57b"), systemImage: "trash")
                 }
             }
         }
         .confirmationDialog(
-            L("このボタンを削除しますか_ec2177"),
+            L("Are you sure you want to delete this button? _ec2177"),
             isPresented: $confirmingDelete,
             titleVisibility: .visible
         ) {
             Button(L_("delete_named_item", button.label), role: .destructive) {
                 onDelete?()
             }
-            Button(L("キャンセル_6ef349"), role: .cancel) {}
+            Button(L("Cancel 6ef349"), role: .cancel) {}
         } message: {
-            Text(L("この操作は元に戻せません_3955a5"))
+            Text(L("This operation cannot be undone_3955a5"))
         }
         .confirmationDialog(
             L_("execute_named_item_question", button.label),
@@ -194,12 +194,12 @@ struct MacroButtonView: View {
             titleVisibility: .visible
         ) {
             Button(
-                button.confirmDestructive ? L("実行する_取り消し不可_b5cb87") : L("実行する_484791"),
+                button.confirmDestructive ? L("Executing irrevocable b5cb87") : L("Running 484791"),
                 role: button.confirmDestructive ? .destructive : nil
             ) {
                 handleConfirmedTap()
             }
-            Button(L("キャンセル_6ef349"), role: .cancel) {}
+            Button(L("Cancel 6ef349"), role: .cancel) {}
         } message: {
             executeConfirmMessageView()
         }
@@ -441,9 +441,9 @@ struct MacroButtonView: View {
         if !trimmed.isEmpty {
             Text(trimmed)
         } else if button.confirmDestructive {
-            Text(L("この操作は元に戻せません_3955a5"))
+            Text(L("This operation cannot be undone_3955a5"))
         } else {
-            Text(L("この操作を実行します_26d7fa"))
+            Text(L("Executing operation..._26d7fa"))
         }
     }
 
@@ -541,19 +541,19 @@ struct GroupView: View {
                     Button {
                         onGroupCut()
                     } label: {
-                        Label(L("切り取り_cut"), systemImage: "scissors")
+                        Label(L("Cut"), systemImage: "scissors")
                     }
                 }
                 Button {
                     PasteboardHelper.copyGroup(group)
                 } label: {
-                    Label(L("コピー_copy"), systemImage: "doc.on.doc")
+                    Label(L("copy"), systemImage: "doc.on.doc")
                 }
                 if let onPasteGroup = onPasteGroup {
                     Button {
                         onPasteGroup()
                     } label: {
-                        Label(L("貼り付け_paste"), systemImage: "doc.on.clipboard")
+                        Label(L("paste"), systemImage: "doc.on.clipboard")
                     }
                     .disabled(!PasteboardHelper.hasGroup())
                 }
@@ -561,7 +561,7 @@ struct GroupView: View {
                     Button {
                         onGroupDuplicate()
                     } label: {
-                        Label(L("複製_duplicate"), systemImage: "plus.square.on.square")
+                        Label(L("duplicate"), systemImage: "plus.square.on.square")
                     }
                 }
                 Divider()
@@ -569,14 +569,14 @@ struct GroupView: View {
                     Button {
                         onGroupEdit()
                     } label: {
-                        Label(L("編集_ac1264"), systemImage: "pencil")
+                        Label(L("edit_ac1264"), systemImage: "pencil")
                     }
                 }
                 if let onPasteButtonToGroup = onPasteButtonToGroup {
                     Button {
                         onPasteButtonToGroup(nil)
                     } label: {
-                        Label(L("ボタンを貼り付け_1743f6"), systemImage: "doc.on.clipboard.fill")
+                        Label(L("Button Paste 1743f6"), systemImage: "doc.on.clipboard.fill")
                     }
                     .disabled(!PasteboardHelper.hasButton())
                 }
@@ -585,19 +585,19 @@ struct GroupView: View {
                     Button(role: .destructive) {
                         confirmingGroupDelete = true
                     } label: {
-                        Label(L("削除_eec57b"), systemImage: "trash")
+                        Label(L("Delete eec57b"), systemImage: "trash")
                     }
                 }
             }
             .confirmationDialog(
-                L("このグループを削除しますか_fd0e79"),
+                L("Are you sure you want to delete this group? _fd0e79"),
                 isPresented: $confirmingGroupDelete,
                 titleVisibility: .visible
             ) {
                 Button(L_("delete_named_item", group.label), role: .destructive) {
                     onGroupDelete?()
                 }
-                Button(L("キャンセル_6ef349"), role: .cancel) {}
+                Button(L("Cancel 6ef349"), role: .cancel) {}
             } message: {
                 Text(L_("delete_group_message_buttons", group.buttons.count))
             }

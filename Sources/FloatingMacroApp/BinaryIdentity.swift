@@ -109,7 +109,7 @@ enum BinaryIdentity {
         // the OS to spontaneously re-prompt this AX-using process, which
         // loops indefinitely in Sequoia. The panel badge will alert the
         // and the [Repair] button handles recovery.
-        log.info(category, "binary changed — TCC silent-revoke expected; user must use [修復] button to recover", [
+        log.info(category, "binary changed — TCC silent-revoke expected; user must use [Repair] button to recover", [
             "from":     String(last.prefix(12)),
             "to":       String(current.prefix(12)),
             "bundleId": bundleId,

@@ -16,13 +16,14 @@ public enum PresetEditor {
         public var errorDescription: String? {
             switch self {
             case .groupNotFound(let id):
-                return "グループが見つかりません: \(id)"
+                return "Group not found: \(id)"
             case .buttonNotFound(let id):
-                return "ボタンが見つかりません: \(id)"
+                return "Button not found: \(id)"
             case .duplicateId(let id):
-                return "ID が重複しています: \(id)"
+                return "ID Duplicate detected:
+``` \(id)"
             case .reorderIdsMismatch(let expected, let got):
-                return "並び替えの ID 数が一致しません (期待 \(expected) / 受領 \(got))"
+                return "Mismatched number of IDs for sorting (expected) \(expected) / Receipt \(got))"
             }
         }
     }

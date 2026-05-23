@@ -54,29 +54,29 @@ public enum SystemPrompt {
     // MARK: - Fallbacks (used only when the JSON bundle is unavailable)
 
     private static let fallbackGreeting = """
-    # FloatingMacro 制御 API へようこそ
+    # FloatingMacro Welcome to the Control API
 
-    あなたは **FloatingMacro** の制御 API に接続しています。
-    操作系エンドポイントは Bearer 認証必須。トークンは以下のどちらでも取得可能：
+    You are **FloatingMacro** Connecting to control API...
+    Bearer authentication required for operation endpoints. Token can be obtained from either of the following:
         cat ~/Library/Application\\ Support/FloatingMacro/control_api_token
         security find-generic-password -s FloatingMacro -a ControlAPIToken -w
-    そのトークンを Authorization: Bearer ヘッダに乗せて、必ず `/tools/call`
-    経由でツールを呼んでください（個別エンドポイント直叩きは非推奨）。
-    まず `GET /state` と `GET /preset/current` で現状を把握してから作業を始めてください。
+    Make sure to attach that token to the Authorization: Bearer header always `/tools/call`
+    Call the tool via the endpoint (direct calls to individual endpoints are deprecated).
+    First `GET /state` and `GET /preset/current` Please understand the current situation before starting the work.
     """
 
     private static let fallbackTestGreeting = """
-    # FloatingMacro テストエージェントモード
+    # FloatingMacro Test Agent Mode
 
-    すべての機能が仕様通りに動くことを確認し、仕様バグも発見する。
-    まずログを読み、テストケースを生成し、テスト完了レポートを出力する。
+    Verify that all features work as specified and find any specification bugs.
+    First read the log, generate test cases, and output the test completion report.
     """
 
     private static let fallbackClaudeCodeGreeting = """
-    # FloatingMacro — Claude Code アシスタントモード
+    # FloatingMacro — Claude Code Assistant Mode
 
-    Claude Code のコーディングセッションを補助する。
-    ターミナル展開・プロンプト投入・作業シーン切替を担う。
+    Claude Code Assists with coding sessions.
+    Switches between terminal expansion, prompt injection, and work scene scenarios.
     """
 
     private static let fallbackConnectionPrompt = """
@@ -117,13 +117,13 @@ public enum SystemPrompt {
 
     /// Top-level endpoints. AI clients use this as a table of contents.
     public static let endpoints: [[String: String]] = [
-        ["method": "GET",  "path": "/manifest",    "desc": "This self-introduction (alias: /help)\nこの自己紹介 (/help のエイリアス)"],
-        ["method": "GET",  "path": "/help",        "desc": "Alias of /manifest\n/manifest のエイリアス"],
-        ["method": "GET",  "path": "/tools",       "desc": "Tool catalog (?format=mcp|openai|anthropic)\nツールカタログ (?format=mcp|openai|anthropic)"],
-        ["method": "POST", "path": "/tools/call",  "desc": "Dispatch any tool by name\n名前指定でツールを実行"],
-        ["method": "GET",  "path": "/state",       "desc": "App state snapshot\nアプリ状態スナップショット"],
-        ["method": "GET",  "path": "/log/tail",    "desc": "Structured log events\n構造化ログイベント"],
-        ["method": "GET",  "path": "/ping",        "desc": "Liveness probe\n生存確認"],
+        ["method": "GET",  "path": "/manifest",    "desc": "This self-introduction (alias: /help)\nThis introduction (/help alias)"],
+        ["method": "GET",  "path": "/help",        "desc": "Alias of /manifest\n/manifest Alias"],
+        ["method": "GET",  "path": "/tools",       "desc": "Tool catalog (?format=mcp|openai|anthropic)\nTool Catalog (?format=mcp|openai|anthropic)"],
+        ["method": "POST", "path": "/tools/call",  "desc": "Dispatch any tool by name\nRun tool with name specification"],
+        ["method": "GET",  "path": "/state",       "desc": "App state snapshot\nApp State Snapshot"],
+        ["method": "GET",  "path": "/log/tail",    "desc": "Structured log events\nStructured Log Event"],
+        ["method": "GET",  "path": "/ping",        "desc": "Liveness probe\nSurvival Check"],
     ]
 
     /// The full envelope returned from GET /manifest and GET /help.
@@ -156,7 +156,7 @@ public enum SystemPrompt {
                     "name": "help",
                     "arguments": [String: Any]()
                 ] as [String: Any],
-                "description": "Call this tool any time to re-read the manifest.\nこのツールをいつでも呼んでマニフェストを再読み込みできます。",
+                "description": "Call this tool any time to re-read the manifest.\nYou can call this tool anytime to reload the manifest.",
             ] as [String: Any],
             "tools": ToolCatalog.render(dialect: .mcp)["tools"] as Any,
         ]

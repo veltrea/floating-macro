@@ -77,29 +77,29 @@ public final class ConfigWriter {
     export LC_CTYPE=UTF-8
     T=$(security find-generic-password -s FloatingMacro -a ControlAPIToken -w 2>/dev/null)
     if [ -z "$T" ]; then
-      osascript -e 'display alert "FloatingMacro" message "認証トークンが Keychain に見つかりませんでした。アプリを一度再起動してください。" as critical'
+      osascript -e 'display alert "FloatingMacro" message "Authentication token not found in Keychain. Please restart the app." as critical'
       exit 1
     fi
     cat <<EOF | pbcopy
-    あなたは macOS 上で動いている FloatingMacro を操作できる AI です。
+    You are an AI that can operate FloatingMacro on macOS.
 
-    接続先: http://127.0.0.1:17430
-    認証トークン: $T
+    Connection target: http://127.0.0.1:17430
+    Authentication Token: $T
 
-    最初に curl -s http:// 127.0.0.1:17430/manifest | Execute jq to obtain the app's self-introduction and all tool definitions (this endpoint does not require authentication). The systemPrompt and tools array in manifest are the true explanation of this API.
+    First curl -s http:// 127.0.0.1:17430/manifest | Execute jq to obtain the app's self-introduction and all tool definitions (this endpoint does not require authentication). The systemPrompt and tools array in manifest are the true explanation of this API.
 
-    操作の原則:
-    - すべてのツール呼び出しは POST /tools/call 経由で行う
-    - 個別エンドポイント (/group/add 等) を直接叩かない
-    - 認証が必要なエンドポイントには Authorization: Bearer ヘッダにトークンを付ける
+    Principles of Operation:
+    - All tool calls must be made via POST /tools/call.
+    - Do not directly hit individual endpoints (e.g., /group/add).
+    - Authentication required for endpoints requires token in Authorization: Bearer header
 
-    現状を把握してから作業を始めてください:
-    - GET /state でパネル状態とアクティブプリセットを取得
-    - GET /preset/current で現在のグループ・ボタン構成を取得
+    Please understand the current situation before starting work:
+    - GET /state Get panel state and active preset
+    - GET /preset/current Get Current Group Button Configuration
 
-    ユーザーがあなたに FloatingMacro の操作権限を与えています。何をしたいか確認してから作業に入ってください。
+    Please confirm what you want to do before proceeding with the operation of FloatingMacro.
     EOF
-    osascript -e 'display notification "AI に貼り付けるプロンプトをコピーしました" with title "FloatingMacro"'
+    osascript -e 'display notification "AI Copied prompt to clipboard" with title "FloatingMacro"'
     """#
 
     // Shell to register an MCP entry in the ~/.claude.json file for Claude Code.
@@ -108,7 +108,7 @@ public final class ConfigWriter {
     export LC_CTYPE=UTF-8
     T=$(security find-generic-password -s FloatingMacro -a ControlAPIToken -w 2>/dev/null)
     if [ -z "$T" ]; then
-      osascript -e 'display alert "FloatingMacro" message "認証トークンが Keychain に見つかりませんでした。" as critical'
+      osascript -e 'display alert "FloatingMacro" message "Authentication token not found in Keychain." as critical'
       exit 1
     fi
     P="$HOME/.claude.json"
@@ -120,7 +120,7 @@ public final class ConfigWriter {
     except FileNotFoundError:
         d = {}
     except json.JSONDecodeError as e:
-        print(f"既存 ~/.claude.json が壊れています: {e}", file=sys.stderr)
+        print(f"Existing ~/.claude.json is broken: {e}", file=sys.stderr)
         sys.exit(1)
     d.setdefault("mcpServers", {})["floatingmacro"] = {
         "type": "http",
@@ -129,9 +129,9 @@ public final class ConfigWriter {
     }
     with open(path, "w") as f:
         json.dump(d, f, indent=2, ensure_ascii=False)
-    print(f"登録しました: {path}")
+    print(f"Registered: {path}")
     PY
-    osascript -e 'display notification "Claude Code を再起動すると floatingmacro が自動接続されます" with title "FloatingMacro: 登録完了"'
+    osascript -e 'display notification "Claude Code When restarted, floatingmacro will automatically connect." with title "FloatingMacro: Registration Complete"'
     """#
 
     static func makeDefaultPreset() -> Preset {
@@ -156,23 +156,23 @@ public final class ConfigWriter {
                 // Connect FloatingMacro to AI
                 ButtonGroup(
                     id: "group-ai-connect",
-                    label: "AI に接続",
+                    label: "AI Connect",
                     iconText: "🔗",
                     buttons: [
                         ButtonDefinition(
                             id: "btn-ai-copy-prompt",
-                            label: "接続用プロンプトをコピー",
+                            label: "Copy connection prompt",
                             iconText: "📋",
                             backgroundColor: "#3B6BA5",
-                            tooltip: "Claude Code / Cursor / Gemini CLI / ChatGPT 等の AI に貼り付けるプロンプトをクリップボードにコピーする（トークン埋め込み済み）",
+                            tooltip: "Claude Code / Cursor / Gemini CLI / ChatGPT Copy prompt with embedded tokens to clipboard (token-filled)",
                             action: sh(aiConnectPromptShell)
                         ),
                         ButtonDefinition(
                             id: "btn-ai-claude-code-mcp",
-                            label: "Claude Code に MCP として登録",
+                            label: "Claude Code Register as MCP",
                             iconText: "⚙",
                             backgroundColor: "#2D7D46",
-                            tooltip: "~/.claude.json に floatingmacro エントリを書き込む。Claude Code を再起動すれば自動接続される",
+                            tooltip: "~/.claude.json Write a floatingmacro entry. Claude Code will reconnect automatically upon restarting.",
                             action: sh(claudeCodeMCPRegisterShell)
                         ),
                     ]
@@ -188,29 +188,29 @@ public final class ConfigWriter {
                             id: "btn-ultrathink",
                             label: "ultrathink",
                             iconText: "🧠",
-                            tooltip: "そのターンだけ高品質な思考を発動（effort が high 未満の時に有効）",
-                            action: txt("ultrathink で次のタスクに取り組んでください。")
+                            tooltip: "Activate high-quality thinking for that turn (effective only when effort is less than high).",
+                            action: txt("ultrathink Please proceed with the next task.")
                         ),
                         ButtonDefinition(
                             id: "btn-stop-loop",
-                            label: "止まって",
+                            label: "Stop",
                             iconText: "⏸",
-                            tooltip: "ループを中断して状況報告させる",
-                            action: txt("ループっぽいので一旦止まって、現状と次のアクションを報告してください。")
+                            tooltip: "Interrupt loop to provide status report",
+                            action: txt("Looping-like, pause for now and report current status and next action.")
                         ),
                         ButtonDefinition(
                             id: "btn-research-first",
-                            label: "調査優先",
+                            label: "Priority Check",
                             iconText: "🔍",
-                            tooltip: "推測せずファイルを読んでから作業させる（CLAUDE.md ルール相当）",
-                            action: txt("コードを変更する前に、必ず対象ファイルを読んで内容を把握してください。推測で作業せず、調査・確認を最優先にしてください。")
+                            tooltip: "Do not guess and make the program read files before working (Claude).md Rule Correspondence:",
+                            action: txt("Before changing the code, always thoroughly understand the contents of the target file. Do not guess work; prioritize investigation and confirmation.")
                         ),
                         ButtonDefinition(
                             id: "btn-test-after",
-                            label: "テスト実行",
+                            label: "Run Test",
                             iconText: "✅",
-                            tooltip: "変更後にテストを実行して動作確認させる",
-                            action: txt("変更が完了したらテストを実行して、動作確認の結果を報告してください。")
+                            tooltip: "Run tests after making changes to verify functionality.",
+                            action: txt("After changes are complete, run tests and report the results of the functional verification.")
                         ),
                     ]
                 ),
@@ -226,7 +226,7 @@ public final class ConfigWriter {
                             label: "high",
                             iconText: "⬆",
                             backgroundColor: "#2D7D46",
-                            tooltip: "品質重視の日常使い（推奨）",
+                            tooltip: "High-quality daily use (recommended)",
                             action: txt("/effort high")
                         ),
                         ButtonDefinition(
@@ -234,7 +234,7 @@ public final class ConfigWriter {
                             label: "max",
                             iconText: "🔥",
                             backgroundColor: "#C23B22",
-                            tooltip: "全力思考。難しいデバッグや設計に（トークン消費大）",
+                            tooltip: "Full thinking. Hard debugging or design (token consumption large)",
                             action: txt("/effort max")
                         ),
                         ButtonDefinition(
@@ -242,7 +242,7 @@ public final class ConfigWriter {
                             label: "low",
                             iconText: "⚡",
                             backgroundColor: "#555555",
-                            tooltip: "ファイル名変更・コメント追加など軽作業を高速処理",
+                            tooltip: "Rapidly process light tasks such as renaming files and adding comments.",
                             action: txt("/effort low")
                         ),
                         ButtonDefinition(
@@ -250,7 +250,7 @@ public final class ConfigWriter {
                             label: "auto",
                             iconText: "🤖",
                             backgroundColor: "#3B6BA5",
-                            tooltip: "思考量をモデルにお任せ（API課金勢向け）",
+                            tooltip: "Trust thinking to the model (for API billing side)",
                             action: txt("/effort auto")
                         ),
                     ]
@@ -259,62 +259,62 @@ public final class ConfigWriter {
                 // Permanent Settings (Terminal Execution)
                 ButtonGroup(
                     id: "group-settings",
-                    label: "設定",
+                    label: "Settings",
                     icon: "sf:gearshape",
                     buttons: [
                         ButtonDefinition(
                             id: "btn-cfg-quality",
-                            label: "品質重視設定",
+                            label: "Quality-focused settings",
                             iconText: "🛡",
                             backgroundColor: "#2D7D46",
-                            tooltip: "effortLevel=high + Adaptive Thinking無効化 + 思考サマリー表示",
+                            tooltip: "effortLevel=high + Adaptive ThinkingDisable + Thought Summary Display",
                             action: term(settingsPython(
                                 """
                                 d['effortLevel'] = 'high'
                                 d.setdefault('env', {})['CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING'] = '1'
                                 d['showThinkingSummaries'] = True
                                 """,
-                                message: "設定完了: effortLevel=high, Adaptive Thinking無効化, 思考サマリー表示"
+                                message: "Setup Complete: Effort Level=high, Adaptive ThinkingDisable, Display Thought Summary"
                             ))
                         ),
                         ButtonDefinition(
                             id: "btn-cfg-balanced",
-                            label: "バランス設定",
+                            label: "Balance Settings",
                             iconText: "⚖",
                             backgroundColor: "#3B6BA5",
-                            tooltip: "effortLevel=auto + Adaptive Thinking無効化（速度とコストのバランス）",
+                            tooltip: "effortLevel=auto + Adaptive ThinkingDisable (balance speed and cost)",
                             action: term(settingsPython(
                                 """
                                 d['effortLevel'] = 'auto'
                                 d.setdefault('env', {})['CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING'] = '1'
                                 d['showThinkingSummaries'] = True
                                 """,
-                                message: "設定完了: effortLevel=auto, Adaptive Thinking無効化, 思考サマリー表示"
+                                message: "Setup Complete: Effort Level=auto, Adaptive ThinkingDisable, Display Thought Summary"
                             ))
                         ),
                         ButtonDefinition(
                             id: "btn-cfg-disable-adaptive",
-                            label: "Adaptive Thinking 無効化",
+                            label: "Adaptive Thinking Disable",
                             iconText: "🚫",
                             backgroundColor: "#8B4513",
-                            tooltip: "推論ゼロバグの回避。Boris Cherny氏推奨の最重要ワークアラウンド",
+                            tooltip: "Zero-bug inference avoidance. Boris Cherny's highly recommended workaround",
                             action: term(settingsPython(
                                 """
                                 d.setdefault('env', {})['CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING'] = '1'
                                 """,
-                                message: "設定完了: CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1"
+                                message: "Setting complete: CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1"
                             ))
                         ),
                         ButtonDefinition(
                             id: "btn-cfg-show-thinking",
-                            label: "思考サマリー表示",
+                            label: "Display Thought Summary",
                             iconText: "💭",
-                            tooltip: "Claudeの思考過程サマリーをUI上に再表示する",
+                            tooltip: "ClaudeDisplay summary of thought process on UI again",
                             action: term(settingsPython(
                                 """
                                 d['showThinkingSummaries'] = True
                                 """,
-                                message: "設定完了: showThinkingSummaries=true"
+                                message: "Setting complete: showThinkingSummaries=true"
                             ))
                         ),
                     ]
@@ -323,30 +323,30 @@ public final class ConfigWriter {
                 // Version management
                 ButtonGroup(
                     id: "group-version",
-                    label: "バージョン",
+                    label: "Version",
                     icon: "sf:arrow.triangle.2.circlepath",
                     collapsed: true,
                     buttons: [
                         ButtonDefinition(
                             id: "btn-downgrade",
-                            label: "v2.1.98 にダウングレード",
+                            label: "v2.1.98 Downgrade",
                             iconText: "⬇",
                             backgroundColor: "#8B0000",
-                            tooltip: "隠しトークン問題 (v2.1.100以降) を回避する最後の安定版",
-                            action: term("npm uninstall -g @anthropic-ai/claude-code && npm install -g @anthropic-ai/claude-code@2.1.98 && echo 'ダウングレード完了: v2.1.98'")
+                            tooltip: "Hidden Token Issue (v2).1.100Last stable version to avoid (post-)",
+                            action: term("npm uninstall -g @anthropic-ai/claude-code && npm install -g @anthropic-ai/claude-code@2.1.98 && echo 'Downgrade complete: v2.1.98'")
                         ),
                         ButtonDefinition(
                             id: "btn-upgrade-latest",
-                            label: "最新版に更新",
+                            label: "Update to latest version",
                             iconText: "⬆",
-                            tooltip: "Claude Code を最新版にアップデート",
+                            tooltip: "Claude Code Update to latest version",
                             action: term("npm install -g @anthropic-ai/claude-code@latest && claude --version")
                         ),
                         ButtonDefinition(
                             id: "btn-check-version",
-                            label: "バージョン確認",
+                            label: "Version Check",
                             iconText: "📋",
-                            tooltip: "現在の Claude Code バージョンを表示",
+                            tooltip: "Display Current Claude Code Version",
                             action: term("claude --version")
                         ),
                     ]

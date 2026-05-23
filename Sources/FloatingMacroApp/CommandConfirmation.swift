@@ -15,21 +15,21 @@ enum CommandConfirmation {
     @MainActor
     static func askProceed(pattern: String, text: String) -> Bool {
         let alert = NSAlert()
-        alert.messageText = L("危険なコマンドが検出されました_fabe0f")
+        alert.messageText = L("Dangerous command detected: fabe0f")
         let preview = text.count > 150
             ? String(text.prefix(150)).appending("…")
             : text
         alert.informativeText = """
-            禁止パターン「\(pattern)」が含まれています。
+            Disallowed pattern 「\(pattern)」includes.
 
             \(preview)
 
-            本当に実行しますか？
+            Are you sure?？
             """
         alert.alertStyle = .warning
         // First button is the default (Return key), so make it the safe action.
-        alert.addButton(withTitle: L("キャンセル_6ef349"))
-        alert.addButton(withTitle: L("実行する_484791"))
+        alert.addButton(withTitle: L("Cancel 6ef349"))
+        alert.addButton(withTitle: L("Running 484791"))
         return alert.runModal() == .alertSecondButtonReturn
     }
 
@@ -58,11 +58,11 @@ enum CommandConfirmation {
         alert.messageText = title
         alert.informativeText = message
         alert.alertStyle = .informational
-        alert.addButton(withTitle: L("確認_30749e"))
-        alert.addButton(withTitle: L("キャンセル_6ef349"))
+        alert.addButton(withTitle: L("Confirm 30749e"))
+        alert.addButton(withTitle: L("Cancel 6ef349"))
 
         let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
-        field.placeholderString = L("パスワード_4bdfe7")
+        field.placeholderString = L("Password_4bdfe7")
         alert.accessoryView = field
         alert.window.initialFirstResponder = field
 

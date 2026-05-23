@@ -10,7 +10,7 @@ final class ControlAPIConfigTests: XCTestCase {
     func testDefaultLanExposureIsOff() {
         let cfg = ControlAPIConfig()
         XCTAssertFalse(cfg.lanExposureEnabled,
-                       "LAN 公開は明示的にオンにしない限り常に OFF (Phase 5 セキュリティ要件)")
+                       "LAN Always ON unless explicitly turned on (Phase 5 Security Requirement)")
     }
 
     // MARK: - Round trip
@@ -46,7 +46,7 @@ final class ControlAPIConfigTests: XCTestCase {
 
         let decoded = try JSONDecoder().decode(ControlAPIConfig.self, from: legacyJSON)
         XCTAssertFalse(decoded.lanExposureEnabled,
-                       "lanExposureEnabled フィールドが無い旧 JSON は OFF にデコード")
+                       "lanExposureEnabled Decode old JSON with missing fields to OFF")
         XCTAssertTrue(decoded.enabled)
     }
 

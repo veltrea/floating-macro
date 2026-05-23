@@ -51,13 +51,13 @@ struct AppLauncherPickerSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(L("アプリを選んでボタンに追加_d779e9"))
+            Text(L("Add App Button"))
                 .font(.headline)
-            Text(L("Applications_System_Applications_Applications_を一覧し_2c2155"))
+            Text(L("Applications_System_Applications_Applications_List all _2c2155"))
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            TextField(L("検索_アプリ名_bundle_id_850b64"), text: $query)
+            TextField(L("Search_app_name_bundle_id_850b64"), text: $query)
                 .textFieldStyle(.roundedBorder)
 
             gridScrollView
@@ -105,7 +105,7 @@ struct AppLauncherPickerSheet: View {
         HStack(spacing: 8) {
             if loading {
                 ProgressView().scaleEffect(0.6)
-                Text(L("読み込み中_4699f5")).font(.caption).foregroundColor(.secondary)
+                Text(L("Loading...")).font(.caption).foregroundColor(.secondary)
             } else if let entry = selectedEntry {
                 Text(entry.displayName)
                     .font(.callout)
@@ -124,9 +124,9 @@ struct AppLauncherPickerSheet: View {
                     .foregroundColor(.secondary)
             }
             Spacer()
-            Button(L("キャンセル_6ef349")) { isPresented = false }
+            Button(L("Cancel 6ef349")) { isPresented = false }
                 .keyboardShortcut(.cancelAction)
-            Button(L("追加_7dc3a5")) { Task { await commit() } }
+            Button(L("Add 7dc3a5")) { Task { await commit() } }
                 .keyboardShortcut(.defaultAction)
                 .disabled(selectedURL == nil)
         }

@@ -45,10 +45,10 @@ struct SFSymbolPicker: View {
 
     private var header: some View {
         HStack {
-            Text(L("SF_Symbol_を選択_535d40"))
+            Text(L("SF_Symbol_Select 535d40"))
                 .font(.headline)
             Spacer()
-            TextField(L("検索_例_star_mic_lock_2ddbdd"), text: $filter)
+            TextField(L("search_example_star_mic_lock_2ddbdd"), text: $filter)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 220)
         }
@@ -104,12 +104,12 @@ struct SFSymbolPicker: View {
 
     private var footer: some View {
         HStack {
-            Text(selection.isEmpty ? L("未選択_c5d595") : selection)
+            Text(selection.isEmpty ? L("Unselected c5d595") : selection)
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
                 .lineLimit(1)
             Spacer()
-            Button(L("閉じる_5dce86"), action: onClose)
+            Button(L("Close 5dce86"), action: onClose)
                 .keyboardShortcut(.defaultAction)
         }
         .padding(10)

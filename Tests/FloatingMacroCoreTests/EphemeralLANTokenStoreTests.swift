@@ -31,7 +31,7 @@ final class EphemeralLANTokenStoreTests: XCTestCase {
         let store = makeStore()
         let first = store.ensureIssued()
         let rotated = store.rotate()
-        XCTAssertNotEqual(first, rotated, "rotate は必ず新しいトークンを発行する")
+        XCTAssertNotEqual(first, rotated, "rotate Always issue a new token")
         XCTAssertEqual(store.current, rotated)
     }
 
@@ -53,7 +53,7 @@ final class EphemeralLANTokenStoreTests: XCTestCase {
 
     func testMatchesReturnsFalseWhenNoTokenIssued() {
         let store = makeStore()
-        XCTAssertFalse(store.matches(""), "未発行状態では空文字も一致しない")
+        XCTAssertFalse(store.matches(""), "No match for empty string in uncommitted state")
         XCTAssertFalse(store.matches("anything"))
     }
 
@@ -62,15 +62,15 @@ final class EphemeralLANTokenStoreTests: XCTestCase {
         let old = store.ensureIssued()
         _ = store.rotate()
         XCTAssertFalse(store.matches(old),
-                       "rotate 後は過去トークンが即座に無効化される")
+                       "rotate All past tokens will be immediately disabled.")
     }
 
     func testGeneratedTokenIsHexAnd16Bytes() {
         let token = EphemeralLANTokenStore.generate()
-        XCTAssertEqual(token.count, 32, "16 バイト = 32 hex 文字")
+        XCTAssertEqual(token.count, 32, "16 Byte = 32 hex Characters")
         let hexCharSet = CharacterSet(charactersIn: "0123456789abcdef")
         XCTAssertTrue(token.unicodeScalars.allSatisfy { hexCharSet.contains($0) },
-                      "hex 文字以外が混入していないこと")
+                      "hex No non-text characters are mixed in.")
     }
 
     func testConstantTimeEqualsHandlesLengthDifference() {

@@ -38,7 +38,7 @@ struct AIIntegrationView: View {
 
                 // Overview - Summary
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(L("AI_に_FloatingMacro_を操作させる_943488"))
+                    Text(L("AI_To operate _FloatingMacro_ with 943488"))
                         .font(.title3).fontWeight(.semibold)
                     Text(L_("ai_integration_intro", endpoint))
                         .font(.callout)
@@ -52,22 +52,22 @@ struct AIIntegrationView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 6) {
                         Image(systemName: "doc.on.clipboard")
-                        Text(L("接続用プロンプトをコピー_b93ac4")).font(.headline)
+                        Text(L("Copy prompt for connection _b93ac4")).font(.headline)
                     }
 
-                    Text(L("Claude_Code_Cursor_ChatGPT_等の_AI_に貼り付けるプロンプトをクリップボ_6e9f0f"))
+                    Text(L("Claude_Code_Cursor_ChatGPT_Paste prompt to _AI_ clipboar_6e9f0f"))
                         .font(.callout)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
 
                     HStack {
                         Button(action: copyConnectionPrompt) {
-                            Label(L("プロンプトをコピー_2e89f7"), systemImage: "doc.on.doc")
+                            Label(L("Copy Prompt 2e89f7"), systemImage: "doc.on.doc")
                         }
                         .buttonStyle(.borderedProminent)
 
                         Button(action: { promptPreview = makeConnectionPrompt(token: tokenForPreview()) }) {
-                            Text(L("プレビューを更新_87a7d8"))
+                            Text(L("Update Preview 87a7d8"))
                         }
                         .buttonStyle(.bordered)
                     }
@@ -95,10 +95,10 @@ struct AIIntegrationView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 6) {
                         Image(systemName: "gearshape.2")
-                        Text(L("AI_クライアントに_MCP_として登録_824251")).font(.headline)
+                        Text(L("AI_Register _MCP_ with Client 824251")).font(.headline)
                     }
 
-                    Text(L("対応する_AI_クライアントの設定ファイルに_floatingmacro_エントリを追記します_クラ_c9c660"))
+                    Text(L("Adds a _floatingmacro_ entry to the configuration file of the corresponding AI client. c9c660"))
                         .font(.callout)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -141,12 +141,12 @@ struct AIIntegrationView: View {
                         )
                     }
 
-                    Text(L("CLI_登録_青_は_fmcli_というコマンドラインツール経由で接続する方式_推奨_HTTP_登録_f02e39"))
+                    Text(L("CLI_Register Blue via fmcli command line tool Recommended HTTP Registration f02e39"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    Text(L("Claude_Desktop_Trae_Antigravity_の登録ボタンは未提供_Claude__f09ed7"))
+                    Text(L("Claude_Desktop_Trae_Antigravity_Registration button not provided"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -158,22 +158,22 @@ struct AIIntegrationView: View {
 
                 // Connection information (reference)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(L("接続情報_4b0c51")).font(.headline)
+                    Text(L("Connection info_4b0c51")).font(.headline)
                     HStack(spacing: 6) {
-                        Text(L("エンドポイント_5b5897")).foregroundColor(.secondary)
+                        Text(L("Endpoint 5b5897")).foregroundColor(.secondary)
                         Text(endpoint).font(.system(.callout, design: .monospaced))
                             .textSelection(.enabled)
                         CopyInlineButton(text: endpoint)
                     }
                     HStack(alignment: .top, spacing: 6) {
-                        Text(L("トークン取得_5a8f8c")).foregroundColor(.secondary)
+                        Text(L("Token acquisition_5a8f8c")).foregroundColor(.secondary)
                         Text("security find-generic-password -s FloatingMacro -a ControlAPIToken -w")
                             .font(.system(.callout, design: .monospaced))
                             .textSelection(.enabled)
                             .fixedSize(horizontal: false, vertical: true)
                         CopyInlineButton(text: "security find-generic-password -s FloatingMacro -a ControlAPIToken -w")
                     }
-                    Text(L("認証不要のディスカバリー_GET_manifest_help_well_known_agent_js_23e1fc"))
+                    Text(L("Authentication Required Discovery GET Manifest Help Well Known Agent JS 23e1fc"))
                         .font(.callout)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -201,7 +201,7 @@ struct AIIntegrationView: View {
 
     private func copyConnectionPrompt() {
         guard let token = loadToken() else {
-            setStatus(L("Keychain_からトークンを取得できませんでした_965772"), isError: true)
+            setStatus(L("Keychain_Failed to retrieve token from .965772"), isError: true)
             return
         }
         let prompt = makeConnectionPrompt(token: token)
@@ -294,7 +294,7 @@ struct AIIntegrationView: View {
         entry: (String) -> [String: Any]
     ) {
         guard let token = loadToken() else {
-            setStatus(L("Keychain_からトークンを取得できませんでした_965772"), isError: true)
+            setStatus(L("Keychain_Failed to retrieve token from .965772"), isError: true)
             return
         }
         writeServerEntry(
@@ -324,11 +324,11 @@ struct AIIntegrationView: View {
         entry: (_ shellPath: String, _ packageRef: String, _ token: String) -> [String: Any]
     ) {
         guard let token = loadToken() else {
-            setStatus(L("Keychain_からトークンを取得できませんでした_965772"), isError: true)
+            setStatus(L("Keychain_Failed to retrieve token from .965772"), isError: true)
             return
         }
         guard let bundleNpmPath = bundledNpmPackagePath() else {
-            setStatus(L("バンドル内に同梱された_npm_パッケージが見つかりません_Contents_Resources_n_2fa8e7"), isError: true)
+            setStatus(L("No npm package found in the bundle Contents/Resources/2fa8e7"), isError: true)
             return
         }
         // Launch npx via the user's login shell.
@@ -431,17 +431,17 @@ struct AIIntegrationView: View {
             }
             Spacer()
             Button(action: stdioAction) {
-                Text(L("CLI_登録_d04aa3"))
+                Text(L("CLI_register_d04aa3"))
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
-            .help(L("fmcli_CLI_ツール_を経由して接続_一般的_推奨_db8e1f"))
+            .help(L("fmcli_CLI_Connect via Tool General Recommendation db8e1f"))
             Button(action: httpAction) {
-                Text(L("HTTP_登録_441eee"))
+                Text(L("HTTP_Register 441eee"))
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
-            .help(L("HTTP_プロトコルで直接接続_中級者向け_e72f2b"))
+            .help(L("HTTP_Direct connection protocol for intermediate users e72f2b"))
         }
     }
 
@@ -533,7 +533,7 @@ struct AIIntegrationView: View {
     }
 
     private func tokenForPreview() -> String {
-        loadToken() ?? L("トークンを_Keychain_から取得できませんでした_b5eb4b")
+        loadToken() ?? L("Could not retrieve token from _Keychain_: b5eb4b")
     }
 
     private func setStatus(_ message: String, isError: Bool) {
@@ -564,7 +564,7 @@ struct AIIntegrationView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
-            .help(L("クリップボードにコピー_8b7fd6"))
+            .help(L("Copy to Clipboard 8b7fd6"))
         }
     }
 

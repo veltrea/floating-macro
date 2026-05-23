@@ -59,7 +59,7 @@ final class AppConfigPanelOpsTests: XCTestCase {
         let lastID = cfg.panels[0].id
 
         let after = cfg.removingPanel(id: lastID)
-        XCTAssertEqual(after.panels.count, 1, "最後の 1 件は削除されないべき")
+        XCTAssertEqual(after.panels.count, 1, "The last one should not be deleted.")
         XCTAssertEqual(after.panels[0].id, lastID)
     }
 
@@ -98,7 +98,7 @@ final class AppConfigPanelOpsTests: XCTestCase {
 
         let after = cfg2.updatingPanelFrame(id: idB, x: 800, y: 200, width: 400, height: 300)
         XCTAssertEqual(after.panels[0].id, firstID)
-        XCTAssertEqual(after.panels[0].window.x, 100, "panels[0] は変わらない")
+        XCTAssertEqual(after.panels[0].window.x, 100, "panels[0] Does not change")
         XCTAssertEqual(after.panels[1].window.x, 800)
         XCTAssertEqual(after.panels[1].window.height, 300)
     }
@@ -137,7 +137,7 @@ final class AppConfigPanelOpsTests: XCTestCase {
         let id = cfg.panels[0].id
         let after = cfg.settingPanelPreset(id: id, presetName: "midjourney")
         XCTAssertEqual(after.panels[0].presetName, "midjourney")
-        XCTAssertEqual(after.activePreset, "midjourney", "panels[0] 変更時は legacy も同期")
+        XCTAssertEqual(after.activePreset, "midjourney", "panels[0] Sync legacy when changed")
     }
 
     func testSettingPanelVisibleTogglesFlag() {
@@ -218,7 +218,7 @@ final class AppConfigPanelOpsTests: XCTestCase {
         // Create a state identical to the legacy synchronization before by directly rewriting panels[0].
         cfg.panels[0].presetName = "midjourney"
         cfg.panels[0].window.x = 999
-        XCTAssertEqual(cfg.activePreset, "default", "同期前は legacy フィールドはそのまま")
+        XCTAssertEqual(cfg.activePreset, "default", "Before synchronization, legacy fields remain unchanged.")
 
         let synced = cfg.withSyncedLegacyFields()
         XCTAssertEqual(synced.activePreset, "midjourney")

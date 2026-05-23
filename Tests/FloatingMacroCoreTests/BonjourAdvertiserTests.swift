@@ -39,7 +39,7 @@ final class BonjourAdvertiserTests: XCTestCase {
         let stateAfterFirst = adv.state
         adv.start(port: 65531) // ignored
         XCTAssertEqual(adv.state, stateAfterFirst,
-                       "二度目の start は no-op")
+                       "Second start must be "no"-op")
         adv.stop()
     }
 

@@ -45,7 +45,7 @@ struct ImageDropZone<Content: View>: View {
         .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
             handleDrop(providers: providers)
         }
-        .help(L("画像をドロップして登録_クリックでファイル選択_e7adb4"))
+        .help(L("Drop image to register, click to select file e7adb4"))
     }
 
     private var backgroundShape: some View {
@@ -126,7 +126,7 @@ struct IconDropZoneView: View {
             width: 96,
             height: 96,
             isEmpty: isEmpty,
-            placeholderCaption: L("画像をドロップ_nまたはクリック_44aa84"),
+            placeholderCaption: L("Drop image _n or click 44aa84"),
             placeholderSystemImage: "photo.on.rectangle.angled",
             content: {
                 if let img = resolvedImage {
@@ -160,7 +160,7 @@ struct ThumbnailDropZoneView: View {
             width: 160,
             height: 120,
             isEmpty: resolvedImage == nil,
-            placeholderCaption: L("サムネイル画像をドロップ_nまたはクリック_323ec0"),
+            placeholderCaption: L("Drop thumbnail image or click 323ec0"),
             placeholderSystemImage: "photo.fill.on.rectangle.fill",
             content: {
                 if let img = resolvedImage {

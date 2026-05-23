@@ -81,7 +81,7 @@ struct MacroStepRow: View {
 
             switch step.type {
             case "text":
-                TextField(L("テキスト_fe9ebd"), text: $step.text)
+                TextField(L("text_fe9ebd"), text: $step.text)
                     .textFieldStyle(.roundedBorder)
             case "key":
                 HStack(spacing: 4) {
@@ -91,10 +91,10 @@ struct MacroStepRow: View {
                     ComboSpecialKeyMenu(combo: $step.keyCombo)
                 }
             case "launch":
-                TextField(L("Applications_または_bundle_id_cb12d6"), text: $step.launchTarget)
+                TextField(L("Applications_or _bundle_id_cb12d6"), text: $step.launchTarget)
                     .textFieldStyle(.roundedBorder)
             case "terminal":
-                TextField(L("コマンド_4c2ea9"), text: $step.terminalCommand)
+                TextField(L("Command_4c2ea9"), text: $step.terminalCommand)
                     .textFieldStyle(.roundedBorder)
             case "delay":
                 TextField("500", text: $step.delayMs)

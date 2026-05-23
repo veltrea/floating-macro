@@ -151,16 +151,16 @@ final class ConfigIOTests: XCTestCase {
 
         let preset = Preset(
             name: "writing",
-            displayName: "執筆モード",
+            displayName: "Writing Mode",
             groups: [
                 ButtonGroup(
                     id: "g-paste",
-                    label: "定型",
+                    label: "Template",
                     collapsed: false,
                     buttons: [
                         ButtonDefinition(
                             id: "b-macro",
-                            label: "4面展開",
+                            label: "4Expansion",
                             iconText: "🚀",
                             action: .macro(
                                 actions: [

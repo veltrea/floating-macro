@@ -34,17 +34,17 @@ struct SecuritySettingsView: View {
 
                 // Header description
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(L("コマンドセーフガード_c5f232"))
+                    Text(L("Command Safeguard c5f232"))
                         .font(.title3)
                         .fontWeight(.semibold)
-                    Text(L("登録したパターンを含むコマンド_テキストをターミナルに送る前に確認ダイアログを表示します_大文字_小_858217"))
+                    Text(L("Display a confirmation dialog before sending the command text containing registered patterns to the terminal. Large Small 858217"))
                         .font(.callout)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
                 // Enabled / Disabled Toggle
-                Toggle(L("確認ダイアログを有効にする_27222d"), isOn: $enabled)
+                Toggle(L("Enable confirmation dialog _27222d"), isOn: $enabled)
                     .toggleStyle(.switch)
                     .onChange(of: enabled) { newValue in
                         presetManager.setCommandBlacklistEnabled(newValue)
@@ -57,10 +57,10 @@ struct SecuritySettingsView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "airplane")
                             .foregroundColor(autopilotEnabled ? .orange : .secondary)
-                        Text(L("オートパイロットモード_03f795"))
+                        Text(L("Autopilot Mode_03f795"))
                             .font(.headline)
                         if autopilotEnabled {
-                            Text(L("有効_ce1518"))
+                            Text(L("Valid_ce1518"))
                                 .font(.caption)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
@@ -70,7 +70,7 @@ struct SecuritySettingsView: View {
                         }
                     }
 
-                    Text(L("有効にすると_パターンに一致するコマンドでも確認ダイアログなしで実行されます_AIに完全に操作を委ね_c01c70"))
+                    Text(L("When enabled, commands matching the pattern will be executed without confirmation dialogs, fully delegating control to AI c01c70"))
                         .font(.callout)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -79,28 +79,28 @@ struct SecuritySettingsView: View {
                         HStack(spacing: 8) {
                             Image(systemName: "lock.slash")
                                 .foregroundColor(.secondary)
-                            Text(L("パスワードが未設定です_先にパスワードを設定してください_7fe6ab"))
+                            Text(L("Password not set yet - please set a password first _7fe6ab"))
                                 .font(.callout)
                                 .foregroundColor(.secondary)
                         }
-                        Button(L("パスワードを設定する_e91363")) {
+                        Button(L("Setting password: e91363")) {
                             newPassword1 = ""; newPassword2 = ""; passwordError = ""
                             showingSetPasswordSheet = true
                         }
                     } else {
                         HStack(spacing: 12) {
                             if autopilotEnabled {
-                                Button(L("オートパイロットを無効にする_fa7832")) {
+                                Button(L("Disable autopilot _fa7832")) {
                                     presetManager.disableAutopilot()
                                     autopilotEnabled = false
                                 }
                                 .foregroundColor(.orange)
                             } else {
-                                Button(L("オートパイロットを有効にする_69de91")) {
+                                Button(L("Enable Autopilot 69de91")) {
                                     enableAutopilotWithPrompt()
                                 }
                             }
-                            Button(L("パスワードを変更する_ba5901")) {
+                            Button(L("Change Password _ba5901")) {
                                 newPassword1 = ""; newPassword2 = ""; passwordError = ""
                                 showingSetPasswordSheet = true
                             }
@@ -121,11 +121,11 @@ struct SecuritySettingsView: View {
 
                     // pattern list
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(L("確認対象パターン一覧_e4b5f1"))
+                        Text(L("Confirmation target pattern list _e4b5f1"))
                             .font(.headline)
 
                         if patterns.isEmpty {
-                            Text(L("パターンが登録されていません_f9f240"))
+                            Text(L("No pattern registered_f9f240"))
                                 .foregroundColor(.secondary)
                                 .font(.callout)
                         } else {
@@ -133,10 +133,10 @@ struct SecuritySettingsView: View {
                                 ForEach(patterns.indices, id: \.self) { i in
                                     HStack(spacing: 8) {
                                         if editingIndex == i {
-                                            TextField(L("パターン_1f6ae2"), text: $editingText)
+                                            TextField(L("pattern_1f6ae2"), text: $editingText)
                                                 .textFieldStyle(.roundedBorder)
                                                 .font(.system(size: 12, design: .monospaced))
-                                            Button(L("確定_ba0fcf")) {
+                                            Button(L("Confirm ba0fcf")) {
                                                 let trimmed = editingText.trimmingCharacters(in: .whitespaces)
                                                 if !trimmed.isEmpty {
                                                     patterns[i] = trimmed
@@ -146,13 +146,13 @@ struct SecuritySettingsView: View {
                                             }
                                             .buttonStyle(.borderedProminent)
                                             .controlSize(.small)
-                                            Button(L("キャンセル_6ef349")) { editingIndex = nil }
+                                            Button(L("Cancel 6ef349")) { editingIndex = nil }
                                                 .controlSize(.small)
                                         } else {
                                             Text(patterns[i])
                                                 .font(.system(size: 12, design: .monospaced))
                                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                            Button(L("編集_757886")) {
+                                            Button(L("Edit 757886")) {
                                                 editingIndex = i
                                                 editingText = patterns[i]
                                             }
@@ -180,20 +180,20 @@ struct SecuritySettingsView: View {
 
                     // Add new pattern
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(L("パターンを追加_bf7d0b"))
+                        Text(L("Add pattern _bf7d0b"))
                             .font(.headline)
                         HStack {
-                            TextField(L("例_rm_rf_ee43ae"), text: $newPattern)
+                            TextField(L("example_rm_rf_ee43ae"), text: $newPattern)
                                 .textFieldStyle(.roundedBorder)
                                 .font(.system(size: 12, design: .monospaced))
                                 .onSubmit { addPattern() }
-                            Button(L("追加_7dc3a5"), action: addPattern)
+                            Button(L("Add 7dc3a5"), action: addPattern)
                                 .disabled(newPattern.trimmingCharacters(in: .whitespaces).isEmpty)
                         }
                     }
 
                     HStack {
-                        Button(L("デフォルトパターンに戻す_516a9f")) {
+                        Button(L("Reset to default pattern _516a9f")) {
                             patterns = CommandBlacklist.defaultPatterns
                             savePatterns()
                         }
@@ -215,18 +215,18 @@ struct SecuritySettingsView: View {
         // Password Setting Sheet
         .sheet(isPresented: $showingSetPasswordSheet) {
             VStack(alignment: .leading, spacing: 16) {
-                Text(hasPassword ? L("パスワードを変更_fb3e11") : L("オートパイロット用パスワードを設定_55fc32"))
+                Text(hasPassword ? L("Change Password: _fb3e11") : L("Set password for autopilot: 55fc32"))
                     .font(.headline)
 
                 if hasPassword {
-                    SecureField(L("現在のパスワード_ada493"), text: $newPassword1)
+                    SecureField(L("Current password_ada493"), text: $newPassword1)
                         .textFieldStyle(.roundedBorder)
-                    SecureField(L("新しいパスワード_291f74"), text: $newPassword2)
+                    SecureField(L("New password _291f74"), text: $newPassword2)
                         .textFieldStyle(.roundedBorder)
                 } else {
-                    SecureField(L("パスワード_4bdfe7"), text: $newPassword1)
+                    SecureField(L("Password_4bdfe7"), text: $newPassword1)
                         .textFieldStyle(.roundedBorder)
-                    SecureField(L("確認のためもう一度_6bd0d5"), text: $newPassword2)
+                    SecureField(L("Please confirm again by entering _6bd0d5"), text: $newPassword2)
                         .textFieldStyle(.roundedBorder)
                 }
 
@@ -237,11 +237,11 @@ struct SecuritySettingsView: View {
                 }
 
                 HStack {
-                    Button(L("キャンセル_6ef349")) {
+                    Button(L("Cancel 6ef349")) {
                         showingSetPasswordSheet = false
                     }
                     Spacer()
-                    Button(hasPassword ? L("変更する_0f1a79") : L("設定する_a160b0")) {
+                    Button(hasPassword ? L("Change to 0f1a79") : L("Set a160b0")) {
                         commitPassword()
                     }
                     .buttonStyle(.borderedProminent)
@@ -277,14 +277,14 @@ struct SecuritySettingsView: View {
 
     private func enableAutopilotWithPrompt() {
         guard let passphrase = CommandConfirmation.promptPassphrase(
-            title: L("オートパイロットを有効にする_3d57fc"),
-            message: L("パスワードを入力してください_n有効にすると確認ダイアログなしにすべてのコマンドが実行されます_927a3e")
+            title: L("Enable autopilot _3d57fc"),
+            message: L("Enter password: When enabled, all commands will execute without confirmation dialogs. 927a3e")
         ) else { return }
         if presetManager.enableAutopilot(passphrase: passphrase) {
             autopilotEnabled = true
         } else {
             let alert = NSAlert()
-            alert.messageText = L("パスワードが違います_e629b7")
+            alert.messageText = L("Password does not match: e629b7")
             alert.alertStyle = .warning
             alert.runModal()
         }
@@ -294,23 +294,23 @@ struct SecuritySettingsView: View {
         if hasPassword {
             // Changed: newPassword1 = Currently, newPassword2 = New
             if newPassword2.count < 4 {
-                passwordError = L("4文字以上のパスワードを設定してください_85efe5")
+                passwordError = L("4Please set a password longer than 8 characters_85efe5")
                 return
             }
             if presetManager.setAutopilotPassword(oldPassphrase: newPassword1, newPassphrase: newPassword2) {
                 hasPassword = true
                 showingSetPasswordSheet = false
             } else {
-                passwordError = L("現在のパスワードが違います_2309b8")
+                passwordError = L("Current password does not match _2309b8")
             }
         } else {
             // New setting: newPassword1 = password, newPassword2 = confirm
             guard newPassword1 == newPassword2 else {
-                passwordError = L("パスワードが一致しません_0fa3b3")
+                passwordError = L("Passwords do not match _0fa3b3")
                 return
             }
             if newPassword1.count < 4 {
-                passwordError = L("4文字以上のパスワードを設定してください_85efe5")
+                passwordError = L("4Please set a password longer than 8 characters_85efe5")
                 return
             }
             if presetManager.setAutopilotPassword(oldPassphrase: nil, newPassphrase: newPassword1) {

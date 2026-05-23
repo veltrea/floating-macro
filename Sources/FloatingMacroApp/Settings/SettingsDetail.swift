@@ -79,7 +79,7 @@ struct SettingsDetail: View {
             .id(group.id)
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                Text(L("左から編集するボタンまたはグループを選択してください_9b287c"))
+                Text(L("Select a button or group to edit from left_9b287c"))
                     .foregroundColor(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

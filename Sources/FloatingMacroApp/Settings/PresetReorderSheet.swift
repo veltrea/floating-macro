@@ -17,9 +17,9 @@ struct PresetReorderSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(L("プリセットの並べ替え_56a714"))
+            Text(L("Reordering Presets_56a714"))
                 .font(.headline)
-            Text(L("行をドラッグして順序を変更し_保存_を押してください_e37583"))
+            Text(L("Drag lines to reorder and press _Save_ e37583"))
                 .font(.caption)
                 .foregroundColor(.secondary)
 
@@ -36,14 +36,14 @@ struct PresetReorderSheet: View {
             .cornerRadius(6)
 
             HStack {
-                Button(L("キャンセル_6ef349")) {
+                Button(L("Cancel 6ef349")) {
                     isPresented = false
                 }
                 Spacer()
-                Button(L("アルファベット順にリセット_eff49f")) {
+                Button(L("Reset alphabetically _eff49f")) {
                     workingOrder = presetManager.presetEntries.sorted { $0.name < $1.name }
                 }
-                Button(L("保存_be5fbb")) {
+                Button(L("Save be5fbb")) {
                     let ids = workingOrder.map { $0.name }
                     _ = presetManager.reorderPresets(ids: ids)
                     isPresented = false

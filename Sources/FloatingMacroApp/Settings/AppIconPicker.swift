@@ -45,13 +45,13 @@ struct AppIconPicker: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(L("アプリのアイコンを選択_c79deb"))
+            Text(L("Select app icon_c79deb"))
                 .font(.headline)
-            Text(L("Applications_System_Applications_Applications_をサブフ_fd878e"))
+            Text(L("Applications_System_Applications_Applications_To sub-fd878e"))
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            TextField(L("検索_アプリ名_bundle_id_850b64"), text: $query)
+            TextField(L("Search_app_name_bundle_id_850b64"), text: $query)
                 .textFieldStyle(.roundedBorder)
 
             gridScrollView
@@ -99,7 +99,7 @@ struct AppIconPicker: View {
         HStack(spacing: 8) {
             if loading {
                 ProgressView().scaleEffect(0.6)
-                Text(L("読み込み中_4699f5")).font(.caption).foregroundColor(.secondary)
+                Text(L("Loading...")).font(.caption).foregroundColor(.secondary)
             } else if let entry = selectedEntry {
                 Text(entry.displayName)
                     .font(.callout)
@@ -118,9 +118,9 @@ struct AppIconPicker: View {
                     .foregroundColor(.secondary)
             }
             Spacer()
-            Button(L("キャンセル_6ef349"), action: onClose)
+            Button(L("Cancel 6ef349"), action: onClose)
                 .keyboardShortcut(.cancelAction)
-            Button(L("決定_56346e")) { commitSelection() }
+            Button(L("Determined 56346e")) { commitSelection() }
                 .keyboardShortcut(.defaultAction)
                 .disabled(selectedURL == nil || selectedEntry?.bundleIdentifier == nil)
         }

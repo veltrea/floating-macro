@@ -147,7 +147,7 @@ def flush_fallback_log():
             f.write(f"  claude:    {entry['claude_returned']}\n")
             f.write(f"  resolved:  {entry['resolved']}\n\n")
     print(f"  Fallback log: {fallback_log_path} ({len(fallback_log)} entries)", file=sys.stderr)
-SYSTEM_MSG = """You translate Swift code comments from Japanese to English.
+SYSTEM_MSG_COMMENT = """You translate Swift code comments from Japanese to English.
 
 Rules:
 - The input mixes Japanese text with English code identifiers. Translate ALL Japanese words to English. Keep code identifiers (panel_create, NSWindow, removeDuplicates, etc.) unchanged.
@@ -158,6 +158,18 @@ Rules:
 - Output exactly one line. Never split into multiple lines.
 - If the input is already fully English, output it unchanged.
 - 系 means "category/type of", e.g. "write 系" → "write-type" or "write operations"."""
+
+SYSTEM_MSG_STRING = """You translate Japanese UI text from a Swift CLI application to English.
+
+Rules:
+- Translate ALL Japanese words to natural English. This is user-facing text (error messages, usage help, labels).
+- Keep the same tone. Error messages stay short and direct.
+- Preserve Swift string interpolation like \\(variable) exactly as-is.
+- Preserve leading/trailing whitespace, newlines, and indentation exactly as-is.
+- Output ONLY the English translation. No preamble. No quotes. No markdown.
+- Keep emoji, numbers, version references, file paths, and command names as-is.
+- Keep technical terms (preset, token, Accessibility, etc.) in English.
+- If the input is already fully English, output it unchanged."""
 
 def has_japanese(text):
     return bool(JP_PATTERN.search(text))
@@ -194,6 +206,48 @@ def extract_japanese_comments(filepath):
 
     return comments, lines
 
+STRING_PATTERN = re.compile(r'"([^"\\]|\\.)*"')
+JP_SEGMENT = re.compile(r'[ぁ-ゖァ-ヶ一-鿿][ぁ-ゖァ-ヶ一-鿿\w\s　-〿、。（）()「」『』・:：…→←×+/]+')
+
+def extract_japanese_strings(filepath, lines):
+    """Find Japanese text inside string literals (not comments)."""
+    strings = []
+    in_block_comment = False
+    in_multiline = False
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if '/*' in stripped:
+            in_block_comment = True
+        if in_block_comment:
+            if '*/' in stripped:
+                in_block_comment = False
+            continue
+        # Skip comment-only lines
+        if stripped.startswith('//'):
+            continue
+        # Remove inline comments before scanning strings
+        code_part = re.sub(r'//.*$', '', line)
+        # Handle multi-line strings (""")
+        if '"""' in code_part:
+            in_multiline = not in_multiline
+            continue
+        if in_multiline:
+            # Extract each Japanese segment, not the whole line
+            for m in JP_SEGMENT.finditer(line):
+                seg = m.group(0).rstrip()
+                if seg:
+                    strings.append((i, 'segment', seg))
+            continue
+        # Single-line strings: extract Japanese segments from within quotes
+        for m in STRING_PATTERN.finditer(code_part):
+            content = m.group(0)[1:-1]  # strip quotes
+            if has_japanese(content):
+                for sm in JP_SEGMENT.finditer(content):
+                    seg = sm.group(0).rstrip()
+                    if seg:
+                        strings.append((i, 'segment', seg))
+    return strings
+
 def strip_comment_prefix(text):
     if text.startswith('///'):
         return text[3:].strip()
@@ -201,11 +255,12 @@ def strip_comment_prefix(text):
         return text[2:].strip()
     return text.strip()
 
-def translate_lmstudio(japanese_text):
+def translate_lmstudio(japanese_text, mode="comment"):
+    sys_msg = SYSTEM_MSG_STRING if mode == "string" else SYSTEM_MSG_COMMENT
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": SYSTEM_MSG},
+            {"role": "system", "content": sys_msg},
             {"role": "user", "content": japanese_text}
         ],
         "temperature": 0.1,
@@ -246,9 +301,12 @@ def has_claude():
 
 _claude_available = None
 
-def translate_one(comment_text, filepath="", line_idx=0):
+def translate_one(comment_text, filepath="", line_idx=0, mode="comment"):
     global _claude_available, cache_hits
-    text = strip_comment_prefix(comment_text)
+    if mode == "comment":
+        text = strip_comment_prefix(comment_text)
+    else:
+        text = comment_text
 
     if text in cache:
         cache_hits += 1
@@ -264,7 +322,7 @@ def translate_one(comment_text, filepath="", line_idx=0):
         return True
 
     if backend == "lmstudio":
-        lm_result = translate_lmstudio(text)
+        lm_result = translate_lmstudio(text, mode=mode)
         if is_good(lm_result):
             cache[text] = lm_result
             return lm_result
@@ -312,39 +370,66 @@ swift_files = find_swift_files(target_dir)
 total_files = len(swift_files)
 translated_total = 0
 comment_total = 0
+string_total = 0
+string_translated_total = 0
 
 print(f"Found {total_files} Swift files to scan (backend: {backend})", file=sys.stderr)
 
 for fi, filepath in enumerate(swift_files):
     comments, lines = extract_japanese_comments(filepath)
-    if not comments:
+    jp_strings = extract_japanese_strings(filepath, lines)
+    if not comments and not jp_strings:
         continue
 
     rel = os.path.relpath(filepath, target_dir)
-    comment_total += len(comments)
-    translated_count = 0
+    file_changed = False
 
-    print(f"  [{fi+1}/{total_files}] {rel}: {len(comments)} comments", file=sys.stderr)
+    # --- Comments ---
+    if comments:
+        comment_total += len(comments)
+        translated_count = 0
+        print(f"  [{fi+1}/{total_files}] {rel}: {len(comments)} comments", file=sys.stderr)
 
-    for ci, (line_idx, original_comment) in enumerate(comments):
-        if (ci + 1) % 10 == 0 or ci == 0:
-            print(f"    {ci+1}/{len(comments)}...", file=sys.stderr)
+        for ci, (line_idx, original_comment) in enumerate(comments):
+            if (ci + 1) % 10 == 0 or ci == 0:
+                print(f"    {ci+1}/{len(comments)}...", file=sys.stderr)
+            translated = translate_one(original_comment, filepath, line_idx)
+            if translated:
+                apply_translation(lines, line_idx, original_comment, translated)
+                translated_count += 1
 
-        translated = translate_one(original_comment, filepath, line_idx)
-        if translated:
-            apply_translation(lines, line_idx, original_comment, translated)
-            translated_count += 1
+        translated_total += translated_count
+        if translated_count > 0:
+            file_changed = True
+        print(f"    -> {translated_count}/{len(comments)} comments translated", file=sys.stderr)
 
-    if translated_count > 0:
+    # --- String literals ---
+    if jp_strings:
+        string_total += len(jp_strings)
+        str_count = 0
+        print(f"  [{fi+1}/{total_files}] {rel}: {len(jp_strings)} strings", file=sys.stderr)
+
+        for si, (line_idx, kind, original) in enumerate(jp_strings):
+            if (si + 1) % 10 == 0 or si == 0:
+                print(f"    str {si+1}/{len(jp_strings)}...", file=sys.stderr)
+            translated = translate_one(original, filepath, line_idx, mode="string")
+            if translated:
+                old_line = lines[line_idx]
+                lines[line_idx] = old_line.replace(original, translated, 1)
+                str_count += 1
+
+        string_translated_total += str_count
+        if str_count > 0:
+            file_changed = True
+        print(f"    -> {str_count}/{len(jp_strings)} strings translated", file=sys.stderr)
+
+    if file_changed:
         with open(filepath, 'w', encoding='utf-8') as f:
             f.writelines(lines)
-        translated_total += translated_count
-
-    print(f"    -> {translated_count}/{len(comments)} translated", file=sys.stderr)
 
 flush_fallback_log()
 save_cache()
-print(f"\nDone: {translated_total}/{comment_total} comments translated", file=sys.stderr)
+print(f"\nDone: {translated_total}/{comment_total} comments, {string_translated_total}/{string_total} strings translated", file=sys.stderr)
 PYEOF
 )
 

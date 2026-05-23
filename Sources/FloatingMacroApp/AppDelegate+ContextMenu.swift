@@ -7,7 +7,7 @@ extension AppDelegate {
         let menu = NSMenu()
 
         // Most Frequent Operation Block
-        menu.addItem(NSMenuItem(title: L("表示_非表示_bbfc3d"), action: #selector(togglePanel), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: L("Show/Hide bbfc3d"), action: #selector(togglePanel), keyEquivalent: ""))
 
         let presetsMenu = NSMenu()
         for entry in presetManager.presetEntries {
@@ -20,13 +20,13 @@ extension AppDelegate {
             }
             presetsMenu.addItem(item)
         }
-        let presetsItem = NSMenuItem(title: L("プリセット_96104a"), action: nil, keyEquivalent: "")
+        let presetsItem = NSMenuItem(title: L("Preset 96104a"), action: nil, keyEquivalent: "")
         presetsItem.submenu = presetsMenu
         menu.addItem(presetsItem)
 
         let panelsMenu = NSMenu()
         panelsMenu.addItem(
-            NSMenuItem(title: L("新しいパネルを追加_83bc2f"),
+            NSMenuItem(title: L("Add new panel _83bc2f"),
                        action: #selector(addNewPanel),
                        keyEquivalent: "")
         )
@@ -57,7 +57,7 @@ extension AppDelegate {
             // Submenu: Docked → Expand + Move to another edge, Normal → Edge with Dock
             if isDocked {
                 let expandItem = NSMenuItem(
-                    title: L("展開_5d14be"),
+                    title: L("Expand 5d14be"),
                     action: #selector(undockPanelByID(_:)),
                     keyEquivalent: ""
                 )
@@ -72,13 +72,13 @@ extension AppDelegate {
                     mi.representedObject = "\(cfgPanel.id)|\(edge.rawValue)"
                     moveMenu.addItem(mi)
                 }
-                let moveItem = NSMenuItem(title: L("別の辺に移動_f97d39"), action: nil, keyEquivalent: "")
+                let moveItem = NSMenuItem(title: L("Move to another edge_f97d39"), action: nil, keyEquivalent: "")
                 moveItem.submenu = moveMenu
                 panelsMenu.addItem(moveItem)
 
                 if cfgPanel.dockBarPosition != nil {
                     let resetItem = NSMenuItem(
-                        title: L("位置をリセット_c8f3a0"),
+                        title: L("Reset Position c8f3a0"),
                         action: #selector(resetDockBarPosition(_:)),
                         keyEquivalent: ""
                     )
@@ -94,7 +94,7 @@ extension AppDelegate {
                     mi.representedObject = "\(cfgPanel.id)|\(edge.rawValue)"
                     dockMenu.addItem(mi)
                 }
-                let dockItem = NSMenuItem(title: L("縁にドック_51d926"), action: nil, keyEquivalent: "")
+                let dockItem = NSMenuItem(title: L("Dock to Edge 51d926"), action: nil, keyEquivalent: "")
                 dockItem.submenu = dockMenu
                 panelsMenu.addItem(dockItem)
             }
@@ -112,19 +112,19 @@ extension AppDelegate {
         if configPanels.contains(where: { $0.dockedEdge != nil }) {
             panelsMenu.addItem(NSMenuItem.separator())
             panelsMenu.addItem(NSMenuItem(
-                title: L("ドックバーを集める_bef13e"),
+                title: L("Collect Dock Bar _bef13e"),
                 action: #selector(gatherAllDockBars),
                 keyEquivalent: ""
             ))
         }
-        let panelsItem = NSMenuItem(title: L("パネル_17f050"), action: nil, keyEquivalent: "")
+        let panelsItem = NSMenuItem(title: L("Panel_17f050"), action: nil, keyEquivalent: "")
         panelsItem.submenu = panelsMenu
         menu.addItem(panelsItem)
 
         menu.addItem(NSMenuItem.separator())
 
         // Setting Block
-        menu.addItem(NSMenuItem(title: L("編集_ac1264"), action: #selector(openSettings), keyEquivalent: ","))
+        menu.addItem(NSMenuItem(title: L("edit_ac1264"), action: #selector(openSettings), keyEquivalent: ","))
 
         let opacityMenu = NSMenu()
         let currentOpacity = presetManager.appConfig?.window.opacity ?? 1.0
@@ -141,7 +141,7 @@ extension AppDelegate {
             }
             opacityMenu.addItem(item)
         }
-        let opacityItem = NSMenuItem(title: L("透明度_34dac4"), action: nil, keyEquivalent: "")
+        let opacityItem = NSMenuItem(title: L("Opacity_34dac4"), action: nil, keyEquivalent: "")
         opacityItem.submenu = opacityMenu
         menu.addItem(opacityItem)
 
@@ -151,8 +151,8 @@ extension AppDelegate {
         let agentModeMenu = NSMenu()
         let currentMode = presetManager.appConfig?.controlAPI.agentMode ?? .normal
         let agentModeChoices: [(String, AgentMode)] = [
-            (L("ノーマル_b7519e"),       .normal),
-            (L("テスト_自律_1f6a94"), .test),
+            (L("Normal_b7519e"),       .normal),
+            (L("test_autonomous_1f6a94"), .test),
             ("Claude Code",    .claudeCode),
         ]
         for (label, mode) in agentModeChoices {
@@ -163,7 +163,7 @@ extension AppDelegate {
             if mode == currentMode { item.state = .on }
             agentModeMenu.addItem(item)
         }
-        let agentModeItem = NSMenuItem(title: L("AI_モード_fec4eb"), action: nil, keyEquivalent: "")
+        let agentModeItem = NSMenuItem(title: L("AI_mode_fec4eb"), action: nil, keyEquivalent: "")
         agentModeItem.submenu = agentModeMenu
         menu.addItem(agentModeItem)
 
@@ -171,17 +171,17 @@ extension AppDelegate {
         let apiPort = presetManager.appConfig?.controlAPI.port ?? 17430
         let apiTitle = apiEnabled
             ? L_("ai_connection_on_with_port", apiPort)
-            : L("AI_接続_オフ_e932c6")
+            : L("AI_Disconnect e932c6")
         let apiItem = NSMenuItem(title: apiTitle,
                                  action: #selector(toggleControlAPI),
                                  keyEquivalent: "")
         apiItem.state = apiEnabled ? .on : .off
         menu.addItem(apiItem)
 
-        menu.addItem(NSMenuItem(title: L("AI_に接続_784c81"), action: #selector(openAIIntegration), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: L("AI_Connecting to 784c81..."), action: #selector(openAIIntegration), keyEquivalent: ""))
 
         // Phase 5: Modal for Sending to Smartphone/Tablet
-        let sendItem = NSMenuItem(title: L("デバイスに送信_f9ed8b"),
+        let sendItem = NSMenuItem(title: L("Send to device _f9ed8b"),
                                   action: #selector(openDeviceSendFromMenu),
                                   keyEquivalent: "")
         // ControlAPI is meaningless when OFF, so it should be disabled (auto enable is not supported).
@@ -193,12 +193,12 @@ extension AppDelegate {
         menu.addItem(NSMenuItem.separator())
 
         // System Block ---
-        menu.addItem(NSMenuItem(title: L("設定フォルダを開く_be7046"), action: #selector(openConfigFolder), keyEquivalent: ""))
-        menu.addItem(NSMenuItem(title: L("再読み込み_54db7f"), action: #selector(reloadConfig), keyEquivalent: "r"))
-        menu.addItem(NSMenuItem(title: L("FloatingMacro_について_about_menu"), action: #selector(showAbout), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: L("Open Settings Folder _be7046"), action: #selector(openConfigFolder), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: L("Reload 54db7f"), action: #selector(reloadConfig), keyEquivalent: "r"))
+        menu.addItem(NSMenuItem(title: L("FloatingMacro_About Menu"), action: #selector(showAbout), keyEquivalent: ""))
 
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: L("終了_65be33"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: L("exit_65be33"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
 
         return menu
     }

@@ -71,7 +71,7 @@ final class DeviceSendWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = L("デバイスに送信_9efe2d")
+        window.title = L("Send to device 9efe2d")
         window.center()
         window.isReleasedWhenClosed = false
         super.init(window: window)
@@ -117,7 +117,7 @@ private struct DeviceSendView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .firstTextBaseline) {
-                Text(L("デバイスに送信_2d7f1e"))
+                Text(L("Send to device 2d7f1e"))
                     .font(.title2).bold()
                 Spacer()
                 if let pd = model.presetDisplay {
@@ -125,7 +125,7 @@ private struct DeviceSendView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
-                    Text(L("現在のプリセット_95367b"))
+                    Text(L("Current preset: 95367b"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -133,13 +133,13 @@ private struct DeviceSendView: View {
 
             // LAN public mode toggle. OFF to ON, QR appears.
             HStack {
-                Toggle(L("LAN_公開モード_e6f2a7"),
+                Toggle(L("LAN_Public mode_e6f2a7"),
                        isOn: Binding(get: { model.lanExposed },
                                      set: { onToggle($0) }))
                     .toggleStyle(.switch)
                 Spacer()
                 if model.lanExposed && model.bonjourReady {
-                    Label(L("Bonjour_公開中_36668c"), systemImage: "wifi")
+                    Label(L("Bonjour_Public 36668c"), systemImage: "wifi")
                         .foregroundStyle(.green)
                         .font(.caption)
                 }
@@ -162,7 +162,7 @@ private struct DeviceSendView: View {
                             RoundedRectangle(cornerRadius: 8)
                                 .fill(Color.gray.opacity(0.2))
                                 .frame(width: 320, height: 320)
-                            Text(L("QR_を生成できません_12ca69"))
+                            Text(L("QR_Cannot generate _12ca69"))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -182,7 +182,7 @@ private struct DeviceSendView: View {
                             .padding(8)
                             .background(Color.gray.opacity(0.1))
                             .cornerRadius(6)
-                        Button(L("コピー_9e646d")) {
+                        Button(L("Copy 9e646d")) {
                             NSPasteboard.general.clearContents()
                             NSPasteboard.general.setString(model.url, forType: .string)
                         }
@@ -195,18 +195,18 @@ private struct DeviceSendView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Button(L("再発行_c126ef"), action: onRotate)
+                    Button(L("Reissue_c126ef"), action: onRotate)
                 }
 
-                Text(L("LAN_内のスマホ_タブレットの_Safari_で_QR_を読むと_上の_URL_が開きます_再発行_220cce"))
+                Text(L("LAN_Scan QR in Safari on iPhone/Tablet to open the URL above. Resend 220cce"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(L("LAN_公開モードを_ON_にすると_同じ_Wi_Fi_にいるスマホ_タブレットからこのパネルを操作_f41a95"))
+                    Text(L("LAN_Enabling public mode to _ON_ allows smartphones and tablets on the same Wi-Fi network to operate this panel f41a95."))
                         .font(.callout)
-                    Text(L("OS_のファイアウォールが初回有効化時に_FloatingMacro_が着信接続を受け付けるか_を聞_d8be95"))
+                    Text(L("OS_Will the firewall accept incoming connections for _FloatingMacro_ during initial activation? d8be95"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

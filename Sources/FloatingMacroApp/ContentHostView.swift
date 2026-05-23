@@ -94,19 +94,19 @@ struct ContentHostView: View {
                 // Do not push out the icon group on the right when there is a long preset name.
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutPriority(0)
-                .help(L("プリセットを切り替え_右クリックで編集_並べ替え_削除_2a0d21"))
+                .help(L("Switch preset _ Edit with right-click _ Sort _ Delete _ 2a0d21"))
                 .contextMenu {
                     Button {
                         openSettings()
                     } label: {
-                        Label(L("編集_ac1264"), systemImage: "pencil")
+                        Label(L("edit_ac1264"), systemImage: "pencil")
                     }
                     .disabled(panelPreset == nil)
 
                     Button {
                         showingPresetReorderSheet = true
                     } label: {
-                        Label(L("並べ替え_3341c5"), systemImage: "arrow.up.arrow.down")
+                        Label(L("Sort_3341c5"), systemImage: "arrow.up.arrow.down")
                     }
                     .disabled(presetManager.presetEntries.count < 2)
 
@@ -115,7 +115,7 @@ struct ContentHostView: View {
                     Button(role: .destructive) {
                         confirmingPresetDelete = true
                     } label: {
-                        Label(L("削除_eec57b"), systemImage: "trash")
+                        Label(L("Delete eec57b"), systemImage: "trash")
                     }
                     .disabled(
                         panelPreset == nil
@@ -123,7 +123,7 @@ struct ContentHostView: View {
                     )
                 }
                 .confirmationDialog(
-                    L("このプリセットを削除しますか_e3f19c"),
+                    L("Are you sure you want to delete this preset? _e3f19c"),
                     isPresented: $confirmingPresetDelete,
                     titleVisibility: .visible
                 ) {
@@ -132,7 +132,7 @@ struct ContentHostView: View {
                             _ = presetManager.deletePreset(name: preset.name)
                         }
                     }
-                    Button(L("キャンセル_6ef349"), role: .cancel) {}
+                    Button(L("Cancel 6ef349"), role: .cancel) {}
                 } message: {
                     if let preset = panelPreset {
                         let buttonCount = preset.groups.reduce(0) { $0 + $1.buttons.count }
@@ -159,7 +159,7 @@ struct ContentHostView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(L("編集ウィンドウを開く_99e3e1"))
+                .help(L("Open Edit Window_99e3e1"))
 
                 // Phase 5: Send to device. Display this single QR panel.
                 Button {
@@ -173,7 +173,7 @@ struct ContentHostView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(L("デバイスに送信_54b8f3"))
+                .help(L("Send to device 54b8f3"))
 
                 Button {
                     AIIntegrationWindowController.shared.show(
@@ -188,7 +188,7 @@ struct ContentHostView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(L("AI_に接続を設定_6c80c4"))
+                .help(L("AI_Set up connection 6c80c4"))
             }
             .padding(.horizontal, 4)
             .padding(.top, 2)
@@ -272,7 +272,7 @@ struct ContentHostView: View {
             } else {
                 VStack {
                     Spacer()
-                    Text(L("プリセットが読み込めません_4f5aeb"))
+                    Text(L("Preset could not be loaded: 4f5aeb"))
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                     Spacer()
@@ -374,12 +374,12 @@ This places badges continuously, allowing them to be stripped after a rebuild.
                     Image(systemName: "exclamationmark.shield.fill")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.white)
-                    Text(L("アクセシビリティ権限が無効_8d74e5"))
+                    Text(L("Accessibility permission disabled: 8d74e5"))
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(.white)
                     Spacer(minLength: 4)
                     Button(action: recover) {
-                        Text(L("修復_87dfef"))
+                        Text(L("Repair_87dfef"))
                             .font(.system(size: 10, weight: .bold))
                             .foregroundColor(.orange)
                             .padding(.horizontal, 10)
@@ -394,7 +394,7 @@ This places badges continuously, allowing them to be stripped after a rebuild.
                             )
                     }
                     .buttonStyle(.plain)
-                    .help(L("tccutil_で_TCC_エントリをリセットし_prompt_accessibility_付きで自_490e1b"))
+                    .help(L("tccutil_Reset _TCC_ entry with _prompt_accessibility_ to self 0x490e1b"))
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 6)
@@ -471,14 +471,14 @@ This places badges continuously, allowing them to be stripped after a rebuild.
     private func backgroundColorMenu() -> some View {
         Menu {
             let presetColors: [(String, String)] = [
-                (L("システム既定_9f951e"), ""),
-                (L("ダークネイビー_70cf68"), "#1a1a2e"),
-                (L("ディープパープル_548918"), "#2d1b4e"),
-                (L("ミッドナイトグリーン_c85eb7"), "#0d2b2b"),
-                (L("チャコール_76021c"), "#2b2b2b"),
-                (L("スレートブルー_13f2de"), "#1e2d3d"),
-                (L("ダークレッド_0e9bcc"), "#2e1a1a"),
-                (L("フォレストグリーン_6cc1ed"), "#1a2e1a"),
+                (L("System Default_9f951e"), ""),
+                (L("darknavy_70cf68"), "#1a1a2e"),
+                (L("Deep Purple 548918"), "#2d1b4e"),
+                (L("midnight_green_c85eb7"), "#0d2b2b"),
+                (L("charcoal_76021c"), "#2b2b2b"),
+                (L("SlateBlue_13F2DE"), "#1e2d3d"),
+                (L("DarkRed_0e9bcc"), "#2e1a1a"),
+                (L("ForestGreen_6cc1ed"), "#1a2e1a"),
             ]
             let currentHex = presetManager.appConfig?.panels
                 .first(where: { $0.id == panelID })?.window.backgroundColor
@@ -505,10 +505,10 @@ This places badges continuously, allowing them to be stripped after a rebuild.
             Button {
                 openColorPanel()
             } label: {
-                Label(L("カスタム色_b41239"), systemImage: "paintpalette")
+                Label(L("Custom color_b41239"), systemImage: "paintpalette")
             }
         } label: {
-            Label(L("背景色_2f97db"), systemImage: "paintbrush")
+            Label(L("Background color_2f97db"), systemImage: "paintbrush")
         }
     }
 
@@ -557,12 +557,12 @@ This places badges continuously, allowing them to be stripped after a rebuild.
             Button {
                 addNewGroup()
             } label: {
-                Label(L("新規グループを追加_8faec6"), systemImage: "folder.badge.plus")
+                Label(L("Add new group: 8faec6"), systemImage: "folder.badge.plus")
             }
             Button {
                 pasteGroup()
             } label: {
-                Label(L("グループを貼り付け_7d4378"), systemImage: "doc.on.clipboard")
+                Label(L("Paste group 7d4378"), systemImage: "doc.on.clipboard")
             }
             .disabled(!PasteboardHelper.hasGroup())
             Divider()
@@ -571,30 +571,30 @@ This places badges continuously, allowing them to be stripped after a rebuild.
             Button {
                 openSettings()
             } label: {
-                Label(L("編集を開く_7cf378"), systemImage: "gear")
+                Label(L("Open Edit 7cf378"), systemImage: "gear")
             }
         } else if preset.groups.count == 1, let group = preset.groups.first {
             Button {
                 addNewButton(toGroupId: group.id)
             } label: {
-                Label(L("新規ボタンを追加_03ae9c"), systemImage: "plus.circle")
+                Label(L("Add New Button 03ae9c"), systemImage: "plus.circle")
             }
             Button {
                 addNewGroup()
             } label: {
-                Label(L("新規グループを追加_8faec6"), systemImage: "folder.badge.plus")
+                Label(L("Add new group: 8faec6"), systemImage: "folder.badge.plus")
             }
             Divider()
             Button {
                 pasteButtonToGroup(group.id)
             } label: {
-                Label(L("ボタンを貼り付け_1743f6"), systemImage: "doc.on.clipboard")
+                Label(L("Button Paste 1743f6"), systemImage: "doc.on.clipboard")
             }
             .disabled(!PasteboardHelper.hasButton())
             Button {
                 pasteGroup()
             } label: {
-                Label(L("グループを貼り付け_7d4378"), systemImage: "doc.on.clipboard")
+                Label(L("Paste group 7d4378"), systemImage: "doc.on.clipboard")
             }
             .disabled(!PasteboardHelper.hasGroup())
             Divider()
@@ -603,7 +603,7 @@ This places badges continuously, allowing them to be stripped after a rebuild.
             Button {
                 openSettings()
             } label: {
-                Label(L("編集を開く_7cf378"), systemImage: "gear")
+                Label(L("Open Edit 7cf378"), systemImage: "gear")
             }
         } else {
             ForEach(preset.groups, id: \.id) { group in
@@ -617,19 +617,19 @@ This places badges continuously, allowing them to be stripped after a rebuild.
             Button {
                 addNewGroup()
             } label: {
-                Label(L("新規グループを追加_8faec6"), systemImage: "folder.badge.plus")
+                Label(L("Add new group: 8faec6"), systemImage: "folder.badge.plus")
             }
             Divider()
             Button {
                 pasteButtonToGroup(preset.groups.last!.id)
             } label: {
-                Label(L("ボタンを貼り付け_1743f6"), systemImage: "doc.on.clipboard")
+                Label(L("Button Paste 1743f6"), systemImage: "doc.on.clipboard")
             }
             .disabled(!PasteboardHelper.hasButton())
             Button {
                 pasteGroup()
             } label: {
-                Label(L("グループを貼り付け_7d4378"), systemImage: "doc.on.clipboard")
+                Label(L("Paste group 7d4378"), systemImage: "doc.on.clipboard")
             }
             .disabled(!PasteboardHelper.hasGroup())
             Divider()
@@ -638,7 +638,7 @@ This places badges continuously, allowing them to be stripped after a rebuild.
             Button {
                 openSettings()
             } label: {
-                Label(L("編集を開く_7cf378"), systemImage: "gear")
+                Label(L("Open Edit 7cf378"), systemImage: "gear")
             }
         }
     }
@@ -646,7 +646,7 @@ This places badges continuously, allowing them to be stripped after a rebuild.
     private func addNewButton(toGroupId groupId: String) {
         let id = "b-\(Int.random(in: 1000...9999))"
         let button = ButtonDefinition(
-            id: id, label: L("新ボタン_d6206a"),
+            id: id, label: L("New button _d6206a"),
             iconText: "✨",
             action: .text(content: "", pasteDelayMs: 120, restoreClipboard: true, appendMode: false)
         )
@@ -659,7 +659,7 @@ This places badges continuously, allowing them to be stripped after a rebuild.
     private func addNewGroup() {
         let id = "g-\(Int.random(in: 1000...9999))"
         let group = ButtonGroup(
-            id: id, label: L("新グループ_050f97"),
+            id: id, label: L("New group_050f97"),
             iconText: "📁",
             buttons: []
         )
@@ -692,7 +692,7 @@ This places badges continuously, allowing them to be stripped after a rebuild.
                 HStack(spacing: 4) {
                     Image(systemName: "text.bubble")
                         .font(.system(size: 10))
-                    Text(L("メモ_9490ad"))
+                    Text(L("memo_9490ad"))
                         .font(.system(size: 10, weight: .medium))
                     if !memoExpanded {
                         Text(memo.split(separator: "\n").first.map(String.init) ?? "")

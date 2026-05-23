@@ -18,9 +18,9 @@ struct SettingsView: View {
 
         var localizedLabel: String {
             switch self {
-            case .buttons:  return L("編集_757886")
-            case .panels:   return L("パネル_17f050")
-            case .security: return L("セキュリティ_1c7258")
+            case .buttons:  return L("Edit 757886")
+            case .panels:   return L("Panel_17f050")
+            case .security: return L("security_1c7258")
             }
         }
     }

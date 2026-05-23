@@ -51,7 +51,7 @@ final class LANInterfaceFinderTests: XCTestCase {
             (name: "en0", addr: "192.168.1.21"),
         ])
         XCTAssertEqual(result.first, "192.168.1.21",
-                       "en0 (Ethernet) が en1 (Wi-Fi) より優先される")
+                       "en0 (Ethernet) en1 (Wi-Fi)-Fi) Preferably")
     }
 
     // MARK: - Live system probe (smoke test)

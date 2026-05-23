@@ -34,7 +34,7 @@ extension PresetManager {
     func importPresets(from url: URL) -> Int {
         let decoder = JSONDecoder()
         guard let data = try? Data(contentsOf: url) else {
-            showTransientError(L("インポートに失敗_ファイルを読み込めません_cfb541"))
+            showTransientError(L("Failed to import: Unable to load file_cfb541"))
             return 0
         }
         let presets: [Preset]
@@ -43,7 +43,7 @@ extension PresetManager {
         } else if let single = try? decoder.decode(Preset.self, from: data) {
             presets = [single]
         } else {
-            showTransientError(L("インポートに失敗_JSON_形式が不正です_6bbb96"))
+            showTransientError(L("Failed to import JSON format: Invalid JSON 6bbb96"))
             return 0
         }
         var imported = 0

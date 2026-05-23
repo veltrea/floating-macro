@@ -39,9 +39,9 @@ public enum ACPManifest {
                 "FloatingMacro — a macOS floating macro launcher. Operate the panel, " +
                 "manage groups / buttons / presets, and trigger key / text / launch / " +
                 "terminal / composite-macro actions. Each tool call is a sync run.\n" +
-                "FloatingMacro — macOS 用フローティングマクロランチャー。パネルの操作、" +
-                "グループ/ボタン/プリセットの管理、key/text/launch/terminal/複合マクロ" +
-                "アクションのトリガーが可能。各ツール呼び出しは同期実行。",
+                "FloatingMacro — macOS Use floating macro launcher. Panel operation," +
+                "Group/Button/Preset Management, Key/Text/Launch/Terminal/Composite Macro" +
+                "Action trigger possible. Each tool call runs synchronously.",
             "metadata": [
                 "documentation": "http://127.0.0.1:17430/manifest",
                 "tool_catalog":  "http://127.0.0.1:17430/tools",
@@ -49,8 +49,8 @@ public enum ACPManifest {
                     "Encode the tool call as a single Message part with " +
                     "content_type=application/json and content " +
                     "{\"tool\":\"<name>\",\"arguments\":{...}}\n" +
-                    "ツール呼び出しは content_type=application/json の Message part として" +
-                    "エンコードし、content に {\"tool\":\"<name>\",\"arguments\":{...}} を格納",
+                    "Tool call: content_type=application/json Message part as" +
+                    "Encode and content to {\"tool\":\"<name>\",\"arguments\":{...}} Store",
             ],
             "input_content_types":  ["application/json"],
             "output_content_types": ["application/json"],
@@ -78,7 +78,7 @@ public enum ACPManifest {
     private static func agentSummary() -> [String: Any] {
         [
             "name": agentName,
-            "description": "FloatingMacro control agent (sync, stateless).\nFloatingMacro 制御エージェント（同期・ステートレス）。",
+            "description": "FloatingMacro control agent (sync, stateless).\nFloatingMacro Control agent (syncless).",
         ]
     }
 

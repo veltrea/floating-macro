@@ -80,10 +80,10 @@ final class AppIconPrewarmerTests: XCTestCase {
 
         let calls = await counter.count
         XCTAssertEqual(calls, 0,
-                       "既にキャッシュ済みなら fallback は呼ばれない")
+                       "If already cached, fallback will not be called")
         let after = await cache.get(for: firstURL)
         XCTAssertEqual(after, preexisting,
-                       "既存キャッシュは上書きされない")
+                       "Existing cache will not be overwritten")
     }
 
     func testPrewarmHandlesEmptyProvider() async throws {

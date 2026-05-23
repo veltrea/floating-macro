@@ -65,7 +65,7 @@ final class AppIconCacheTests: XCTestCase {
             [.modificationDate: future], ofItemAtPath: stub.path)
 
         let stale = await cache.get(for: stub)
-        XCTAssertNil(stale, "アプリ mtime > キャッシュ mtime のとき再抽出を促すため nil を返すべき")
+        XCTAssertNil(stale, "App mtime > When cache mtime, return nil to prompt regeneration.")
     }
 
     func testDiskCachePromotesToMemoryAcrossInstances() async throws {
@@ -86,7 +86,7 @@ final class AppIconCacheTests: XCTestCase {
         let got = await cache2.get(for: stub)
         XCTAssertEqual(got, payload)
         let countAfter = await cache2.memoryCount()
-        XCTAssertEqual(countAfter, 1, "ディスクヒット後はメモリに昇格")
+        XCTAssertEqual(countAfter, 1, "Promoted to memory after disk hit")
     }
 
     func testClearWipesBothMemoryAndDisk() async throws {

@@ -29,7 +29,7 @@ struct SettingsSidebar: View {
         VStack(alignment: .leading, spacing: 8) {
             // Preset picker
             HStack {
-                Text(L("プリセット_96104a")).font(.caption).foregroundColor(.secondary)
+                Text(L("Preset 96104a")).font(.caption).foregroundColor(.secondary)
                 Spacer()
             }
             HStack {
@@ -45,30 +45,30 @@ struct SettingsSidebar: View {
                 Button(action: addPreset) {
                     Image(systemName: "plus")
                 }
-                .help(L("新しいプリセット_7fefc6"))
+                .help(L("New preset: 7fefc6"))
                 Button(action: deleteCurrentPreset) {
                     Image(systemName: "minus")
                 }
                 .disabled(presetManager.currentPreset?.name == "default")
-                .help(L("現在のプリセットを削除_49de83"))
+                .help(L("Delete current preset 49de83"))
                 Menu {
-                    Button(L("名前を変更_1d1fd5"),        action: renameCurrentPreset)
-                    Button(L("並べ替え_403f82"),          action: { showingPresetReorderSheet = true })
+                    Button(L("Rename 1d1fd5"),        action: renameCurrentPreset)
+                    Button(L("Sort_403f82"),          action: { showingPresetReorderSheet = true })
                     Divider()
-                    Button(L("エクスポート_4dc7ff"),       action: exportCurrentPreset)
-                    Button(L("全プリセットをエクスポート_9aa6b3"), action: exportAllPresets)
-                    Button(L("インポート_c8bcdd"),         action: importPresets)
+                    Button(L("Export 4dc7ff"),       action: exportCurrentPreset)
+                    Button(L("Export all presets: 9aa6b3"), action: exportAllPresets)
+                    Button(L("import_c8bcdd"),         action: importPresets)
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
                 .menuStyle(.borderlessButton)
                 .frame(width: 28)
-                .help(L("リネーム_並べ替え_エクスポート_インポート_174c89"))
+                .help(L("Rename Sort Export Import 174c89"))
             }
 
             // preset memo
             HStack {
-                Text(L("メモ_9490ad")).font(.caption).foregroundColor(.secondary)
+                Text(L("memo_9490ad")).font(.caption).foregroundColor(.secondary)
                 Spacer()
                 if !memoText.isEmpty {
                     Text(L_("character_count", memoText.count))
@@ -83,39 +83,39 @@ struct SettingsSidebar: View {
                     RoundedRectangle(cornerRadius: 4)
                         .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
                 )
-                .help(L("このプリセットを使う前提条件_注意点を書いておくと_パネル上部のメモアイコンから参照できます_9337d8"))
-            Text(L("使う前提_OS_設定_前面アプリ_クリップボード上書き等_を書いておくと_時間を空けて使い直す時にす_a3f291"))
+                .help(L("This preset requires certain prerequisites and notes. You can refer to the top panel memo icon for details. 9337d8"))
+            Text(L("Use before OS setting: Overwrite clipboard etc. Write down when you use the app again after a break. 3aF291"))
                 .font(.caption2)
                 .foregroundColor(.secondary)
 
             // AI mode picker
             HStack {
-                Text(L("AI_モード_fec4eb")).font(.caption).foregroundColor(.secondary)
+                Text(L("AI_mode_fec4eb")).font(.caption).foregroundColor(.secondary)
                 Spacer()
             }
             Picker("", selection: Binding(
                 get: { presetManager.appConfig?.controlAPI.agentMode ?? .normal },
                 set: { presetManager.setAgentMode($0) }
             )) {
-                Text(L("ノーマル_b7519e")).tag(AgentMode.normal)
-                Text(L("テスト_自律_1f6a94")).tag(AgentMode.test)
+                Text(L("Normal_b7519e")).tag(AgentMode.normal)
+                Text(L("test_autonomous_1f6a94")).tag(AgentMode.test)
                 Text("Claude Code").tag(AgentMode.claudeCode)
             }
             .labelsHidden()
-            .help(L("GET_manifest_で返すシステムプロンプトを切り替えます_767f36"))
+            .help(L("GET_manifest_Switches to a system prompt for returning_767f36"))
 
             // AI Connection Configuration (Formerly Known As: Control API)
             HStack {
-                Text(L("AI_接続_3d125f")).font(.caption).foregroundColor(.secondary)
+                Text(L("AI_Connection 3d125f")).font(.caption).foregroundColor(.secondary)
                 Spacer()
             }
-            Toggle(L("オン_22464d"), isOn: Binding(
+            Toggle(L("on_22464d"), isOn: Binding(
                 get: { presetManager.appConfig?.controlAPI.enabled ?? false },
                 set: { presetManager.setControlAPIEnabled($0) }
             ))
-            .help(L("オンにすると_AI_や外部ツールがこのアプリを操作できます_HTTP_API_をポートで公開_fe4270"))
+            .help(L("Enabling this allows AI and external tools to operate the app via the _HTTP_API_ on a port fe4270."))
             HStack(spacing: 4) {
-                Text(L("ポート_4c1f86")).font(.caption).foregroundColor(.secondary)
+                Text(L("Port_4c1f86")).font(.caption).foregroundColor(.secondary)
                 TextField("17430", text: $portText)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 70)
@@ -130,7 +130,7 @@ struct SettingsSidebar: View {
             }
             if presetManager.appConfig?.controlAPI.lanExposureEnabled == true {
                 HStack(spacing: 4) {
-                    Text("LAN ポート").font(.caption).foregroundColor(.secondary)
+                    Text("LAN Port").font(.caption).foregroundColor(.secondary)
                     TextField("17431", text: $lanPortText)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 70)
@@ -164,17 +164,17 @@ struct SettingsSidebar: View {
             // Add group + add button
             HStack {
                 Button(action: addGroup) {
-                    Label(L("グループ追加_49d331"), systemImage: "plus.circle")
+                    Label(L("Group Add 49d331"), systemImage: "plus.circle")
                 }
                 Button(action: addEmptyButton) {
-                    Label(L("ボタン追加_ae8c89"), systemImage: "plus.circle")
+                    Label(L("Add Button _ae8c89"), systemImage: "plus.circle")
                 }
                 .disabled(selectedGroupId == nil)
                 Button(action: { showingAppPickerSheet = true }) {
-                    Label(L("アプリから追加_d9418a"), systemImage: "app.badge")
+                    Label(L("Add _d9418a from app"), systemImage: "app.badge")
                 }
                 .disabled(selectedGroupId == nil)
-                .help(L("インストール済みアプリの一覧から起動ボタンを作成_f24f8d"))
+                .help(L("Create Launch Button from Installed Apps List_f24f8d"))
             }
         }
         .padding(8)
@@ -267,7 +267,7 @@ struct SettingsSidebar: View {
                             selectedButtonId = nil
                         }
                     } label: {
-                        Label(L("複製_1fde1c"), systemImage: "plus.square.on.square")
+                        Label(L("Copy_1fde1c"), systemImage: "plus.square.on.square")
                     }
                 }
 
@@ -277,7 +277,7 @@ struct SettingsSidebar: View {
                     Image(systemName: "pencil")
                 }
                 .buttonStyle(.plain)
-                .help(L("グループ名を変更_f69757"))
+                .help(L("Rename Group f69757"))
 
                 Button {
                     _ = presetManager.deleteGroup(id: group.id)
@@ -289,7 +289,7 @@ struct SettingsSidebar: View {
                     Image(systemName: "trash")
                 }
                 .buttonStyle(.plain)
-                .help(L("グループ削除_7d09ee"))
+                .help(L("Group deletion error: 7d09ee"))
             }
             ForEach(group.buttons, id: \.id) { btn in
                 HStack(spacing: 6) {
@@ -342,7 +342,7 @@ struct SettingsSidebar: View {
                             selectedGroupId = group.id
                         }
                     } label: {
-                        Label(L("複製_1fde1c"), systemImage: "plus.square.on.square")
+                        Label(L("Copy_1fde1c"), systemImage: "plus.square.on.square")
                     }
                 }
             }
@@ -415,13 +415,13 @@ struct SettingsSidebar: View {
 
     private func addPreset() {
         let alert = NSAlert()
-        alert.messageText = L("新しいプリセット_7fefc6")
-        alert.informativeText = L("プリセット名を入力してください_自由入力_あとから変更可_984cd1")
-        alert.addButton(withTitle: L("作成_4f8c0a"))
-        alert.addButton(withTitle: L("キャンセル_6ef349"))
+        alert.messageText = L("New preset: 7fefc6")
+        alert.informativeText = L("Enter preset name: _free input_ changeable later_ 984cd1")
+        alert.addButton(withTitle: L("Create 4f8c0a"))
+        alert.addButton(withTitle: L("Cancel 6ef349"))
 
         let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
-        textField.placeholderString = L("例_MidJourney_用_b050a8")
+        textField.placeholderString = L("Example: MidJourney_Used_b050a8")
         alert.accessoryView = textField
         alert.window.initialFirstResponder = textField
 
@@ -442,14 +442,14 @@ struct SettingsSidebar: View {
     private func renameCurrentPreset() {
         guard let preset = presetManager.currentPreset else { return }
         let alert = NSAlert()
-        alert.messageText = L("プリセット名を変更_2d5bf7")
-        alert.informativeText = L("新しい表示名を入力してください_c5f18e")
-        alert.addButton(withTitle: L("変更_fbcc6e"))
-        alert.addButton(withTitle: L("キャンセル_6ef349"))
+        alert.messageText = L("Change Preset Name: 2d5bf7")
+        alert.informativeText = L("Enter a new display name: _c5f18e")
+        alert.addButton(withTitle: L("Change_fbcc6e"))
+        alert.addButton(withTitle: L("Cancel 6ef349"))
 
         let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
         textField.stringValue = preset.displayName
-        textField.placeholderString = L("表示名_ea5693")
+        textField.placeholderString = L("Display name_ea5693")
         alert.accessoryView = textField
         alert.window.initialFirstResponder = textField
 
@@ -463,7 +463,7 @@ struct SettingsSidebar: View {
         guard let preset = presetManager.currentPreset,
               let data = presetManager.exportPresetData(name: preset.name) else { return }
         let panel = NSSavePanel()
-        panel.title = L("プリセットをエクスポート_d51675")
+        panel.title = L("Export preset _d51675")
         panel.nameFieldStringValue = "\(preset.displayName).fmpreset.json"
         panel.allowedContentTypes = [.json]
         panel.canCreateDirectories = true
@@ -475,7 +475,7 @@ struct SettingsSidebar: View {
     private func exportAllPresets() {
         guard let data = presetManager.exportAllPresetsData() else { return }
         let panel = NSSavePanel()
-        panel.title = L("全プリセットをエクスポート_dd2086")
+        panel.title = L("Export all presets _dd2086")
         panel.nameFieldStringValue = "presets.fmpreset-bundle.json"
         panel.allowedContentTypes = [.json]
         panel.canCreateDirectories = true
@@ -486,7 +486,7 @@ struct SettingsSidebar: View {
 
     private func importPresets() {
         let panel = NSOpenPanel()
-        panel.title = L("プリセットをインポート_0e2962")
+        panel.title = L("Import preset 0e2962")
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.allowedContentTypes = [.json]
@@ -496,13 +496,13 @@ struct SettingsSidebar: View {
             total += presetManager.importPresets(from: url)
         }
         if total == 0 {
-            presetManager.showTransientError(L("インポートに失敗しました_0ca2b5"))
+            presetManager.showTransientError(L("Failed to import: 0ca2b5"))
         }
     }
 
     private func addGroup() {
         let id = "g-\(Int.random(in: 1000...9999))"
-        let group = ButtonGroup(id: id, label: L("新グループ_050f97"), buttons: [])
+        let group = ButtonGroup(id: id, label: L("New group_050f97"), buttons: [])
         _ = presetManager.addGroup(group)
         selectedGroupId = id
         selectedButtonId = nil
@@ -510,10 +510,10 @@ struct SettingsSidebar: View {
 
     private func renameGroup(_ group: ButtonGroup) {
         let alert = NSAlert()
-        alert.messageText = L("グループ名を変更_f69757")
-        alert.informativeText = L("新しい名前を入力してください_4d4602")
-        alert.addButton(withTitle: L("変更_fbcc6e"))
-        alert.addButton(withTitle: L("キャンセル_6ef349"))
+        alert.messageText = L("Rename Group f69757")
+        alert.informativeText = L("Please enter a new name: 4d4602")
+        alert.addButton(withTitle: L("Change_fbcc6e"))
+        alert.addButton(withTitle: L("Cancel 6ef349"))
 
         let textField = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
         textField.stringValue = group.label
@@ -550,7 +550,7 @@ struct SettingsSidebar: View {
         guard let groupId = selectedGroupId else { return }
         let id = "b-\(Int.random(in: 1000...9999))"
         let button = ButtonDefinition(
-            id: id, label: L("新ボタン_d6206a"),
+            id: id, label: L("New button _d6206a"),
             iconText: "✨",
             action: .text(content: "", pasteDelayMs: 120, restoreClipboard: true, appendMode: false)
         )

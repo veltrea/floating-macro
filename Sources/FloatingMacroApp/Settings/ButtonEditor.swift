@@ -65,7 +65,7 @@ struct ButtonEditor: View {
 
                     // Editor preview + group layout settings
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(L("プレビュー_21b7d4")).font(.caption).foregroundColor(.secondary)
+                        Text(L("Preview 21b7d4")).font(.caption).foregroundColor(.secondary)
                         HStack {
                             previewContent
                             Spacer()
@@ -86,13 +86,13 @@ struct ButtonEditor: View {
                     }
 
                     Group {
-                        labeled(L("ラベル_fddf3e")) {
-                            TextField(L("表示文字列_7516d5"), text: $label)
+                        labeled(L("label_fddf3e")) {
+                            TextField(L("Display string_7516d5"), text: $label)
                                 .textFieldStyle(.roundedBorder)
                         }
 
-                        labeled(L("アイコンテキスト_絵文字など_c666a5")) {
-                            TextField(L("や_など_49750c"), text: $iconText)
+                        labeled(L("Icon context: Emoji and other symbols c666a5")) {
+                            TextField(L("or... 49750c"), text: $iconText)
                                 .textFieldStyle(.roundedBorder)
                                 .onChange(of: iconText) { newValue in
                                     if !newValue.isEmpty {
@@ -104,11 +104,11 @@ struct ButtonEditor: View {
 
                         HStack(spacing: 8) {
                             Button("SF Symbol...") { showingSFSymbolPicker = true }
-                                .help(L("SF_Symbol_を一覧から選ぶ_ab178d"))
-                            Button(L("アプリから_29035e")) { showingAppIconPicker = true }
-                                .help(L("インストール済みアプリのアイコンから選ぶ_8d8c57"))
-                            Button(L("画像を選択_a1c83f")) { pickIconFile() }
-                            Button(L("クリア_d4b7e2")) {
+                                .help(L("SF_Symbol_Select from list _ab178d"))
+                            Button(L("From the app _29035e")) { showingAppIconPicker = true }
+                                .help(L("Select Icon from Installed Apps: 8d8c57"))
+                            Button(L("Select Image_a1c83f")) { pickIconFile() }
+                            Button(L("clear_d4b7e2")) {
                                 iconPath = ""
                                 iconText = ""
                                 iconGeneration += 1
@@ -118,8 +118,8 @@ struct ButtonEditor: View {
 
                         HStack(spacing: 8) {
                             Picker("", selection: $cardThumbnailMode) {
-                                Text(L("クロップ_fa6ab1")).tag(CardThumbnailMode.fill)
-                                Text(L("全体表示_992e61")).tag(CardThumbnailMode.fit)
+                                Text(L("crop_fa6ab1")).tag(CardThumbnailMode.fill)
+                                Text(L("Full display_992e61")).tag(CardThumbnailMode.fit)
                             }
                             .labelsHidden()
                             .pickerStyle(.segmented)
@@ -128,9 +128,9 @@ struct ButtonEditor: View {
                     }
 
                     Group {
-                        labeled(L("背景色_2f97db")) {
+                        labeled(L("Background color_2f97db")) {
                             HStack {
-                                Toggle(L("有効_ce1518"), isOn: $useBackgroundColor)
+                                Toggle(L("Valid_ce1518"), isOn: $useBackgroundColor)
                                 if useBackgroundColor {
                                     ContinuousColorPicker(color: $backgroundColor)
                                         .frame(width: 44, height: 24)
@@ -144,9 +144,9 @@ struct ButtonEditor: View {
                             }
                         }
 
-                        labeled(L("文字色_94e49c")) {
+                        labeled(L("Text color_94e49c")) {
                             HStack {
-                                Toggle(L("有効_ce1518"), isOn: $useTextColor)
+                                Toggle(L("Valid_ce1518"), isOn: $useTextColor)
                                 if useTextColor {
                                     ContinuousColorPicker(color: $textColor)
                                         .frame(width: 44, height: 24)
@@ -157,7 +157,7 @@ struct ButtonEditor: View {
                                         .textFieldStyle(.roundedBorder)
                                         .frame(width: 110)
                                 } else {
-                                    Text(L("自動_背景色があれば白_なければ_システム既定_fe1254"))
+                                    Text(L("Use white background if available, otherwise use system default fe1254"))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -165,11 +165,11 @@ struct ButtonEditor: View {
                         }
 
                         HStack {
-                            labeled(L("幅_cfd914")) {
+                            labeled(L("Width _cfd914")) {
                                 TextField("auto", text: $width)
                                     .textFieldStyle(.roundedBorder)
                             }
-                            labeled(L("高さ_def5c2")) {
+                            labeled(L("Height_def5c2")) {
                                 TextField("auto", text: $height)
                                     .textFieldStyle(.roundedBorder)
                             }
@@ -180,7 +180,7 @@ struct ButtonEditor: View {
 
                     Group {
                         HStack(alignment: .center) {
-                            Text(L("アクション_36a9d7")).font(.headline)
+                            Text(L("Action 36a9d7")).font(.headline)
                             Spacer()
                             HStack(spacing: 4) {
                                 Circle()
@@ -196,7 +196,7 @@ struct ButtonEditor: View {
                             .background(Color.green.opacity(0.12))
                             .clipShape(Capsule())
                         }
-                        Picker(L("種類_e84e1e"), selection: $viewingType) {
+                        Picker(L("Type_e84e1e"), selection: $viewingType) {
                             Text("text").tag("text")
                             Text("key").tag("key")
                             Text("launch").tag("launch")
@@ -207,7 +207,7 @@ struct ButtonEditor: View {
 
                         switch viewingType {
                         case "text":
-                            labeled(L("貼り付けテキスト_de7105")) {
+                            labeled(L("Paste text_de7105")) {
                                 TextEditor(text: $actionText)
                                     .font(.system(size: 12, design: .monospaced))
                                     .frame(minHeight: 80)
@@ -215,10 +215,10 @@ struct ButtonEditor: View {
                             }
                             VStack(alignment: .leading, spacing: 4) {
                                 Toggle(isOn: $actionAppendMode) {
-                                    Text(L("追記モード_プロンプトビルダー_4653eb"))
+                                    Text(L("Append mode Prompt Builder 4653eb"))
                                 }
                                 .toggleStyle(.checkbox)
-                                Text(L("ON_にすると_ボタンを押してもペーストせず_上のテキストが既存のクリップボードに連結されます_プロ_09cf9e"))
+                                Text(L("ON_If you press the button without pasting, the existing text in the clipboard will be concatenated above. Pro 09cf9e"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -226,14 +226,14 @@ struct ButtonEditor: View {
                             .padding(.top, 4)
                         case "key":
                             VStack(alignment: .leading, spacing: 8) {
-                                Text(L("修飾キー_475829")).font(.caption).foregroundColor(.secondary)
+                                Text(L("Modifier key_475829")).font(.caption).foregroundColor(.secondary)
                                 HStack(spacing: 16) {
                                     Toggle("⌘ cmd", isOn: $keyModCmd).toggleStyle(.checkbox)
                                     Toggle("⇧ shift", isOn: $keyModShift).toggleStyle(.checkbox)
                                     Toggle("⌥ option", isOn: $keyModOption).toggleStyle(.checkbox)
                                     Toggle("⌃ ctrl", isOn: $keyModCtrl).toggleStyle(.checkbox)
                                 }
-                                labeled(L("キー_a_z_0_9_矢印_Delete_F1_等_4a4c33")) {
+                                labeled(L("Key a-z 0-9 Arrow Delete F1 ... 4a4c33")) {
                                     HStack(spacing: 8) {
                                         TextField("v", text: $keyBaseKey)
                                             .textFieldStyle(.roundedBorder)
@@ -256,15 +256,15 @@ struct ButtonEditor: View {
                                 }
                             }
                         case "launch":
-                            labeled(L("起動対象_パス_URL_bundle_id_shell_09a2e0")) {
+                            labeled(L("Launch target path URL bundle ID shell 09a2e0")) {
                                 HStack {
                                     TextField("/Applications/Slack.app", text: $launchTarget)
                                         .textFieldStyle(.roundedBorder)
-                                    Button(L("参照_69faf0")) { pickLaunchTarget() }
+                                    Button(L("Reference 69faf0")) { pickLaunchTarget() }
                                 }
                             }
                         case "terminal":
-                            labeled(L("コマンド_Terminal_app_に投入_21f117")) {
+                            labeled(L("Command: Terminal_app_ with input 21f117")) {
                                 TextField("cd ~/dev && claude", text: $terminalCommand)
                                     .textFieldStyle(.roundedBorder)
                             }
@@ -283,10 +283,10 @@ struct ButtonEditor: View {
                                 Button {
                                     macroSteps.append(MacroStepDraft())
                                 } label: {
-                                    Label(L("ステップを追加_55f11e"), systemImage: "plus.circle")
+                                    Label(L("Add Step 55f11e"), systemImage: "plus.circle")
                                 }
                                 .padding(.top, 2)
-                                Toggle(L("エラーで中断_3f6a5d"), isOn: $macroStopOnError)
+                                Toggle(L("Interrupted by error: 3f6a5d"), isOn: $macroStopOnError)
                                     .toggleStyle(.checkbox)
                                     .padding(.top, 4)
                             }
@@ -310,27 +310,27 @@ struct ButtonEditor: View {
                             .buttonStyle(.borderedProminent)
                         }
 
-                        labeled(L("ツールチップ_ホバー時に表示_e40d98")) {
-                            TextField(L("ボタンの用途を説明_ee7b98"), text: $tooltip)
+                        labeled(L("Tooltip displayed on hover for e40d98")) {
+                            TextField(L("Button Purpose: Explain _ee7b98"), text: $tooltip)
                                 .textFieldStyle(.roundedBorder)
                         }
 
                         // Pre-execution confirmation dialog. Visual input user, restart and...
                         // Shutdown-related irreversible operations with one tap
                         // Button for which you don't want to trigger.
-                        labeled(L("実行前の確認_a9e65b")) {
+                        labeled(L("Pre-run Confirmation_a9e65b")) {
                             VStack(alignment: .leading, spacing: 6) {
-                                Toggle(L("実行前に確認ダイアログを出す_3a4d8d"), isOn: $confirmEnabled)
+                                Toggle(L("Show confirmation dialog before running"), isOn: $confirmEnabled)
                                     .toggleStyle(.checkbox)
                                 if confirmEnabled {
                                     VStack(alignment: .leading, spacing: 4) {
-                                        TextField(L("確認メッセージ_空欄なら自動生成_cf8221"),
+                                        TextField(L("Confirm message for empty field: cf8221"),
                                                   text: $confirmMessageText)
                                             .textFieldStyle(.roundedBorder)
-                                        Toggle(L("危険な操作_実行ボタンを赤く強調_618998"),
+                                        Toggle(L("Dangerous Operation Execute Button Highlighted Red 618998"),
                                                isOn: $confirmDestructive)
                                             .toggleStyle(.checkbox)
-                                            .help(L("再起動_シャットダウン等_取り消しのきかない操作のみ_ON_にしてください_65f3ba"))
+                                            .help(L("Restart/Shutdown Only Cancelable Operations ON 65f3ba"))
                                     }
                                     .padding(.leading, 18)
                                 }
@@ -348,10 +348,10 @@ struct ButtonEditor: View {
                 Button(role: .destructive) {
                     confirmingDelete = true
                 } label: {
-                    Label(L("削除_c6577c"), systemImage: "trash")
+                    Label(L("Delete c6577c"), systemImage: "trash")
                 }
                 Button(action: commit) {
-                    Label(L("保存_be5fbb"), systemImage: "checkmark.circle.fill")
+                    Label(L("Save be5fbb"), systemImage: "checkmark.circle.fill")
                 }
                 .keyboardShortcut(.defaultAction)
             }
@@ -446,14 +446,14 @@ struct ButtonEditor: View {
             }
         }
         .confirmationDialog(
-            L("このボタンを削除しますか_ec2177"),
+            L("Are you sure you want to delete this button? _ec2177"),
             isPresented: $confirmingDelete,
             titleVisibility: .visible
         ) {
             Button(L_("delete_named_item", button.label), role: .destructive, action: onDelete)
-            Button(L("キャンセル_6ef349"), role: .cancel) {}
+            Button(L("Cancel 6ef349"), role: .cancel) {}
         } message: {
-            Text(L("この操作は元に戻せません_3955a5"))
+            Text(L("This operation cannot be undone_3955a5"))
         }
     }
 
@@ -599,7 +599,7 @@ struct ButtonEditor: View {
         panel.allowedContentTypes = [.image, .png, .jpeg]
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.prompt = L("選択_8ba15a")
+        panel.prompt = L("Selection 8ba15a")
         if panel.runModal() == .OK, let url = panel.url {
             importIconFile(from: url)
         }
@@ -645,7 +645,7 @@ struct ButtonEditor: View {
     ) -> String? {
         guard let presetName = presetManager.currentPreset?.name else {
             presetManager.showTransientError(
-                L("アクティブな_preset_が見つかりません_2ddc75"), clearAfter: 4)
+                L("No active preset found: 2ddc75"), clearAfter: 4)
             return nil
         }
         do {
@@ -669,7 +669,7 @@ struct ButtonEditor: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = true
         panel.allowsMultipleSelection = false
-        panel.prompt = L("選択_8ba15a")
+        panel.prompt = L("Selection 8ba15a")
         if panel.runModal() == .OK, let url = panel.url {
             launchTarget = url.path
         }
@@ -719,7 +719,7 @@ struct ButtonEditor: View {
             .fixedSize()
 
             if let override = previewLayoutOverride, override != parentDisplayType {
-                Button(L("グループに適用_e8b24a")) {
+                Button(L("Apply to Group e8b24a")) {
                     guard let gid = parentGroupId else { return }
                     _ = presetManager.updateGroup(
                         id: gid, label: nil, icon: nil, iconText: nil,
@@ -785,11 +785,11 @@ struct ButtonEditor: View {
 
     private func actionTypeDisplayName(_ type: String) -> String {
         switch type {
-        case "text":     return L("テキスト貼り付け_542a65")
-        case "key":      return L("キー入力_fdc0ab")
-        case "launch":   return L("アプリ起動_d176e3")
-        case "terminal": return L("ターミナル_3da5b3")
-        case "macro":    return L("マクロ_07bc32")
+        case "text":     return L("Paste Text 542a65")
+        case "key":      return L("keyInput_fdc0ab")
+        case "launch":   return L("Launch application _d176e3")
+        case "terminal": return L("terminal_3da5b3")
+        case "macro":    return L("macro_07bc32")
         default:         return type
         }
     }

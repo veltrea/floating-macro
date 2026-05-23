@@ -34,7 +34,7 @@ final class SettingsWindowController: NSWindowController {
                 backing: .buffered,
                 defer: false
             )
-            w.title = L("FloatingMacro_編集_dbdd3e")
+            w.title = L("FloatingMacro_Edit dbdd3e")
             w.contentView = hosting
             w.setFrameAutosaveName("SettingsWindow")
             // setFrameAutosaveName restores the last saved frame if one

@@ -236,9 +236,9 @@ final class SystemPromptTests: XCTestCase {
         XCTAssertTrue(SystemPrompt.greeting.contains("GET /state"))
         XCTAssertTrue(SystemPrompt.greeting.contains("tools/call"))
         // Test greeting instructs agents to read logs and produce a report.
-        XCTAssertTrue(SystemPrompt.testGreeting.contains("テスト完了レポート"))
+        XCTAssertTrue(SystemPrompt.testGreeting.contains("Test Completion Report"))
         // Claude Code greeting focuses on terminal and prompt injection.
-        XCTAssertTrue(SystemPrompt.claudeCodeGreeting.contains("ターミナル"))
+        XCTAssertTrue(SystemPrompt.claudeCodeGreeting.contains("Terminal"))
     }
 }
 

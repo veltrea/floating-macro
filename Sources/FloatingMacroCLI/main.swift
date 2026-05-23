@@ -8,31 +8,31 @@ func printUsage() {
     FloatingMacro CLI (fmcli)
 
     Usage:
-      fmcli action key <combo>              キーコンボ送出 (例: "cmd+shift+4")
-      fmcli action text <content>           テキスト注入
-      fmcli action launch <target>          アプリ/URL/ファイル起動
-      fmcli action terminal [options]       ターミナル起動 + コマンド投入
-        --app <name>                          ターミナルアプリ (既定: Terminal)
-        --command <cmd>                       実行コマンド
-        --no-execute                          入力のみ (Enter しない)
-      fmcli preset list                     プリセット一覧
-      fmcli preset run <preset> <button-id> ボタン実行
-      fmcli token show                      制御 API トークンを表示
-      fmcli token reset                     トークンを再生成
-      fmcli permissions check               権限チェック
-      fmcli config path                     設定ファイルパス表示
-      fmcli config init                     設定ファイルを初期化
-      fmcli log path                        ログファイルパス表示
+      fmcli action key <combo>              Key Combo Dispatch (Example: "cmd+shift+4")
+      fmcli action text <content>           Text injection
+      fmcli action launch <target>          Launch App/URL/File
+      fmcli action terminal [options]       Terminal launch + command injection
+        --app <name>                          Terminal app (default: Terminal)
+        --command <cmd>                       Execution Command
+        --no-execute                          Press Enter
+      fmcli preset list                     Preset List
+      fmcli preset run <preset> <button-id> Run Button
+      fmcli token show                      Display Control API Token
+      fmcli token reset                     Regenerate Token
+      fmcli permissions check               Permission Check
+      fmcli config path                     Display configuration file path
+      fmcli config init                     Initialize configuration file
+      fmcli log path                        Display log file path
       fmcli log tail [--level LEVEL] [--since DURATION] [--limit N] [--json]
-                                            最近のログを閲覧
+                                            View recent logs
 
-    Global options (action/preset のどこでも指定可):
-      --log-level <debug|info|warn|error>   ログ最低レベル (既定: info)
-      環境変数 FLOATINGMACRO_LOG_LEVEL でも指定可
+    Global options (action/preset Anywhere:
+      --log-level <debug|info|warn|error>   Log minimum level (default: info)
+      Can also specify via environment variable FLOATINGMACRO_LOG_LEVEL
 
-    環境変数:
-      FLOATINGMACRO_CONFIG_DIR  設定ディレクトリを上書き
-      FLOATINGMACRO_LOG_LEVEL   --log-level と同等
+    Environment Variables:
+      FLOATINGMACRO_CONFIG_DIR  Overwrite settings directory
+      FLOATINGMACRO_LOG_LEVEL   --log-level equivalent to
     """
     print(usage)
 }
@@ -157,40 +157,40 @@ func handleLogTail(args: [String], logURL: URL) -> Int32 {
             if i + 1 < args.count, let parsed = LogLevel.parse(args[i+1]) {
                 level = parsed; i += 2
             } else {
-                print("エラー: --level には debug|info|warn|error を指定")
+                print("Error: --level with debug|info|warn|error Specify")
                 return 1
             }
         case "--since":
             if i + 1 < args.count, let secs = parseDuration(args[i+1]) {
                 since = secs; i += 2
             } else {
-                print("エラー: --since には 30s / 5m / 2h / 1d などを指定")
+                print("Error: --since Specify time like 30s / 5m / 2h / 1d etc.")
                 return 1
             }
         case "--limit":
             if i + 1 < args.count, let n = Int(args[i+1]), n > 0 {
                 limit = n; i += 2
             } else {
-                print("エラー: --limit には正の整数を指定")
+                print("Error: --limit Please specify a positive integer")
                 return 1
             }
         case "--json":
             json = true; i += 1
         default:
-            print("エラー: 不明なオプション: \(args[i])")
+            print("Error: Unknown option: \(args[i])")
             return 1
         }
     }
 
     guard FileManager.default.fileExists(atPath: logURL.path) else {
-        print("ログファイルがありません: \(logURL.path)")
+        print("No log file: \(logURL.path)")
         return 0
     }
 
     // Read the entire file line by line. For very large files, use the SPEC 10MB rotation.
     // Practical upper limit is several thousand to tens of thousands lines due to being protected.
     guard let raw = try? String(contentsOf: logURL, encoding: .utf8) else {
-        print("エラー: ログファイルが読めません: \(logURL.path)")
+        print("Error: Cannot read log file: \(logURL.path)")
         return 1
     }
 
@@ -239,7 +239,7 @@ guard !cliArgs.isEmpty else {
 switch cliArgs[0] {
 case "action":
     guard cliArgs.count >= 2 else {
-        print("エラー: アクション種別を指定してください")
+        print("Error: Please specify an action type.")
         printUsage()
         exit(1)
     }
@@ -253,27 +253,28 @@ case "action":
             switch actionType {
             case "key":
                 guard cliArgs.count >= 3 else {
-                    print("エラー: コンボ文字列を指定してください (例: cmd+v)")
+                    print("Error: Please specify a combo string (e.g., cmd+v)")
                     exitCode = 1; semaphore.signal(); return
                 }
                 try await executeAction(.key(combo: cliArgs[2]))
-                print("✓ キー送出: \(cliArgs[2])")
+                print("✓ Key Press:
+``` \(cliArgs[2])")
 
             case "text":
                 guard cliArgs.count >= 3 else {
-                    print("エラー: テキストを指定してください")
+                    print("Error: Please specify text.")
                     exitCode = 1; semaphore.signal(); return
                 }
                 try await executeAction(.text(content: cliArgs[2], pasteDelayMs: 120, restoreClipboard: true, appendMode: false))
-                print("✓ テキスト注入完了")
+                print("✓ Text injection complete")
 
             case "launch":
                 guard cliArgs.count >= 3 else {
-                    print("エラー: 起動対象を指定してください")
+                    print("Error: Please specify a target to launch.")
                     exitCode = 1; semaphore.signal(); return
                 }
                 try await executeAction(.launch(target: cliArgs[2]))
-                print("✓ 起動: \(cliArgs[2])")
+                print("✓ Launch: \(cliArgs[2])")
 
             case "terminal":
                 var app = "Terminal"
@@ -294,19 +295,19 @@ case "action":
                     i += 1
                 }
                 guard !command.isEmpty else {
-                    print("エラー: --command を指定してください")
+                    print("Error: --command Please specify: Please specify:")
                     exitCode = 1; semaphore.signal(); return
                 }
                 try await executeAction(.terminal(app: app, command: command, newWindow: true, execute: execute, profile: nil))
-                print("✓ ターミナル: \(app) → \(command)")
+                print("✓ Terminal: \(app) → \(command)")
 
             default:
-                print("エラー: 不明なアクション種別: \(actionType)")
+                print("Error: Unknown action type: \(actionType)")
                 printUsage()
                 exitCode = 1
             }
         } catch {
-            print("エラー: \(error)")
+            print("Error: \(error)")
             exitCode = 1
         }
         LoggerContext.shared.flush()
@@ -317,7 +318,7 @@ case "action":
 
 case "preset":
     guard cliArgs.count >= 2 else {
-        print("エラー: サブコマンドを指定してください (list / run)")
+        print("Error: Please specify a subcommand (list/run).")
         exit(1)
     }
 
@@ -327,23 +328,23 @@ case "preset":
             let loader = ConfigLoader()
             let presets = try loader.listPresets()
             if presets.isEmpty {
-                print("プリセットが見つかりません。")
-                print("設定ディレクトリ: \(ConfigLoader.defaultBaseURL.path)")
+                print("Preset not found.")
+                print("Settings Directory: \(ConfigLoader.defaultBaseURL.path)")
             } else {
                 let config = try? loader.loadAppConfig()
                 for name in presets {
-                    let active = (config?.activePreset == name) ? " (アクティブ)" : ""
+                    let active = (config?.activePreset == name) ? " (Active" : ""
                     print("  \(name)\(active)")
                 }
             }
         } catch {
-            print("エラー: \(error)")
+            print("Error: \(error)")
             exit(1)
         }
 
     case "run":
         guard cliArgs.count >= 4 else {
-            print("エラー: fmcli preset run <preset> <button-id>")
+            print("Error: fmcli preset run <preset> <button-id>")
             exit(1)
         }
         let presetName = cliArgs[2]
@@ -354,15 +355,15 @@ case "preset":
             do {
                 let loader = ConfigLoader()
                 guard let button = try loader.findButton(presetName: presetName, buttonId: buttonId) else {
-                    print("エラー: ボタン '\(buttonId)' が見つかりません (プリセット: \(presetName))")
+                    print("Error: Button '\(buttonId)' Preset not found \(presetName))")
                     exitCode = 1
                     semaphore.signal()
                     return
                 }
                 try await executeAction(button.action)
-                print("✓ 実行完了: \(button.label)")
+                print("✓ Execution Complete: \(button.label)")
             } catch {
-                print("エラー: \(error)")
+                print("Error: \(error)")
                 exitCode = 1
             }
             LoggerContext.shared.flush()
@@ -372,7 +373,7 @@ case "preset":
         exit(exitCode)
 
     default:
-        print("エラー: 不明なサブコマンド: \(cliArgs[1])")
+        print("Error: Unknown subcommand: \(cliArgs[1])")
         exit(1)
     }
 
@@ -380,13 +381,13 @@ case "permissions":
     if cliArgs.count >= 2 && cliArgs[1] == "check" {
         let accessible = AccessibilityChecker.isTrusted()
         if accessible {
-            print("✓ Accessibility 権限: 許可済み")
+            print("✓ Accessibility Permission: Granted")
         } else {
-            print("✗ Accessibility 権限: 未許可")
-            print("  システム設定 → プライバシーとセキュリティ → アクセシビリティ で許可してください")
+            print("✗ Accessibility Permission: Not Granted")
+            print("  Allow in System Settings → Privacy and Security → Accessibility")
         }
     } else {
-        print("エラー: fmcli permissions check")
+        print("Error: fmcli permissions check")
         exit(1)
     }
 
@@ -397,19 +398,19 @@ case "config":
         do {
             let writer = ConfigWriter()
             try writer.writeDefaultConfigIfNeeded()
-            print("✓ 設定ファイルを初期化しました: \(ConfigLoader.defaultBaseURL.path)")
+            print("✓ Initialized configuration file: \(ConfigLoader.defaultBaseURL.path)")
         } catch {
-            print("エラー: \(error)")
+            print("Error: \(error)")
             exit(1)
         }
     } else {
-        print("エラー: fmcli config path / fmcli config init")
+        print("Error: fmcli config path / fmcli config init")
         exit(1)
     }
 
 case "token":
     guard cliArgs.count >= 2 else {
-        print("エラー: fmcli token (show | reset)")
+        print("Error: fmcli token (show) | reset)")
         exit(1)
     }
     switch cliArgs[1] {
@@ -418,7 +419,7 @@ case "token":
             let token = try TokenStore.loadOrCreate()
             print(token)
         } catch {
-            fputs("エラー: \(error)\n", stderr)
+            fputs("Error: \(error)\n", stderr)
             exit(1)
         }
     case "reset":
@@ -427,17 +428,17 @@ case "token":
             let token = try TokenStore.loadOrCreate()
             print("New token: \(token)")
         } catch {
-            fputs("エラー: \(error)\n", stderr)
+            fputs("Error: \(error)\n", stderr)
             exit(1)
         }
     default:
-        print("エラー: 不明なサブコマンド: \(cliArgs[1])")
+        print("Error: Unknown subcommand: \(cliArgs[1])")
         exit(1)
     }
 
 case "log":
     guard cliArgs.count >= 2 else {
-        print("エラー: fmcli log (path | tail [options])")
+        print("Error: fmcli log (path) | tail [options])")
         exit(1)
     }
     switch cliArgs[1] {
@@ -448,7 +449,7 @@ case "log":
         let code = handleLogTail(args: tailArgs, logURL: resolvedLogURL)
         exit(code)
     default:
-        print("エラー: 不明なサブコマンド: \(cliArgs[1])")
+        print("Error: Unknown subcommand: \(cliArgs[1])")
         exit(1)
     }
 
@@ -456,7 +457,7 @@ case "help", "--help", "-h":
     printUsage()
 
 default:
-    print("エラー: 不明なコマンド: \(cliArgs[0])")
+    print("Error: Unknown command: \(cliArgs[0])")
     printUsage()
     exit(1)
 }

@@ -22,7 +22,7 @@ public enum SFSymbolCatalog {
 
     /// Ordered list of categories shown in the picker.
     public static let categories: [Category] = [
-        Category(id: "general", label: "一般", symbols: [
+        Category(id: "general", label: "General", symbols: [
             "star", "star.fill",
             "heart", "heart.fill",
             "bookmark", "bookmark.fill",
@@ -43,7 +43,7 @@ public enum SFSymbolCatalog {
             "trash", "trash.fill",
             "square.and.arrow.up", "square.and.arrow.down",
         ]),
-        Category(id: "nav", label: "ナビ", symbols: [
+        Category(id: "nav", label: "Navigation", symbols: [
             "chevron.left", "chevron.right", "chevron.up", "chevron.down",
             "arrow.left", "arrow.right", "arrow.up", "arrow.down",
             "arrow.up.left", "arrow.up.right",
@@ -52,7 +52,7 @@ public enum SFSymbolCatalog {
             "house", "house.fill",
             "arrow.uturn.left", "arrow.uturn.right",
         ]),
-        Category(id: "files", label: "ファイル", symbols: [
+        Category(id: "files", label: "File", symbols: [
             "doc", "doc.fill", "doc.text",
             "doc.on.doc",
             "folder", "folder.fill",
@@ -61,7 +61,7 @@ public enum SFSymbolCatalog {
             "externaldrive", "internaldrive",
             "paperplane", "paperplane.fill",
         ]),
-        Category(id: "media", label: "メディア", symbols: [
+        Category(id: "media", label: "Media", symbols: [
             "play", "play.fill", "pause", "pause.fill", "stop", "stop.fill",
             "forward", "forward.fill", "backward", "backward.fill",
             "speaker", "speaker.fill",
@@ -70,7 +70,7 @@ public enum SFSymbolCatalog {
             "camera", "camera.fill",
             "photo", "photo.fill",
         ]),
-        Category(id: "comm", label: "通信", symbols: [
+        Category(id: "comm", label: "Communication", symbols: [
             "envelope", "envelope.fill",
             "message", "message.fill",
             "phone", "phone.fill",
@@ -79,7 +79,7 @@ public enum SFSymbolCatalog {
             "wifi", "network",
             "globe",
         ]),
-        Category(id: "tools", label: "ツール", symbols: [
+        Category(id: "tools", label: "Tool", symbols: [
             "wrench", "hammer", "screwdriver",
             "paintbrush", "paintbrush.fill",
             "scissors", "ruler", "pencil",
@@ -88,7 +88,7 @@ public enum SFSymbolCatalog {
             "bolt", "bolt.fill",
             "lock", "lock.fill", "key", "key.fill",
         ]),
-        Category(id: "system", label: "システム", symbols: [
+        Category(id: "system", label: "System", symbols: [
             "keyboard", "command", "option",
             "terminal",
             "cpu", "memorychip",

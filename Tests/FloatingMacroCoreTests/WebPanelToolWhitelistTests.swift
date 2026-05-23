@@ -38,7 +38,7 @@ final class WebPanelToolWhitelistTests: XCTestCase {
         ]
         for name in mutating {
             XCTAssertFalse(WebPanelToolWhitelist.isAllowed(name),
-                           "破壊的 tool '\(name)' は Web Panel から呼べないはず")
+                           "Destructive tool '\(name)' Should not be able to call from Web Panel")
         }
     }
 
@@ -57,7 +57,7 @@ final class WebPanelToolWhitelistTests: XCTestCase {
         ]
         for name in blocked {
             XCTAssertFalse(WebPanelToolWhitelist.isAllowed(name),
-                           "Mac 側 UI 操作 tool '\(name)' は Web Panel から呼べないはず")
+                           "Mac Side UI Operation Tool '\(name)' Should not be able to call from Web Panel")
         }
     }
 
@@ -65,7 +65,7 @@ final class WebPanelToolWhitelistTests: XCTestCase {
         XCTAssertFalse(WebPanelToolWhitelist.isAllowed(""))
         XCTAssertFalse(WebPanelToolWhitelist.isAllowed("nonexistent_tool"))
         XCTAssertFalse(WebPanelToolWhitelist.isAllowed("BUTTON_PRESS"),
-                       "ケース感度を保つ (大文字を許可しない)")
+                       "Case sensitivity to be maintained (uppercase not allowed)")
     }
 
     // MARK: - All tools exist in the ToolCatalog
@@ -73,7 +73,7 @@ final class WebPanelToolWhitelistTests: XCTestCase {
     func testAllWhitelistedToolsExistInCatalog() {
         for name in WebPanelToolWhitelist.allowed {
             XCTAssertNotNil(ToolCatalog.find(name),
-                            "ホワイトリストの '\(name)' が ToolCatalog に存在すること")
+                            "White List '\(name)' must exist in ToolCatalog")
         }
     }
 }

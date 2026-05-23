@@ -54,7 +54,7 @@ final class EdgeDockLayoutTests: XCTestCase {
         for i in 0..<result.count - 1 {
             let bottom1 = result[i].origin.y
             let top2 = result[i + 1].origin.y + bars[i + 1].size.height
-            XCTAssertGreaterThanOrEqual(bottom1, top2, "bar \(i) と \(i+1) が重なっている")
+            XCTAssertGreaterThanOrEqual(bottom1, top2, "bar \(i) and \(i+1) Overlapping")
         }
     }
 
@@ -68,7 +68,7 @@ final class EdgeDockLayoutTests: XCTestCase {
 
         let right1 = result[0].origin.x + bars[0].size.width
         let left2 = result[1].origin.x
-        XCTAssertLessThanOrEqual(right1, left2, "横バーが重なっている")
+        XCTAssertLessThanOrEqual(right1, left2, "Overlapping horizontal bar")
     }
 
     func testEmptyBarsReturnsEmpty() {

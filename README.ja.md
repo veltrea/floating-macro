@@ -247,9 +247,11 @@ Sources/
   FloatingMacroCLI/      fmcli バイナリ
   FloatingMacroApp/      GUI (SwiftUI + NSPanel)、設定エディタ、アイコンローダ、AI 連携ウィンドウ
 Tests/                   ユニットテスト
-scripts/                 ビルド・スモークテスト・リリース用シェル
-docs/                    AI_PROTOCOL / mcp/ (クライアント別ガイド) / manual_test
+scripts/                 ビルド・スモークテスト・リリース・翻訳用シェル
+App/                     build-app.sh 用の Info.plist テンプレート
 npm/                     CLI 接続用の stdio MCP server (DMG に同梱)
+manual/                  ユーザー向けマニュアル (基本操作・AI活用例・画像)
+.github/                 GitHub Actions ワークフロー (CI)
 SPEC.md                  完全な仕様書
 DESIGN.md                デザインシステム
 CHANGELOG.md             変更履歴

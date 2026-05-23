@@ -263,9 +263,11 @@ Sources/
   FloatingMacroCLI/      fmcli binary
   FloatingMacroApp/      GUI (SwiftUI + NSPanel), settings editor, icon loader, AI integration window
 Tests/                   Unit tests
-scripts/                 Build, smoke-test, and release shell scripts
-docs/                    AI_PROTOCOL, mcp/ (per-client guides), manual_test
+scripts/                 Build, smoke-test, release, and translation shell scripts
+App/                     Info.plist template for build-app.sh
 npm/                     stdio MCP server for CLI registration (bundled in the DMG)
+manual/                  User-facing manuals (basic usage, AI examples, images)
+.github/                 GitHub Actions workflows (CI)
 SPEC.md                  Full specification
 DESIGN.md                Design system notes
 CHANGELOG.md             Release history

@@ -1,13 +1,13 @@
 #!/bin/bash
-# settings_api_smoke.sh — 起動中の FloatingMacro 本体に対して
-# 設定パネル系エンドポイントを順番に叩く動作確認スクリプト。
+# settings_api_smoke.sh - For the currently running FloatingMacro body
+# Setting panel category endpoint operation confirmation script.
 #
-# 前提:
-#   - FloatingMacro.app が起動済みで Control API が 127.0.0.1:17430 で
-#     リッスンしていること
-#   - Bearer トークンが
-#     ~/Library/Application Support/FloatingMacro/control_api_token に
-#     保存されていること (本体起動時に自動生成)
+# Assumption:
+# FloatingMacro.app is running with the Control API at 127.0.0.1:17430.
+# Listening
+# Bearer token that
+# /Library/Application Support/FloatingMacro/control_api_token
+# Saved when automatically generated at launch time
 #
 # Usage:
 #   bash scripts/settings_api_smoke.sh
@@ -21,7 +21,7 @@ TOKEN_FILE="$HOME/Library/Application Support/FloatingMacro/control_api_token"
 if [ -r "$TOKEN_FILE" ]; then
     TOKEN=$(cat "$TOKEN_FILE")
 else
-    # Keychain ミラーへのフォールバック
+    # Fallback to Keychain Mirror
     TOKEN=$(security find-generic-password -s FloatingMacro -a ControlAPIToken -w 2>/dev/null || true)
 fi
 if [ -z "$TOKEN" ]; then
@@ -34,7 +34,7 @@ AUTH_HEADER="Authorization: Bearer $TOKEN"
 
 echo "===== Settings Test API Automation ====="
 
-# フェーズ 1: API 接続確認
+# Phase 1: API Connection Check
 echo -e "\n[Phase 1] Checking API connectivity..."
 if ! curl -s -H "$AUTH_HEADER" "$API_URL/tools" > /dev/null 2>&1; then
   echo "✗ API server is not responding at $API_URL"
@@ -43,7 +43,7 @@ if ! curl -s -H "$AUTH_HEADER" "$API_URL/tools" > /dev/null 2>&1; then
 fi
 echo "✓ API server is responding"
 
-# フェーズ 2: ツールディスカバリー
+# Phase 2: Tool Discovery
 echo -e "\n[Phase 2] Tool discovery..."
 TOOLS=$(curl -s -H "$AUTH_HEADER" "$API_URL/tools" | jq '.tools[] | select(.name | startswith("settings_")) | .name' 2>/dev/null | wc -l)
 echo "  Found $TOOLS settings-related tools:"
@@ -55,7 +55,7 @@ else
   echo "⚠ Found $TOOLS settings tools (expected at least 4)"
 fi
 
-# フェーズ 3: 各エンドポイント
+# Phase 3: Each endpoint
 echo -e "\n[Phase 3] Testing endpoints..."
 
 # 3.1: Open settings
@@ -127,7 +127,7 @@ for TYPE in text key launch terminal; do
   sleep 0.2
 done
 
-# フェーズ 4: エラーケース
+# Phase 4: Error Cases
 echo -e "\n[Phase 4] Error handling..."
 
 # 4.1: Invalid type

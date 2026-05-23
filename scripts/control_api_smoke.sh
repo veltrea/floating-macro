@@ -112,8 +112,8 @@ fi
 say "✓  built: $APP_BIN"
 
 # Write a config.json that enables the control API on our random port.
-# testMode:true は Bearer 認証を無効化する。スモークテストはインタラクティブな
-# Keychain ダイアログを出せないため、CI/自動テスト用の逃げ口として使う。
+# testMode:true disables Bearer authentication. Smoke tests are interactive.
+# Cannot open Keychain dialog, so using as an escape hatch for CI / automated tests.
 cat > "$FLOATINGMACRO_CONFIG_DIR/config.json" <<EOF
 {
   "version": 1,
@@ -248,7 +248,7 @@ expect_http       "resize malformed body"    400  POST /window/resize '{"w":1}'
 
 # Preset CRUD via API
 expect_http "preset create"                  200  POST /preset/create '{"name":"api-created","displayName":"API作"}'
-expect_http "preset rename"                  200  POST /preset/rename '{"name":"api-created","displayName":"API改名"}'
+expect_http "preset rename"                  200  POST /preset/rename '{"name":"api-created","displayName":"APIRename"}'
 
 # Preset reorder — make api-created appear before default + alt
 expect_http "preset reorder"                 200  POST /preset/reorder \

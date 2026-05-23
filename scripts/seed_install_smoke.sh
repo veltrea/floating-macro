@@ -122,12 +122,12 @@ fi
 # ----- 2. Export and validate structure -----
 mj_json=$(api POST /preset/export '{"name":"midjourney"}')
 assert_jq "midjourney displayName"    "preset.displayName"             "MidJourney 用"        "$mj_json"
-assert_jq "midjourney first group"    "preset.groups.[0].label"        "アスペクト比"        "$mj_json"
+assert_jq "midjourney first group"    "preset.groups.[0].label"        "Aspect Ratio"        "$mj_json"
 assert_jq "midjourney first button"   "preset.groups.[0].buttons.[0].label" "1:1"            "$mj_json"
 
 note_json=$(api POST /preset/export '{"name":"note-hashtags"}')
-assert_jq "note displayName"          "preset.displayName"             "note.com ハッシュタグ"  "$note_json"
-assert_jq "note first group"          "preset.groups.[0].label"        "基本"                  "$note_json"
+assert_jq "note displayName"          "preset.displayName"             "note.com Hash Tag"  "$note_json"
+assert_jq "note first group"          "preset.groups.[0].label"        "Basic"                  "$note_json"
 
 # ----- 3. seedInstalled flag persisted -----
 if grep -q '"seedInstalled" *: *true' "$FLOATINGMACRO_CONFIG_DIR/config.json"; then

@@ -1,94 +1,94 @@
-# FloatingMacro — 仕様書
+# FloatingMacro — Specification
 
-最終更新: 2026-04-16
-
----
-
-## 1. 概要
-
-**FloatingMacro** は macOS 用のフローティング式マクロランチャー。画面上に常駐する小さなウィンドウからワンクリックで以下を実行できる:
-
-- キーボードショートカット送出
-- 任意テキストの貼り付け(クリップボード経由)
-- アプリ / ファイル / URL 起動
-- ターミナル起動 + コマンド自動入力
-- 上記を組み合わせた **マクロ** (順次実行)
-
-本プロジェクトは Windows 用の類似ソフト (FloatingButton by Trifolium Studio) をクリーンルーム方式で参考にしつつ、Mac ネイティブで再設計する。元ソフトのコードは一切参照しない。観察可能な挙動とスクリーンショットのみを参考にする。
-
-### AI オリエンテッドな設計 — AI エージェントを第一級ユーザーとして扱う
-
-FloatingMacro は **AI エージェントがアプリの観察・設定・操作をエンドツーエンドで行える** ことを最初からの設計要件にしている。既存アプリに AI を後付けするのではなく、**AI を第一級のユーザーとして想定するとどんな設計になるか** を小さなユーティリティの中で試すプロジェクト:
-
-- ログは JSON 1 行 1 イベント形式 (AI がパイプで読める)
-- HTTP 制御 API を内蔵 (localhost のみ、外部依存ゼロ)
-- API は ACP / MCP / A2A 相当の標準プロトコルと互換
-- CLI (`fmcli`) は AI が bash から直接叩ける
+Last updated: 2026-04-16
 
 ---
 
-## 2. ターゲットユーザーと主要ユースケース
+## 1. Overview
 
-### 想定ユーザー
-- ペンタブ / トラックパッド中心でキーボードショートカットを頻繁に出しにくいユーザー
-- AI エージェント (Claude Code / Claude CLI 等) にプロンプトを素早く流し込みたい開発者
-- 複数のターミナル + ディレクトリ移動 + コマンド起動を一発でやりたい開発者
-- **AI エージェントをアプリ操作の主役にする使い方 (AI-first workflow) を試したい開発者**
+**FloatingMacro** is a floating macro launcher for macOS. From a small window that stays on screen at all times, users can execute the following with a single click:
 
-### 主要ユースケース
-1. **AI プロンプト投入** — "ultrathink で考えて" 等の定型プロンプトをボタン一発で貼付
-2. **開発環境一撃展開** — 1 ボタンで 4〜5 ターミナルを開き、各ディレクトリに `cd` して `claude` を起動
-3. **作業シーン切替** — プリセットを切り替えて "執筆モード" / "開発モード" / "デバッグモード" のボタン群を差し替え
-4. **アプリランチャー** — よく使うアプリ / フォルダ / URL をグループ化して配置 (アプリアイコン自動取得)
-5. **AI からの遠隔操作** — Claude / Gemini が制御 API 経由でボタンを追加・編集、ウィンドウを動かし、アクションを実行
+- Send keyboard shortcuts
+- Paste arbitrary text (via clipboard)
+- Launch apps / files / URLs
+- Open terminal + auto-type commands
+- **Macros** combining the above (sequential execution)
 
----
+This project takes inspiration from a similar Windows application (FloatingButton by Trifolium Studio) using a clean-room approach, redesigned natively for Mac. No code from the original software is referenced. Only observable behavior and screenshots are used as reference.
 
-## 3. 非目標 (Non-goals)
+### AI-Oriented Design — Treating AI Agents as First-Class Users
 
-- Windows / Linux 対応 (Mac 専用)
-- マルチモニタの詳細位置記憶 (v2 以降で検討)
-- クラウド同期 (ローカル設定のみ)
-- OCR / 画像認識ベースの自動化
-- スクリプト言語実行エンジン (単発シェルコマンドは可、JS/Python VM は持たない)
-- 既存マクロツール (Keyboard Maestro, BetterTouchTool) の完全代替
+FloatingMacro has **enabling AI agents to observe, configure, and operate the app end-to-end** as a design requirement from the start. Rather than bolting AI onto an existing app, this project explores **what design looks like when AI is treated as a first-class user**, within a small utility:
+
+- Logs are JSON, one event per line (AI can pipe-read them)
+- Built-in HTTP control API (localhost only, zero external dependencies)
+- API is compatible with standard protocols equivalent to ACP / MCP / A2A
+- CLI (`fmcli`) can be invoked directly by AI from bash
 
 ---
 
-## 4. プラットフォーム / 技術スタック
+## 2. Target Users and Primary Use Cases
 
-| 項目 | 選定 |
+### Target Users
+- Users who primarily use pen tablets / trackpads and find it difficult to frequently invoke keyboard shortcuts
+- Developers who want to quickly feed prompts to AI agents (Claude Code / Claude CLI, etc.)
+- Developers who want to open multiple terminals + navigate directories + launch commands in one shot
+- **Developers who want to try AI-first workflows where AI agents are the primary operators of app interactions**
+
+### Primary Use Cases
+1. **AI Prompt Injection** — Paste boilerplate prompts like "think with ultrathink" with a single button press
+2. **One-Shot Dev Environment Deployment** — Open 4–5 terminals with one button, `cd` to each directory and launch `claude`
+3. **Work Scene Switching** — Switch presets to swap between "writing mode" / "dev mode" / "debug mode" button sets
+4. **App Launcher** — Group and arrange frequently used apps / folders / URLs (with automatic app icon retrieval)
+5. **Remote Control from AI** — Claude / Gemini adds/edits buttons, moves windows, and executes actions via the control API
+
+---
+
+## 3. Non-goals
+
+- Windows / Linux support (Mac only)
+- Detailed multi-monitor position memory (to consider in v2+)
+- Cloud sync (local config only)
+- OCR / image recognition-based automation
+- Script language execution engine (one-shot shell commands are fine, but no JS/Python VM)
+- Full replacement for existing macro tools (Keyboard Maestro, BetterTouchTool)
+
+---
+
+## 4. Platform / Technology Stack
+
+| Item | Selection |
 |---|---|
-| 言語 | Swift 5.9 |
-| UI | SwiftUI + AppKit (NSPanel) のハイブリッド |
-| 最低 OS | macOS 13 (Ventura) |
-| ビルド | Swift Package Manager |
-| バイナリ | universal (arm64 + x86_64) |
-| 依存 | 標準フレームワークのみ (AppKit / SwiftUI / Carbon / ApplicationServices / Network.framework) |
+| Language | Swift 5.9 |
+| UI | SwiftUI + AppKit (NSPanel) hybrid |
+| Minimum OS | macOS 13 (Ventura) |
+| Build | Swift Package Manager |
+| Binary | universal (arm64 + x86_64) |
+| Dependencies | Standard frameworks only (AppKit / SwiftUI / Carbon / ApplicationServices / Network.framework) |
 
-### Swift 5.9 を選ぶ理由
-Swift 6 の strict concurrency を MVP で抱え込むと UI と非同期処理の衝突対応に時間を取られる。6 への移行は v2 以降に後回し。
+### Why Swift 5.9
+Taking on Swift 6's strict concurrency in the MVP would consume time resolving conflicts between UI and async processing. Migration to 6 is deferred to v2+.
 
-### 外部依存を入れない理由
-常駐ツールは起動速度 / セキュリティ / メンテ容易性が重要。標準フレームワークだけで実装可能なので最小構成を維持する。HTTP サーバーも `Network.framework` の `NWListener` で自前実装する (swift-nio / Vapor は導入しない)。
+### Why No External Dependencies
+Resident tools prioritize startup speed / security / maintainability. Since everything can be implemented with standard frameworks alone, the minimal configuration is maintained. The HTTP server is also self-implemented using `Network.framework`'s `NWListener` (swift-nio / Vapor are not introduced).
 
 ---
 
-## 5. プロジェクト構成
+## 5. Project Structure
 
 ```
 floatingmacro/
 ├── Package.swift
-├── SPEC.md                       # この文書
-├── README.md                     # (後日)
+├── SPEC.md                       # This document
+├── README.md                     # (later)
 ├── Sources/
-│   ├── FloatingMacroCore/        # 純粋ロジック (UI / AppKit 依存は Platform/ のみ)
+│   ├── FloatingMacroCore/        # Pure logic (UI / AppKit dependencies only in Platform/)
 │   │   ├── Config/
 │   │   │   ├── ButtonDefinition.swift
 │   │   │   ├── Preset.swift                  # Preset / ButtonGroup / WindowConfig / ControlAPIConfig / AppConfig
 │   │   │   ├── ConfigLoader.swift
 │   │   │   ├── ConfigWriter.swift
-│   │   │   └── PresetEditor.swift            # preset/group/button の CRUD 純粋ロジック
+│   │   │   └── PresetEditor.swift            # preset/group/button CRUD pure logic
 │   │   ├── Actions/
 │   │   │   ├── Action.swift
 │   │   │   ├── KeyCombo.swift
@@ -108,7 +108,7 @@ floatingmacro/
 │   │   │   ├── AccessibilityChecker.swift
 │   │   │   └── AutomationChecker.swift
 │   │   ├── Icons/
-│   │   │   └── IconResolver.swift            # パス解決ロジック (AppKit 非依存)
+│   │   │   └── IconResolver.swift            # Path resolution logic (AppKit-independent)
 │   │   ├── Logging/
 │   │   │   ├── LogLevel.swift
 │   │   │   ├── LogEvent.swift
@@ -117,64 +117,64 @@ floatingmacro/
 │   │   │   └── ConsoleLogWriter.swift
 │   │   └── ControlAPI/
 │   │       ├── HTTPMessage.swift             # HTTPRequest / HTTPResponse
-│   │       ├── HTTPParser.swift              # JSONでない生の HTTP/1.1 パーサ
-│   │       ├── ControlServer.swift           # NWListener ラッパ
-│   │       ├── SystemPrompt.swift            # AI への自己紹介プロンプト + manifest()
-│   │       ├── ToolCatalog.swift             # 全ツール定義 + MCP/OpenAI/Anthropic 3形式変換
-│   │       ├── OpenAPIGenerator.swift        # OpenAPI 3.1 JSON 自動生成
-│   │       ├── AgentCard.swift               # A2A Agent Card 出力
+│   │       ├── HTTPParser.swift              # Raw HTTP/1.1 parser (not JSON)
+│   │       ├── ControlServer.swift           # NWListener wrapper
+│   │       ├── SystemPrompt.swift            # Self-introduction prompt for AI + manifest()
+│   │       ├── ToolCatalog.swift             # All tool definitions + MCP/OpenAI/Anthropic 3-format conversion
+│   │       ├── OpenAPIGenerator.swift        # OpenAPI 3.1 JSON auto-generation
+│   │       ├── AgentCard.swift               # A2A Agent Card output
 │   │       └── MCPAdapter.swift              # JSON-RPC 2.0 over HTTP (Anthropic MCP)
 │   ├── FloatingMacroCLI/
-│   │   └── main.swift                        # `fmcli` - CLI テストハーネス + ログ閲覧
+│   │   └── main.swift                        # `fmcli` - CLI test harness + log viewer
 │   └── FloatingMacroApp/
 │       ├── App.swift                         # AppDelegate
-│       ├── FloatingPanel.swift               # NSPanel サブクラス
-│       ├── ButtonView.swift                  # SwiftUI ボタン描画 + アイコン
-│       ├── PresetManager.swift               # ObservableObject + 編集 API
-│       ├── IconLoader.swift                  # NSImage キャッシュ + NSWorkspace アイコン取得
+│       ├── FloatingPanel.swift               # NSPanel subclass
+│       ├── ButtonView.swift                  # SwiftUI button rendering + icons
+│       ├── PresetManager.swift               # ObservableObject + editing API
+│       ├── IconLoader.swift                  # NSImage cache + NSWorkspace icon retrieval
 │       ├── Settings/
-│       │   ├── SettingsView.swift            # SwiftUI 設定ウィンドウのルート
-│       │   ├── SettingsDetail.swift          # ボタン属性編集フォーム
+│       │   ├── SettingsView.swift            # SwiftUI settings window root
+│       │   ├── SettingsDetail.swift          # Button attribute editing form
 │       │   └── SettingsWindowController.swift
 │       └── ControlAPI/
-│           └── ControlHandlers.swift         # HTTP エンドポイント実装 (REST + /tools/call + /mcp)
+│           └── ControlHandlers.swift         # HTTP endpoint implementations (REST + /tools/call + /mcp)
 ├── Tests/
-│   └── FloatingMacroCoreTests/               # 226 件 (2026-04-16 時点)
+│   └── FloatingMacroCoreTests/               # 226 tests (as of 2026-04-16)
 ├── scripts/
-│   ├── fmcli_smoke.sh                        # fmcli の自動スモーク (31 項目)
-│   └── control_api_smoke.sh                  # 実 GUI プロセス + curl での E2E (78 項目)
+│   ├── fmcli_smoke.sh                        # fmcli automated smoke tests (31 items)
+│   └── control_api_smoke.sh                  # E2E with real GUI process + curl (78 items)
 └── docs/
-    ├── manual_test.md                        # 人による目視確認リスト
-    └── AI_PROTOCOL.md                        # AI エージェント向け接続マニュアル
+    ├── manual_test.md                        # Manual visual verification checklist
+    └── AI_PROTOCOL.md                        # Connection manual for AI agents
 ```
 
-**設計原則**:
-- `FloatingMacroCore` は UI / AppKit に依存しない。`import AppKit` は `Platform/` 以下に限定
-- すべての Executor は DI 可能な static singleton (`synthesizer`, `clipboard`, `launcher`, `scriptRunner`) を持ち、テスト時にモック差し替え可能
-- `FloatingMacroCLI` から全ロジックをテストできる
-- ユニットテスト + `fmcli` スモーク + 制御 API スモーク + 手動テストの 4 層テスト
+**Design Principles**:
+- `FloatingMacroCore` has no UI / AppKit dependencies. `import AppKit` is restricted to `Platform/` and below
+- All Executors have DI-capable static singletons (`synthesizer`, `clipboard`, `launcher`, `scriptRunner`) that can be swapped with mocks during testing
+- All logic can be tested from `FloatingMacroCLI`
+- 4-layer testing: unit tests + `fmcli` smoke + control API smoke + manual testing
 
 ---
 
-## 6. 設定ファイル仕様
+## 6. Configuration File Specification
 
-### 6.1 配置場所
+### 6.1 Location
 
 ```
 ~/Library/Application Support/FloatingMacro/
-├── config.json        # プリセット一覧と選択状態 + ウィンドウ設定 + controlAPI 設定
+├── config.json        # Preset list and selection state + window settings + controlAPI settings
 ├── presets/
 │   ├── default.json
 │   ├── dev.json
 │   └── writing.json
 └── logs/
     ├── floatingmacro.log
-    └── floatingmacro.log.old   # 10MB 超でローテーション
+    └── floatingmacro.log.old   # Rotation when exceeding 10MB
 ```
 
-環境変数 `FLOATINGMACRO_CONFIG_DIR` で上書き可能 (テスト / 外部ディスク運用向け)。
+Can be overridden with the environment variable `FLOATINGMACRO_CONFIG_DIR` (for testing / external disk use).
 
-### 6.2 `config.json` スキーマ
+### 6.2 `config.json` Schema
 
 ```json
 {
@@ -199,18 +199,18 @@ floatingmacro/
 }
 ```
 
-`presetOrder` はプリセットピッカーに表示する順序。配列に無いプリセット（外部からドロップされたファイル等）は末尾にアルファベット順で追加され、配列内の存在しないプリセットは自動的に除去される（self-heal）。空配列または欠落時は完全アルファベット順にフォールバック。
+`presetOrder` is the display order in the preset picker. Presets not in the array (e.g., files dropped from external sources) are appended at the end in alphabetical order, and non-existent presets in the array are automatically removed (self-heal). An empty array or missing field falls back to full alphabetical order.
 
-後方互換性のため、存在しないフィールドはすべて既定値にフォールバックする (`decodeIfPresent` ベース)。
+For backward compatibility, all missing fields fall back to default values (`decodeIfPresent`-based).
 
-### 6.3 プリセットファイル (`presets/*.json`) スキーマ
+### 6.3 Preset File (`presets/*.json`) Schema
 
 ```json
 {
   "version": 1,
   "name": "default",
-  "displayName": "デフォルト",
-  "memo": "使う前提:\n• 対象アプリを前面にしてから押す\n• クリップボード履歴を一瞬上書きします",
+  "displayName": "Default",
+  "memo": "Usage assumptions:\n• Bring the target app to the front before pressing\n• Clipboard history will be briefly overwritten",
   "groups": [
     {
       "id": "group-1",
@@ -227,7 +227,7 @@ floatingmacro/
           "height": 36,
           "action": {
             "type": "text",
-            "content": "ultrathink で次のタスクに取り組んでください。"
+            "content": "Please work on the next task with ultrathink."
           }
         }
       ]
@@ -236,197 +236,197 @@ floatingmacro/
 }
 ```
 
-| フィールド | 型 | 必須 | 説明 |
+| Field | Type | Required | Description |
 |---|---|---|---|
-| `version` | int | × | スキーマバージョン (省略時 1) |
-| `name` | string | ◯ | 内部 id (ファイル名と一致) |
-| `displayName` | string | × | メニュー等に出る表示名 (省略時 `name` を流用) |
-| `memo` | string? | × | プリセット全体の自由記述メモ。使う前提条件・OS 設定・想定ユースケース等を残す欄。パネル上部に折りたたみブロックとして表示。空文字列または欠落で「メモなし」扱い |
-| `groups` | Group[] | ◯ | グループ配列 |
+| `version` | int | No | Schema version (defaults to 1 if omitted) |
+| `name` | string | Yes | Internal id (matches filename) |
+| `displayName` | string | No | Display name shown in menus, etc. (uses `name` if omitted) |
+| `memo` | string? | No | Free-form memo for the entire preset. For noting usage prerequisites, OS settings, intended use cases, etc. Displayed as a collapsible block at the top of the panel. Empty string or missing means "no memo" |
+| `groups` | Group[] | Yes | Array of groups |
 
-### 6.4 ボタン (`buttons[]`) フィールド
+### 6.4 Button (`buttons[]`) Fields
 
-| フィールド | 型 | 必須 | 説明 |
+| Field | Type | Required | Description |
 |---|---|---|---|
-| `id` | string | ◯ | プリセット内ユニーク |
-| `label` | string | ◯ | 表示文字列 |
-| `icon` | string? | × | 画像ファイルパス (PNG/ICO/ICNS/JPEG) OR アプリ bundle id OR `.app` 絶対パス |
-| `iconText` | string? | × | 絵文字 / 1〜2 文字の表示アイコン |
-| `thumbnail` | string? | × | 親グループの `displayType == "card"` のときに大判表示する画像。絶対パス推奨。`presets/<name>/images/<button-id>.{ext}` への保存規約あり (v0.11 追加) |
-| `backgroundColor` | string? | × | `#RRGGBB` または `#RRGGBBAA` hex |
-| `width` | number? | × | 明示幅 (points)。null で自動 |
-| `height` | number? | × | 明示高さ。null で自動 |
-| `confirm` / `confirmMessage` / `confirmDestructive` | — | × | 実行前の確認ダイアログ (詳細は別章) |
-| `action` | Action | ◯ | クリック時の動作 |
+| `id` | string | Yes | Unique within the preset |
+| `label` | string | Yes | Display string |
+| `icon` | string? | No | Image file path (PNG/ICO/ICNS/JPEG) OR app bundle id OR `.app` absolute path |
+| `iconText` | string? | No | Emoji / 1–2 character display icon |
+| `thumbnail` | string? | No | Large image displayed when parent group's `displayType == "card"`. Absolute path recommended. Convention: save to `presets/<name>/images/<button-id>.{ext}` (added in v0.11) |
+| `backgroundColor` | string? | No | `#RRGGBB` or `#RRGGBBAA` hex |
+| `width` | number? | No | Explicit width (points). null for auto |
+| `height` | number? | No | Explicit height. null for auto |
+| `confirm` / `confirmMessage` / `confirmDestructive` | — | No | Confirmation dialog before execution (details in separate section) |
+| `action` | Action | Yes | Action on click |
 
-#### icon の自動解決
-`icon` が設定されていない場合でも、`action.type == "launch"` で `target` がアプリパス / bundle id なら、**その target を icon として自動推論** し `NSWorkspace.icon(forFile:)` でアプリアイコンを取得する。結果はプロセス内キャッシュに保存。
+#### Automatic icon resolution
+Even when `icon` is not set, if `action.type == "launch"` and `target` is an app path / bundle id, **that target is automatically inferred as the icon** and the app icon is retrieved via `NSWorkspace.icon(forFile:)`. Results are cached in-process.
 
-### 6.5 グループ (`groups[]`) フィールド
+### 6.5 Group (`groups[]`) Fields
 
-| フィールド | 型 | 必須 | 説明 |
+| Field | Type | Required | Description |
 |---|---|---|---|
-| `id` | string | ◯ | プリセット内ユニーク |
-| `label` | string | ◯ | グループ見出し |
-| `collapsed` | boolean | × | 折りたたみ状態 (既定 false) |
-| `displayType` | string? | × | ボタンのレンダリングスタイル。`icon` (既定) / `wide` / `card`。フィールド欠落で `icon` 扱い (v0.11 追加) |
-| `buttons` | Button[] | ◯ | ボタン配列 |
+| `id` | string | Yes | Unique within the preset |
+| `label` | string | Yes | Group heading |
+| `collapsed` | boolean | No | Collapsed state (default false) |
+| `displayType` | string? | No | Button rendering style. `icon` (default) / `wide` / `card`. Missing field treated as `icon` (added in v0.11) |
+| `buttons` | Button[] | Yes | Array of buttons |
 
-#### `displayType` の挙動 (v0.11)
+#### `displayType` Behavior (v0.11)
 
-- **`icon`** (既定): 既存の小型アイコン+ラベル。コンパクトな縦並び
-- **`wide`**: 全幅・大きめアイコン+ラベル中心の横長セル。ラベルは 2 行まで折り返し
-- **`card`**: サムネイル + タイトルを 2 列の `LazyVGrid` に配置。`button.thumbnail` を優先表示し、欠落時は icon → iconText の順にフォールバック
+- **`icon`** (default): Existing compact icon + label. Compact vertical layout
+- **`wide`**: Full-width, larger icon + label-centered horizontal cells. Labels wrap up to 2 lines
+- **`card`**: Thumbnails + titles arranged in a 2-column `LazyVGrid`. `button.thumbnail` is displayed with priority; falls back to icon → iconText when missing
 
-`displayType=icon` をエンコード時に省略するため、既存プリセットファイルは Phase 2 のリリース後にロード/保存しても差分ゼロ。`wide` / `card` を設定したグループのみ JSON に `"displayType": "..."` が出力される。
+Since `displayType=icon` is omitted during encoding, existing preset files produce zero diff after loading/saving following Phase 2 release. Only groups with `wide` / `card` set will output `"displayType": "..."` in JSON.
 
 ---
 
-## 7. アクション型仕様
+## 7. Action Type Specification
 
-全アクションは JSON の `type` フィールドで判別する tagged union。Swift 側では `enum Action` として表現。(変更なし — §7.1〜7.6 の詳細は元仕様に準拠)
+All actions are a tagged union identified by the JSON `type` field. Represented as `enum Action` on the Swift side. (Unchanged — details in §7.1–7.6 follow the original spec)
 
-### 7.1 `key` — キーコンボ送出
+### 7.1 `key` — Key Combo Dispatch
 
 ```json
 { "type": "key", "combo": "cmd+v" }
 ```
 
-`CGEventCreateKeyboardEvent` で keyDown + keyUp を合成、`CGEventPost(.cghidEventTap, event)` で送出。
+Synthesizes keyDown + keyUp via `CGEventCreateKeyboardEvent`, dispatched with `CGEventPost(.cghidEventTap, event)`.
 
-**combo 構文** (`+` 区切り):
+**combo syntax** (`+` delimited):
 
-- 修飾キー: `cmd` (alias: `command`) / `shift` / `option` (alias: `alt`, `opt`) / `ctrl` (alias: `control`)
-- 文字キー: `a-z`, `0-9`, US 配列の記号 (`=`, `-`, `[`, `]`, `;`, `'`, `\`, `,`, `.`, `/`, `` ` ``)
-- 特殊キー: `delete` (alias: `backspace`), `forwarddelete`, `left`, `right`, `up`, `down`, `home`, `end`, `pageup`, `pagedown`, `return` (alias: `enter`), `tab`, `space`, `escape` (alias: `esc`)
-- ファンクションキー: `f1`〜`f20`
+- Modifier keys: `cmd` (alias: `command`) / `shift` / `option` (alias: `alt`, `opt`) / `ctrl` (alias: `control`)
+- Character keys: `a-z`, `0-9`, US layout symbols (`=`, `-`, `[`, `]`, `;`, `'`, `\`, `,`, `.`, `/`, `` ` ``)
+- Special keys: `delete` (alias: `backspace`), `forwarddelete`, `left`, `right`, `up`, `down`, `home`, `end`, `pageup`, `pagedown`, `return` (alias: `enter`), `tab`, `space`, `escape` (alias: `esc`)
+- Function keys: `f1`–`f20`
 
-例: `cmd+shift+v` / `f5` / `cmd+left` / `option+forwarddelete` / `delete`
+Examples: `cmd+shift+v` / `f5` / `cmd+left` / `option+forwarddelete` / `delete`
 
-**設定 UI からの入力** (v0.9.2): 編集ウィンドウの key アクション編集パネルに、(a) 物理キーを 1 回押すだけで `combo` を生成する **「キーを押して記録」ボタン**、(b) 上記特殊キーをラベル付きで選べる **「特殊キー…」プルダウン** を併設。Delete・矢印キー等は TextField に文字として入力できないため、これらの入力支援が無いと登録不能。
+**Input from Settings UI** (v0.9.2): The key action editing panel in the edit window includes (a) a **"Press key to record" button** that generates `combo` from a single physical key press, and (b) a **"Special key..." dropdown** that lists the above special keys with labels. Delete, arrow keys, etc. cannot be typed as characters in a TextField, so these input aids are essential for registration.
 
-**ACP からの発見** (v0.9.2): `list_key_codes` ツール (GET `/key-codes`) が修飾キー一覧・alias・特殊キー・F1〜F20・examples をまとめて返す。AI が暗記でカバーせず動的に正規カタログを参照できる。
+**Discovery from ACP** (v0.9.2): The `list_key_codes` tool (GET `/key-codes`) returns modifier keys, aliases, special keys, F1–F20, and examples all together. This allows AI to dynamically reference the canonical catalog instead of relying on memorization.
 
-### 7.2 `text` — テキスト注入
+### 7.2 `text` — Text Injection
 
 ```json
 {
   "type": "text",
-  "content": "ultrathink で考えて",
+  "content": "think with ultrathink",
   "pasteDelayMs": 120,
   "restoreClipboard": true,
   "appendMode": false
 }
 ```
 
-実行フロー (`appendMode: false`、既定):
-1. クリップボードの全アイテム (全 UTI 型) を保存
-2. `defer` で復元を保証 (synth 失敗時も元に戻る — 機密漏洩防止)
-3. text を setString
-4. `pasteDelayMs` 待機
-5. Cmd+V を CGEvent 合成で送出
+Execution flow (`appendMode: false`, default):
+1. Save all clipboard items (all UTI types)
+2. Guarantee restoration via `defer` (restores even on synth failure — prevents credential leakage)
+3. setString with text
+4. Wait `pasteDelayMs`
+5. Dispatch Cmd+V via CGEvent synthesis
 
-実行フロー (`appendMode: true`、v0.10 追加 — プロンプトビルダー):
-1. 現在のクリップボード文字列を取得 (string 型でなければ空文字扱い)
-2. content を末尾に連結 (セパレータは入れない — 呼び出し側が `", "` 等を content に含めて制御)
-3. setString で書き戻す
-4. ペースト**しない**、復元**しない** (連結状態を持続させる)
+Execution flow (`appendMode: true`, added in v0.10 — prompt builder):
+1. Get current clipboard string (treated as empty string if not string type)
+2. Concatenate content to end (no separator — caller controls by including `", "` etc. in content)
+3. Write back with setString
+4. Does **not** paste, does **not** restore (preserves the concatenated state)
 
-`appendMode: true` の用途は Midjourney 等の「画風 + ポーズ + 服装 + 背景」のような**プロンプト断片合成**。複数のボタンを順に押して断片を積み上げ、最後にユーザーが手動で Cmd+V する。後方互換 decoder により、`appendMode` キーが無い既存プリセット JSON は false 扱いで読み込まれる。
+The purpose of `appendMode: true` is **prompt fragment composition** like Midjourney's "style + pose + clothing + background". Press multiple buttons sequentially to build up fragments, then the user manually Cmd+V at the end. Due to backward-compatible decoder, existing preset JSON without the `appendMode` key is loaded as false.
 
-### 7.3 `launch` — アプリ / ファイル / URL 起動
+### 7.3 `launch` — App / File / URL Launch
 
 ```json
 { "type": "launch", "target": "..." }
 ```
 
-target の解釈 (優先順):
-1. `shell:` prefix → `/bin/sh -c` で実行
-2. `://` 含む → `NSWorkspace.open(URL)`
-3. `com.xxx.xxx` 形式 → bundle identifier 経由
-4. 絶対パス or `~/` → ファイル/フォルダ/アプリ
-5. それ以外 → `launchTargetNotFound`
+Target interpretation (priority order):
+1. `shell:` prefix → execute via `/bin/sh -c`
+2. Contains `://` → `NSWorkspace.open(URL)`
+3. `com.xxx.xxx` format → via bundle identifier
+4. Absolute path or `~/` → file/folder/app
+5. Otherwise → `launchTargetNotFound`
 
-### 7.4 `terminal` — ターミナル起動 + コマンド投入
+### 7.4 `terminal` — Terminal Launch + Command Input
 
-Terminal.app / iTerm2 は AppleScript、それ以外は NSWorkspace + クリップボード経由貼付。
+Terminal.app / iTerm2 use AppleScript; others use NSWorkspace + clipboard paste.
 
-### 7.5 `delay` — 待機
+### 7.5 `delay` — Wait
 
 ```json
 { "type": "delay", "ms": 500 }
 ```
 
-### 7.6 `macro` — アクション配列の順次実行
+### 7.6 `macro` — Sequential Execution of Action Array
 
-ネストは禁止 (パーサで reject)。`stopOnError` で中断/続行を制御。
+Nesting is prohibited (rejected by parser). `stopOnError` controls abort/continue behavior.
 
 ---
 
-## 8. ウィンドウ仕様
+## 8. Window Specification
 
-### 8.1 基本性質
+### 8.1 Basic Properties
 
-| 項目 | 仕様 |
+| Item | Specification |
 |---|---|
-| ウィンドウクラス | `NSPanel` のサブクラス |
+| Window class | `NSPanel` subclass |
 | style mask | `.nonactivatingPanel`, `.titled`, `.closable`, `.resizable`, `.fullSizeContentView` |
 | level | `.floating` |
 | collection behavior | `.canJoinAllSpaces`, `.stationary`, `.fullScreenAuxiliary` |
-| フォーカス奪取 | 奪わない (canBecomeKey/canBecomeMain = false) |
-| ドラッグ移動 | 空白部分を長押しで自由移動 |
-| 常時最前面 | 既定 ON |
-| 透明度 | 既定 1.0、0.25〜1.0 で可変 (menuで 4段階、API で任意値) |
-| 位置/サイズの永続化 | `applicationWillTerminate` で `config.json` に書き戻し |
+| Focus stealing | Does not steal (canBecomeKey/canBecomeMain = false) |
+| Drag movement | Long-press on empty area for free movement |
+| Always on top | Default ON |
+| Opacity | Default 1.0, variable from 0.25–1.0 (4 levels in menu, any value via API) |
+| Position/size persistence | Written back to `config.json` on `applicationWillTerminate` |
 
-### 8.2 レイアウト
+### 8.2 Layout
 
-- **方向**: 縦積み (v0.1)、横並びは将来
-- **グループ化**: グループごとに小さなヘッダ + ボタン列
-- **折りたたみ**: グループヘッダクリックで折りたたみ
-- **幅/高さ**: 既定 200×300、ユーザーがドラッグでリサイズ可能、API で変更可能
+- **Direction**: Vertical stacking (v0.1), horizontal layout planned for future
+- **Grouping**: Small header + button rows per group
+- **Collapsing**: Click group header to collapse
+- **Width/Height**: Default 200×300, user can drag-resize, changeable via API
 
-### 8.3 メニューバー
+### 8.3 Menu Bar
 
-- `NSStatusItem` でメニューバーに常駐
-- メニュー項目:
-  - 表示 / 非表示
-  - プリセット切替 (サブメニュー)
-  - **透明度** (25% / 50% / 75% / 100% サブメニュー、現在値に ✓)
-  - **ボタン編集...** (`Cmd+E` で設定ウィンドウ)
-  - 設定フォルダを開く
-  - 再読み込み
-  - 終了
-- Dock アイコンは表示しない (`LSUIElement = YES`)
-
----
-
-## 9. 権限要件
-
-### 9.1 Accessibility 権限
-`CGEventPost` によるキーイベント合成に必要。`AXIsProcessTrustedWithOptions` で常時チェック。未許可時は `AccessibilityChecker.openSystemPreferences()` で設定画面へ誘導。
-
-### 9.2 Automation 権限
-Terminal / iTerm への AppleScript 送信に必要。`AutomationChecker.check(bundleIdentifier:)` で `.authorized / .denied / .notDetermined / .targetUnavailable` の 4 状態を取得可能。
-
-### 9.3 コード署名
-- MVP: 自己署名で動作確認できる状態
-- v2: Developer ID 署名 + notarization
+- Resident in menu bar via `NSStatusItem`
+- Menu items:
+  - Show / Hide
+  - Preset switching (submenu)
+  - **Opacity** (25% / 50% / 75% / 100% submenu, ✓ on current value)
+  - **Edit Buttons...** (settings window via `Cmd+E`)
+  - Open config folder
+  - Reload
+  - Quit
+- No Dock icon (`LSUIElement = YES`)
 
 ---
 
-## 10. ロギング
+## 9. Permission Requirements
 
-### 10.1 設計目的
+### 9.1 Accessibility Permission
+Required for key event synthesis via `CGEventPost`. Constantly checked with `AXIsProcessTrustedWithOptions`. When not authorized, guides user to settings via `AccessibilityChecker.openSystemPreferences()`.
 
-**AI 観察性の基盤**。ログは「ユーザーが目で確認する」ではなく「**AI が tail して自動判定する**」ことを第一目的にする。
+### 9.2 Automation Permission
+Required for AppleScript sending to Terminal / iTerm. `AutomationChecker.check(bundleIdentifier:)` can obtain 4 states: `.authorized / .denied / .notDetermined / .targetUnavailable`.
 
-- 形式: JSON 1 行 1 イベント (JSONL / ndjson 準拠)
-- 場所: `<ConfigDir>/logs/floatingmacro.log`
-- ローテーション: 10MB 超で `.old` にリネーム
-- `fmcli log tail --json` で AI がパイプで読める
+### 9.3 Code Signing
+- MVP: Functional state with self-signing
+- v2: Developer ID signing + notarization
 
-### 10.2 LogEvent スキーマ
+---
+
+## 10. Logging
+
+### 10.1 Design Purpose
+
+**Foundation for AI observability**. Logs are designed not for "users checking visually" but primarily for **"AI tailing and auto-judging"**.
+
+- Format: JSON, one event per line (JSONL / ndjson compliant)
+- Location: `<ConfigDir>/logs/floatingmacro.log`
+- Rotation: Renamed to `.old` when exceeding 10MB
+- `fmcli log tail --json` for AI to pipe-read
+
+### 10.2 LogEvent Schema
 
 ```json
 {
@@ -441,46 +441,46 @@ Terminal / iTerm への AppleScript 送信に必要。`AutomationChecker.check(b
 }
 ```
 
-タイムスタンプは ISO 8601 + fractional seconds (UTC)。キーは sorted output で stable (diff 可能)。`metadata` は空の場合 `null`。
+Timestamp is ISO 8601 + fractional seconds (UTC). Keys are sorted output for stability (diffable). `metadata` is `null` when empty.
 
 ### 10.3 LogLevel
 
-`debug` < `info` < `warn` < `error` (Comparable で severity 順)。各 Logger は `minimumLevel` を持ち、それ未満は drop。
+`debug` < `info` < `warn` < `error` (Comparable by severity). Each Logger has a `minimumLevel`; anything below is dropped.
 
-### 10.4 Logger 種別
+### 10.4 Logger Types
 
-| 実装 | 用途 |
+| Implementation | Purpose |
 |---|---|
-| `NullLogger` | デフォルト、本番で明示的に他を設定するまで使う静かな実装 |
-| `InMemoryLogger` | テスト用、`contains(category:messageContains:)` で assertion |
-| `FileLogWriter` | 本番、DispatchQueue でシリアル化 + ローテーション + `flush()` |
-| `ConsoleLogWriter` | fmcli 用、stderr に人間可読テキスト |
-| `ComposedLogger` | 複数 Logger への fan-out (file + console) |
+| `NullLogger` | Default, quiet implementation used until another is explicitly configured in production |
+| `InMemoryLogger` | For testing, assertion via `contains(category:messageContains:)` |
+| `FileLogWriter` | Production, serialized via DispatchQueue + rotation + `flush()` |
+| `ConsoleLogWriter` | For fmcli, human-readable text to stderr |
+| `ComposedLogger` | Fan-out to multiple Loggers (file + console) |
 
-グローバル差し替え: `LoggerContext.shared = ...`。テストでは setUp/tearDown で InMemoryLogger を差し込む。
+Global replacement: `LoggerContext.shared = ...`. In tests, InMemoryLogger is injected in setUp/tearDown.
 
-### 10.5 ログ出力箇所
+### 10.5 Log Output Points
 
-- `MacroRunner`: マクロ開始 / 完了 / エラー / 中断
-- 各 `*ActionExecutor`: dispatch / 失敗ごとにエラー詳細
-- `ConfigLoader`: 読み込み成功 / 失敗
-- `ControlServer`: 接続 / バインド失敗
-- `ControlAPI` 各ハンドラ: 失敗時のみ
+- `MacroRunner`: Macro start / completion / error / abort
+- Each `*ActionExecutor`: Error details per dispatch / failure
+- `ConfigLoader`: Load success / failure
+- `ControlServer`: Connection / bind failure
+- `ControlAPI` handlers: On failure only
 
-### 10.6 環境変数
+### 10.6 Environment Variables
 
-- `FLOATINGMACRO_CONFIG_DIR` — 設定/ログディレクトリを上書き
-- `FLOATINGMACRO_LOG_LEVEL` — `debug|info|warn|error` (CLI `--log-level` と同等)
+- `FLOATINGMACRO_CONFIG_DIR` — Override config/log directory
+- `FLOATINGMACRO_LOG_LEVEL` — `debug|info|warn|error` (equivalent to CLI `--log-level`)
 
 ---
 
 ## 11. CLI (`fmcli`)
 
-UI を起動せずロジックを検証するためのコマンドラインツール。
+A command-line tool for verifying logic without launching the UI.
 
 ```
 fmcli action key "cmd+shift+4"
-fmcli action text "こんにちは世界"
+fmcli action text "Hello World"
 fmcli action launch "/Applications/Slack.app"
 fmcli action terminal --app iTerm --command "ls -la"
 fmcli preset list
@@ -493,510 +493,509 @@ fmcli log tail [--level LEVEL] [--since DUR] [--limit N] [--json]
 fmcli --log-level debug action key "cmd+v"
 ```
 
-**目的**:
-- UI 依存なしでアクション単体のテスト
-- **AI が bash 経由で全機能を叩ける最小経路**
-- CI での smoke test
-- ログのクエリによる事後分析 (`--since 5m --level warn --json | jq`)
+**Purpose**:
+- Test individual actions without UI dependency
+- **Minimal path for AI to invoke all features via bash**
+- Smoke tests in CI
+- Post-hoc analysis via log queries (`--since 5m --level warn --json | jq`)
 
 ---
 
-## 12. HTTP 制御 API
+## 12. HTTP Control API
 
-### 12.1 設計目的
+### 12.1 Design Purpose
 
-**AI (Claude / Gemini / 他) がアプリの内部状態を観察し、全機能を実行できる** こと。MCP / A2A / ACP 相当のエージェント間プロトコルとの互換性を保ちつつ、外部依存ゼロで実装する。
+**Enable AI (Claude / Gemini / others) to observe the app's internal state and execute all features**. Maintains compatibility with agent-to-agent protocols equivalent to MCP / A2A / ACP while implementing with zero external dependencies.
 
-### 12.2 基本性質
+### 12.2 Basic Properties
 
-| 項目 | 仕様 |
+| Item | Specification |
 |---|---|
-| 実装 | `Network.framework` の `NWListener` (外部依存なし) |
-| バインド | `127.0.0.1` (loopback) のみ、`requiredInterfaceType: .loopback` |
-| 認証 | なし (localhost 限定のため) |
-| プロトコル | HTTP/1.1、Keep-Alive なし (1 接続 1 リクエスト) |
-| 形式 | JSON in / JSON out (UTF-8) |
-| ポート | 既定 17430、重複時は +1 ずつ最大 10 回 fallback |
-| 起動 | `controlAPI.enabled` 設定時のみ、別スレッドで **1〜2 秒以内**に bind |
+| Implementation | `Network.framework`'s `NWListener` (no external dependencies) |
+| Binding | `127.0.0.1` (loopback) only, `requiredInterfaceType: .loopback` |
+| Authentication | None (localhost-only) |
+| Protocol | HTTP/1.1, no Keep-Alive (1 connection per request) |
+| Format | JSON in / JSON out (UTF-8) |
+| Port | Default 17430, fallback +1 up to 10 times on conflict |
+| Startup | Only when `controlAPI.enabled` is set, binds on a separate thread **within 1–2 seconds** |
 
-### 12.3 起動の指針 (MCP サーバー化の罠回避)
+### 12.3 Startup Guidelines (Avoiding MCP Server Pitfalls)
 
-既存 MCP サーバー実装の経験則から次を厳守する:
-- メインスレッドをブロックしない (DispatchQueue.global で起動)
-- 初期化は 1〜2 秒以内に完了 (`start(timeout: 2.0)`)
-- 失敗してもアプリ本体は通常起動を継続する (ログのみ残す)
-- ウィンドウの新規生成は行わない (既存アプリに "貼る" モデル)
+Based on lessons learned from existing MCP server implementations, the following is strictly observed:
+- Do not block the main thread (start on DispatchQueue.global)
+- Initialization completes within 1–2 seconds (`start(timeout: 2.0)`)
+- On failure, the main app continues normal startup (only logs are recorded)
+- No new window creation (a "patch onto" existing app model)
 
-### 12.4 エンドポイント一覧
+### 12.4 Endpoint List
 
-#### 自己紹介 / ディスカバリ
-| Method | Path | 目的 |
+#### Self-Introduction / Discovery
+| Method | Path | Purpose |
 |---|---|---|
-| GET | `/manifest` | AI が最初に読む自己紹介 + 全ツール一覧 + systemPrompt |
-| GET | `/help` | `/manifest` のエイリアス |
-| GET | `/ping` | 生存確認 |
-| GET | `/openapi.json` | **OpenAPI 3.1** ドキュメント自動生成 (ACP / REST 互換) |
-| GET | `/.well-known/agent.json` | **A2A Agent Card** (Google 互換) |
-| GET | `/tools?format=mcp\|openai\|anthropic` | ツール定義を 3 方言で提供 |
+| GET | `/manifest` | Self-introduction for AI to read first + full tool list + systemPrompt |
+| GET | `/help` | Alias for `/manifest` |
+| GET | `/ping` | Liveness check |
+| GET | `/openapi.json` | **OpenAPI 3.1** auto-generated documentation (ACP / REST compatible) |
+| GET | `/.well-known/agent.json` | **A2A Agent Card** (Google compatible) |
+| GET | `/tools?format=mcp\|openai\|anthropic` | Tool definitions in 3 dialects |
 
-#### 統一ディスパッチ
-| Method | Path | 目的 |
+#### Unified Dispatch
+| Method | Path | Purpose |
 |---|---|---|
-| POST | `/tools/call` | `{name, arguments}` で任意ツールを呼び出し |
-| POST | `/mcp` | **JSON-RPC 2.0 / MCP HTTP transport** (Anthropic 互換) |
+| POST | `/tools/call` | Invoke any tool with `{name, arguments}` |
+| POST | `/mcp` | **JSON-RPC 2.0 / MCP HTTP transport** (Anthropic compatible) |
 
-#### ウィンドウ操作
+#### Window Operations
 - `POST /window/show | hide | toggle`
 - `POST /window/opacity` — `{value: 0.25..1.0}`
 - `POST /window/move` — `{x, y}`
 - `POST /window/resize` — `{width, height}`
 
-#### 観察系
-- `GET /state` — パネル可視性 + アクティブプリセット + ウィンドウ座標 + エラー
-- `GET /log/tail?level=&since=&limit=` — JSON 1 行 1 イベント
+#### Observation
+- `GET /state` — Panel visibility + active preset + window coordinates + errors
+- `GET /log/tail?level=&since=&limit=` — JSON, one event per line
 - `GET /icon/for-app?bundleId= | path=` — base64 PNG
 
-#### プリセット / グループ / ボタンの CRUD
+#### Preset / Group / Button CRUD
 - `GET /preset/list`, `GET /preset/current`
 - `POST /preset/switch | reload | create | rename | delete | reorder`
 - `POST /group/add | update | delete`
 - `POST /button/add | update | delete | reorder | move`
 
-#### アクション実行
-- `POST /action` — Action JSON を送って即実行 (202 Accepted)
+#### Action Execution
+- `POST /action` — Send Action JSON for immediate execution (202 Accepted)
 
-### 12.5 MCP JSON-RPC 対応 (`/mcp`)
+### 12.5 MCP JSON-RPC Support (`/mcp`)
 
-`POST /mcp` に JSON-RPC 2.0 envelope で以下のメソッドを送れる:
-- `initialize` — serverInfo + capabilities + protocolVersion を返す
-- `tools/list` — 全ツール定義
-- `tools/call` — REST ハンドラにディスパッチ、結果を `content[].text` に JSON 文字列で包んで返す
-- `ping` — 生存確認
+The following methods can be sent to `POST /mcp` in a JSON-RPC 2.0 envelope:
+- `initialize` — Returns serverInfo + capabilities + protocolVersion
+- `tools/list` — All tool definitions
+- `tools/call` — Dispatches to REST handlers, wraps result as JSON string in `content[].text`
+- `ping` — Liveness check
 
-エラーは標準 JSON-RPC コード: `-32700/-32600/-32601/-32602/-32603` + アプリ固有 `-32000`。
+Errors use standard JSON-RPC codes: `-32700/-32600/-32601/-32602/-32603` + app-specific `-32000`.
 
-### 12.6 セキュリティ
+### 12.6 Security
 
-- **loopback のみ** — 他ホストから到達不可
-- 危険な操作 (`/action` の `terminal` など) はユーザーのコンテキストに依存する点を呼び出し元が配慮
-- `restoreClipboard: true` のテキスト貼付は失敗時もクリップボードを復元 (パスワード等の流出防止)
+- **Loopback only** — Unreachable from other hosts
+- Dangerous operations (e.g., `terminal` via `/action`) depend on the caller's context awareness
+- Text paste with `restoreClipboard: true` restores the clipboard even on failure (prevents leakage of passwords, etc.)
 
 ---
 
-## 13. アイコンシステム
+## 13. Icon System
 
 ### 13.1 `IconResolver` (Core)
 
-文字列参照 (`icon` フィールド) を 3 種類のケースに解決する純粋ロジック:
+Pure logic that resolves string references (`icon` field) into 3 types of cases:
 
-| ケース | 判定 | 結果 |
+| Case | Determination | Result |
 |---|---|---|
-| 画像ファイル | `.png / .jpg / .icns / .ico / ...` 拡張子 + 存在 | `.imageFile(URL)` |
-| `.app` バンドル | `.app` 拡張子 + 存在 | `.appBundle(URL)` |
-| Bundle ID | `com.xxx.yyy` パターン、スラッシュなし | `.bundleIdentifier(String)` |
+| Image file | `.png / .jpg / .icns / .ico / ...` extension + exists | `.imageFile(URL)` |
+| `.app` bundle | `.app` extension + exists | `.appBundle(URL)` |
+| Bundle ID | `com.xxx.yyy` pattern, no slashes | `.bundleIdentifier(String)` |
 
 ### 13.2 `IconLoader` (App)
 
-`IconResolver` の結果を `NSImage` に変換:
+Converts `IconResolver` results to `NSImage`:
 - `.imageFile` → `NSImage(contentsOf: URL)`
 - `.appBundle` → `NSWorkspace.icon(forFile:)`
 - `.bundleIdentifier` → `NSWorkspace.urlForApplication(withBundleIdentifier:)` + icon
 
-プロセス内キャッシュ付き。API 経由 (`/icon/for-app`) で base64 PNG として外部からも取得可能。
+Includes in-process cache. Also retrievable externally as base64 PNG via the API (`/icon/for-app`).
 
-### 13.3 ボタン描画時の優先順位
+### 13.3 Button Rendering Priority
 
-`MacroButtonView` は次の順序でアイコンを表示:
-1. 明示設定された `icon`
-2. `action.type == "launch"` の `target` から自動推論
-3. `iconText` (絵文字)
-4. なし
+`MacroButtonView` displays icons in the following order:
+1. Explicitly configured `icon`
+2. Auto-inferred from `target` when `action.type == "launch"`
+3. `iconText` (emoji)
+4. None
 
-### 13.4 `icon` フィールドのプレフィックス仕様
+### 13.4 `icon` Field Prefix Specification
 
-| プレフィックス | 例 | 解決方法 |
+| Prefix | Example | Resolution Method |
 |---|---|---|
-| `sf:` | `sf:star.fill` | SF Symbol (Apple 提供、`NSImage(systemSymbolName:)`) |
-| `lucide:` | `lucide:folder` | **同梱 Lucide SVG** (`Bundle.module`、1695 アイコン、ISC) |
-| `com.xxx.yyy` | `com.apple.Safari` | macOS アプリ bundle identifier (`NSWorkspace`) |
-| `/` や `~/` 始まり | `/Applications/Slack.app` | 絶対パスまたは tilde 展開 |
+| `sf:` | `sf:star.fill` | SF Symbol (Apple-provided, `NSImage(systemSymbolName:)`) |
+| `lucide:` | `lucide:folder` | **Bundled Lucide SVG** (`Bundle.module`, 1695 icons, ISC) |
+| `com.xxx.yyy` | `com.apple.Safari` | macOS app bundle identifier (`NSWorkspace`) |
+| Starts with `/` or `~/` | `/Applications/Slack.app` | Absolute path or tilde expansion |
 
-### 13.5 Lucide 同梱
+### 13.5 Bundled Lucide Icons
 
-`Sources/FloatingMacroApp/Resources/lucide/` に **Lucide 1695 SVG アイコン**
-を同梱（**ISC ライセンス**、`LICENSE` ファイルも同ディレクトリに配置）。
+**1695 Lucide SVG icons** are bundled in `Sources/FloatingMacroApp/Resources/lucide/` (**ISC license**, `LICENSE` file also placed in the same directory).
 
-- 合計 約 0.65 MB
-- macOS 13+ の `NSImage(contentsOf:)` は SVG をネイティブ解釈する (外部ライブラリ不要)
-- クレジット: `DESIGN.md` §10 参照
-
----
-
-## 14. GUI 設定画面
-
-### 14.1 呼び出し
-
-メニューバー → 「ボタン編集...」または `Cmd+E`。`SettingsWindowController.shared.show(presetManager:)` で単一の NSWindow をシェア。
-
-### 14.2 構成
-
-2 カラムの HSplitView:
-
-**左カラム** (`SettingsSidebar`):
-- プリセット選択 Picker + 追加 (+) / 削除 (-)
-- グループ・ボタンツリー (フォルダアイコン + 選択ハイライト)
-- グループ追加テキストフィールド
-- ボタン追加ボタン (選択中グループに追加)
-
-**右カラム** (`SettingsDetail`):
-- 選択ボタンの詳細編集フォーム:
-  - ラベル
-  - iconText (絵文字)
-  - icon 画像 / アプリ (`NSOpenPanel` で参照、クリア)
-  - 背景色 (SwiftUI `ColorPicker` + hex 文字列の双方向バインド)
-  - 幅 / 高さ (auto or 数値)
-  - アクション (segmented picker: text/key/launch/terminal)
-- 削除ボタン / 保存ボタン (Enter で確定)
-
-### 14.3 一貫性保証
-
-GUI 編集は **内部的に PresetManager の CRUD メソッドを呼び出す** ため、HTTP API / fmcli からの編集と完全に同じ経路を通る。
+- Total: approximately 0.65 MB
+- macOS 13+ `NSImage(contentsOf:)` natively interprets SVG (no external libraries needed)
+- Credits: See `DESIGN.md` §10
 
 ---
 
-## 15. テスタビリティ
+## 14. GUI Settings Screen
 
-### 15.1 4 層テスト構成
+### 14.1 Invocation
 
-| 層 | 対象 | 件数 (2026-04-16) | 実行コマンド |
+Menu bar → "Edit Buttons..." or `Cmd+E`. Shares a single NSWindow via `SettingsWindowController.shared.show(presetManager:)`.
+
+### 14.2 Structure
+
+2-column HSplitView:
+
+**Left column** (`SettingsSidebar`):
+- Preset selection Picker + add (+) / delete (-)
+- Group and button tree (folder icons + selection highlight)
+- Group add text field
+- Button add button (adds to selected group)
+
+**Right column** (`SettingsDetail`):
+- Detailed editing form for selected button:
+  - Label
+  - iconText (emoji)
+  - icon image / app (`NSOpenPanel` for browsing, clear)
+  - Background color (SwiftUI `ColorPicker` + bidirectional binding with hex string)
+  - Width / Height (auto or numeric)
+  - Action (segmented picker: text/key/launch/terminal)
+- Delete button / Save button (confirm with Enter)
+
+### 14.3 Consistency Guarantee
+
+GUI editing **internally calls PresetManager's CRUD methods**, so it goes through the exact same path as editing from the HTTP API / fmcli.
+
+---
+
+## 15. Testability
+
+### 15.1 4-Layer Test Structure
+
+| Layer | Target | Count (2026-04-16) | Run Command |
 |---|---|---|---|
-| ユニット | `FloatingMacroCore` の全ロジック | **226** | `swift test` |
-| fmcli スモーク | CLI の権限不要 surface | **31** | `bash scripts/fmcli_smoke.sh` |
-| 制御 API スモーク | 実 GUI プロセス + curl E2E | **78** | `bash scripts/control_api_smoke.sh` |
-| 手動 | GUI の視覚確認 | — | `docs/manual_test.md` |
+| Unit | All logic in `FloatingMacroCore` | **226** | `swift test` |
+| fmcli smoke | Permission-free CLI surface | **31** | `bash scripts/fmcli_smoke.sh` |
+| Control API smoke | E2E with real GUI process + curl | **78** | `bash scripts/control_api_smoke.sh` |
+| Manual | GUI visual verification | — | `docs/manual_test.md` |
 
-### 15.2 DI パターン
+### 15.2 DI Pattern
 
-すべての外部依存 (`EventSynthesizer` / `Clipboard` / `AppleScriptRunner` / `WorkspaceLauncher`) は `Protocol` + `static var` で実装。テスト時は `TestMocks` で一括差し替え:
+All external dependencies (`EventSynthesizer` / `Clipboard` / `AppleScriptRunner` / `WorkspaceLauncher`) are implemented with `Protocol` + `static var`. Swapped wholesale with `TestMocks` during testing:
 
 ```swift
 override func setUp() {
-    mocks = TestMocks()  // 全 Executor の static var を mock に差し替え
+    mocks = TestMocks()  // Replace all Executor static vars with mocks
 }
 override func tearDown() {
     mocks.restore()
 }
 ```
 
-### 15.3 ロガー差し替え
+### 15.3 Logger Replacement
 
-`LoggerContext.shared = InMemoryLogger()` でログを buffer に捕捉。`contains(category:messageContains:)` で発火確認。
+`LoggerContext.shared = InMemoryLogger()` captures logs in a buffer. Verify firing with `contains(category:messageContains:)`.
 
-### 15.4 HTTP API テスト
+### 15.4 HTTP API Testing
 
-- **ユニット**: `HTTPParser` / `ToolCatalog` / `MCPAdapter` / `OpenAPIGenerator` / `AgentCard` の純粋ロジック
-- **integration**: `ControlServer` を random port で立ち上げ URLSession で実アクセス
-- **E2E**: `scripts/control_api_smoke.sh` で実 GUI バイナリを起動して curl 経由で全エンドポイントを検証
+- **Unit**: Pure logic of `HTTPParser` / `ToolCatalog` / `MCPAdapter` / `OpenAPIGenerator` / `AgentCard`
+- **Integration**: Start `ControlServer` on a random port and access with URLSession
+- **E2E**: `scripts/control_api_smoke.sh` launches the real GUI binary and verifies all endpoints via curl
 
 ---
 
-## 16. 実行環境と環境変数
+## 16. Runtime Environment and Environment Variables
 
-| 変数 | 用途 |
+| Variable | Purpose |
 |---|---|
-| `FLOATINGMACRO_CONFIG_DIR` | 設定/ログディレクトリを上書き |
-| `FLOATINGMACRO_LOG_LEVEL` | ログ最低レベル (CLI `--log-level` と同等) |
-| `DEVELOPER_DIR` | `swift test` 実行時に Xcode.app を参照 (CommandLineTools だけだと XCTest 不足) |
+| `FLOATINGMACRO_CONFIG_DIR` | Override config/log directory |
+| `FLOATINGMACRO_LOG_LEVEL` | Minimum log level (equivalent to CLI `--log-level`) |
+| `DEVELOPER_DIR` | Reference Xcode.app when running `swift test` (XCTest is missing with CommandLineTools alone) |
 
 ---
 
-## 17. マイルストーン (2026-04-16 時点の実装状況)
+## 17. Milestones (Implementation Status as of 2026-04-16)
 
-### MVP (v0.1) — 実装済み ✅
+### MVP (v0.1) — Implemented ✅
 
-- [x] `Package.swift` + 3 ターゲット (Core / CLI / App)
-- [x] `Action` enum + JSON パーサ + ネスト禁止
-- [x] `KeyCombo` パーサ + CGEvent 送出
-- [x] `TextActionExecutor` (クリップボード save/restore + defer での確実な復元)
-- [x] `LaunchActionExecutor` (shell/URL/bundle/path 分岐)
+- [x] `Package.swift` + 3 targets (Core / CLI / App)
+- [x] `Action` enum + JSON parser + nesting prohibition
+- [x] `KeyCombo` parser + CGEvent dispatch
+- [x] `TextActionExecutor` (clipboard save/restore + guaranteed restoration via defer)
+- [x] `LaunchActionExecutor` (shell/URL/bundle/path branching)
 - [x] `TerminalActionExecutor` (Terminal / iTerm / generic)
-- [x] `MacroRunner` + ログ
+- [x] `MacroRunner` + logging
 - [x] `ConfigLoader` / `ConfigWriter` + FLOATINGMACRO_CONFIG_DIR
 - [x] `AccessibilityChecker` + `AutomationChecker`
 - [x] `fmcli` (action / preset / permissions / config / log)
-- [x] SwiftUI + NSPanel フローティング窓
-- [x] 縦積みボタンレンダリング + ドラッグ移動
-- [x] メニューバー常駐 (`NSStatusItem`)
-- [x] プリセット切替メニュー
-- [x] 透明度メニュー (4 段階)
-- [x] ボタン編集 GUI (プリセット/グループ/ボタン CRUD + アイコン/色ピッカー)
-- [x] 位置・サイズの自動保存/復元
-- [x] バナー通知 (エラー時 3 秒)
-- [x] アイコン表示 (画像ファイル / アプリ自動推論)
-- [x] 構造化ロギング (JSON 1 行 1 イベント + ローテーション)
-- [x] HTTP 制御 API (REST + /tools + /tools/call)
-- [x] AI 自己紹介 `/manifest` + `/help`
-- [x] OpenAPI 3.1 自動生成 (`/openapi.json`)
+- [x] SwiftUI + NSPanel floating window
+- [x] Vertical button rendering + drag movement
+- [x] Menu bar resident (`NSStatusItem`)
+- [x] Preset switching menu
+- [x] Opacity menu (4 levels)
+- [x] Button editing GUI (preset/group/button CRUD + icon/color picker)
+- [x] Automatic position/size save/restore
+- [x] Banner notification (3 seconds on error)
+- [x] Icon display (image file / automatic app inference)
+- [x] Structured logging (JSON one event per line + rotation)
+- [x] HTTP control API (REST + /tools + /tools/call)
+- [x] AI self-introduction `/manifest` + `/help`
+- [x] OpenAPI 3.1 auto-generation (`/openapi.json`)
 - [x] A2A Agent Card (`/.well-known/agent.json`)
 - [x] MCP JSON-RPC 2.0 HTTP transport (`POST /mcp`)
 
-### v0.2 (UI 補強)
-- [ ] ドラッグ並べ替え (SwiftUI `.onDrop`)
-- [ ] 横並びレイアウト切替
-- [ ] プリセットのインポート / エクスポート
-- [ ] ウィンドウ形状プリセット (小/中/大)
-- [ ] マクロ (複合アクション) の GUI エディタ
+### v0.2 (UI Enhancement)
+- [ ] Drag reordering (SwiftUI `.onDrop`)
+- [ ] Horizontal layout toggle
+- [ ] Preset import / export
+- [ ] Window shape presets (small/medium/large)
+- [ ] Macro (compound action) GUI editor
 
-### v0.3 (ターミナル強化)
-- [ ] iTerm のペイン分割マクロ
-- [ ] Warp / Ghostty の貼付経路最適化
-- [ ] ターミナルプロファイル指定
-- [ ] tmux 連携
+### v0.3 (Terminal Enhancement)
+- [ ] iTerm pane split macros
+- [ ] Warp / Ghostty paste path optimization
+- [ ] Terminal profile specification
+- [ ] tmux integration
 
-### v0.4 (AI 協調強化) — 実装済み ✅
-- [x] AI 連携ウィンドウ対応クライアント拡張 (Cursor / Gemini CLI / VS Code / Windsurf)
-- [x] MCP stdio transport (アプリバンドル内 `npm/floatingmacro-mcp` 同梱)
-- [x] ACP マニフェスト (`/agents`, `/runs`)
+### v0.4 (AI Collaboration Enhancement) — Implemented ✅
+- [x] AI-linked window support client extensions (Cursor / Gemini CLI / VS Code / Windsurf)
+- [x] MCP stdio transport (bundled `npm/floatingmacro-mcp` within app bundle)
+- [x] ACP manifest (`/agents`, `/runs`)
 
-### v0.5 (アクセシビリティ自動リカバリ + GUI E2E テスト基盤) — 実装済み ✅
-- [x] BinaryIdentity による起動時 hash 比較 + 自動 `tccutil reset`
-- [x] 権限喪失バッジ + ワンクリックリカバリ (reset + System Settings オープン)
-- [x] AccessibilityChecker probe 改善 (`AXIsProcessTrusted` + `.apiDisabled` 限定 counter-signal)
-- [x] fm-test-target ハーネス + `text_inject_e2e.sh` (baseline + 2 軸検証)
-- [x] `button_press` ツール (AX + CGEvent による synthesized real click)
-- [x] プリセット同梱・インポート・エクスポート (`SeedPresetInstaller` + ACP API)
-- [x] `PresetDirectoryWatcher` (外部変更検知)
+### v0.5 (Accessibility Auto-Recovery + GUI E2E Test Infrastructure) — Implemented ✅
+- [x] BinaryIdentity for startup hash comparison + automatic `tccutil reset`
+- [x] Permission loss badge + one-click recovery (reset + System Settings open)
+- [x] AccessibilityChecker probe improvement (`AXIsProcessTrusted` + `.apiDisabled`-limited counter-signal)
+- [x] fm-test-target harness + `text_inject_e2e.sh` (baseline + 2-axis verification)
+- [x] `button_press` tool (synthesized real click via AX + CGEvent)
+- [x] Bundled presets, import, and export (`SeedPresetInstaller` + ACP API)
+- [x] `PresetDirectoryWatcher` (external change detection)
 
-### v0.6 (UX 整理 + Keychain 撤廃) — 実装済み ✅
-- [x] Control API トークンを Keychain → ファイル一次 (`~/Library/Application Support/FloatingMacro/control_api_token`, mode 0600) に変更
-- [x] アクセシビリティ修復フローを整理 (NSAlert 撤廃 → OS `prompt:true` 一本化、0.8 秒後の `openSystemPreferences` フォールバック、`/usr/bin/open` 経由で堅牢化)
-- [x] 修復ボタンを self-restart 方式に変更 (`--prompt-accessibility` 引数付き再起動でクリーン状態から `prompt:true`)
-- [x] TCC reset 二重発火を解消 (`scripts/rebuild-and-relaunch.sh` の起動前 reset を削除し `BinaryIdentity` 単発に一本化)
-- [x] ミニアイコンに右クリックメニュー (ステータスバーと同等)
-- [x] グループヘッダーの右クリックメニュー (削除・新規追加)
-- [x] パネル本体の右クリック hit-test を全面に拡張
+### v0.6 (UX Cleanup + Keychain Removal) — Implemented ✅
+- [x] Changed Control API token from Keychain → file-based (`~/Library/Application Support/FloatingMacro/control_api_token`, mode 0600)
+- [x] Cleaned up accessibility repair flow (removed NSAlert → unified to OS `prompt:true` only, `openSystemPreferences` fallback after 0.8 seconds, hardened via `/usr/bin/open`)
+- [x] Changed repair button to self-restart approach (restart with `--prompt-accessibility` argument for clean-state `prompt:true`)
+- [x] Eliminated TCC reset double-firing (removed pre-launch reset from `scripts/rebuild-and-relaunch.sh`, unified to single `BinaryIdentity` firing)
+- [x] Right-click menu on mini icon (equivalent to status bar)
+- [x] Right-click menu on group headers (delete, add new)
+- [x] Extended panel body right-click hit-test to full surface
 
-### v0.7 (編集ウィンドウの統合と DnD 並べ替え) — 実装済み ✅
-- [x] 編集ウィンドウ左ペインで DnD 並べ替え (ボタンの同一/別グループ移動、グループの並べ替え)
-- [x] ウィンドウ名を「ボタン編集」→「編集」に変更 (タブ・メニュー含む)
-- [x] グループ追加 UI をボタン追加と統一 (ワンクリックで「新グループ」、行の鉛筆ボタンでリネーム)
-- [x] プリセット/グループの右クリックメニューを「編集...」「削除...」に統一、プリセットの「編集...」は編集ウィンドウを開く動作に変更
-- [x] フローティングパネルの歯車左に編集ウィンドウへの鉛筆アイコンを追加
-- [x] グループ・ボタンの右クリック「複製」(`PresetManager.duplicateGroup` 追加、ボタンも fresh id で複製)
-- [x] 削除ボタンを保存ボタンの左隣に再配置 (ButtonEditor / GroupEditor)
+### v0.7 (Edit Window Integration and DnD Reordering) — Implemented ✅
+- [x] DnD reordering in edit window left pane (button movement within/between groups, group reordering)
+- [x] Renamed window from "Edit Buttons" → "Edit" (including tabs and menus)
+- [x] Unified group add UI with button add (one-click for "New Group", pencil button on row for rename)
+- [x] Unified preset/group right-click menus to "Edit..." "Delete...", changed preset "Edit..." to open edit window action
+- [x] Added pencil icon to floating panel left of gear icon for edit window
+- [x] Group and button right-click "Duplicate" (`PresetManager.duplicateGroup` added, buttons also duplicated with fresh ids)
+- [x] Repositioned delete button to left of save button (ButtonEditor / GroupEditor)
 
-### v0.8 (アクセシビリティ権限フロー修正とプリセット並び順) — 実装済み ✅
-- [x] アクセシビリティ権限ダイアログの無限ループを構造的に修正 (起動時 `tccutil reset` 自動呼び出しを撤廃、`prompt: true` は `--prompt-accessibility` 経由のときのみ呼ぶ、自前 `openSystemPreferences()` と説明 NSAlert を撤廃)
-- [x] プリセットの並び順をユーザーが変更可能 (右クリック「並べ替え…」、`config.json` の `presetOrder` 永続化、Control API の `preset_reorder`)
-- [x] 知識ドキュメント `macos_accessibility_permission.md` を追加 (Sequoia の TCC daemon 挙動と回避策)
+### v0.8 (Accessibility Permission Flow Fix and Preset Ordering) — Implemented ✅
+- [x] Structurally fixed accessibility permission dialog infinite loop (removed automatic `tccutil reset` call at startup, `prompt: true` only called via `--prompt-accessibility`, removed custom `openSystemPreferences()` and explanatory NSAlert)
+- [x] User-changeable preset ordering (right-click "Reorder...", `presetOrder` persistence in `config.json`, Control API `preset_reorder`)
+- [x] Added knowledge document `macos_accessibility_permission.md` (Sequoia TCC daemon behavior and workarounds)
 
-### v0.10 (ビジュアル拡張 Phase 1) — 実装済み ✅
-- [x] `Action.text` に `appendMode: Bool` を追加 (プロンプトビルダー用の追記モード)。後方互換 decoder で既存プリセットは無変更で動く
-- [x] `TextActionExecutor.execute` に `appendMode` パラメータを追加。true のときは現在のクリップボード末尾に content を連結し、ペースト・復元はしない
-- [x] ボタン編集パネルに「追記モード（プロンプトビルダー）」チェックボックスを追加
-- [x] Control API: `text` アクション schema に `appendMode` フィールドを追加 (既定 false)
-- [x] フローティングパネルへのドラッグ&ドロップでボタン自動生成 (`.app` → bundle id ベースの launch、その他ファイル → 絶対パスの launch)
-- [x] ドロップしたアプリ/ファイルのアイコンを `NSWorkspace.icon(forFile:)` で抽出し、`presets/<name>/icons/<button-id>.png` として保存
-- [x] ドラッグ中の視覚フィードバック (アクセントカラーの太枠)
-- [x] 確認ダイアログで「グループに N 個追加します」を提示してから一括登録
-- [x] ロードマップ `docs/plans/visual-expansion-roadmap.md` を追加 (Phase 1〜5 の段階的拡張計画)
+### v0.10 (Visual Expansion Phase 1) — Implemented ✅
+- [x] Added `appendMode: Bool` to `Action.text` (append mode for prompt builder). Backward-compatible decoder keeps existing presets unchanged
+- [x] Added `appendMode` parameter to `TextActionExecutor.execute`. When true, concatenates content to end of current clipboard, does not paste or restore
+- [x] Added "Append Mode (Prompt Builder)" checkbox to button edit panel
+- [x] Control API: Added `appendMode` field to `text` action schema (default false)
+- [x] Drag & drop onto floating panel auto-generates buttons (`.app` → bundle id-based launch, other files → absolute path launch)
+- [x] Extracts icons from dropped apps/files via `NSWorkspace.icon(forFile:)`, saves as `presets/<name>/icons/<button-id>.png`
+- [x] Visual feedback during drag (accent color thick border)
+- [x] Confirmation dialog presents "Adding N items to group" before batch registration
+- [x] Added roadmap `docs/plans/visual-expansion-roadmap.md` (phased expansion plan from Phase 1–5)
 
-### v0.10.5 (Phase 1.5: アイコン抽出基盤の再構築 + アプリピッカー) — 実装済み ✅
-- [x] `ImageIOIconExtractor` 新設 (`FloatingMacroCore/Icons/`)。`.icns` を `CGImageSource` で直読みして PNG 化、sync + async 両 API。AppKit 依存ゼロ
-- [x] `AppEntry` / `AppEntryResolver` / `FileSystemAppListProvider` 新設 (`FloatingMacroCore/Apps/`)。`/Applications` / `/System/Applications` / `~/Applications` を列挙、Info.plist 直読みで `CFBundleIdentifier` / `CFBundleDisplayName` / `CFBundleName` を抽出、Bundle ID で dedup、displayName でソート
-- [x] `AppDropClassifier` / `IconAssetSaver` 新設。DnD 判別とアイコン PNG 保存を Core に集約。`applicationSupportDirectory:` 注入でテスト時に一時ディレクトリへ書き込み可能
-- [x] `PanelDropHandler` を Core ロジックに乗せ替え (`NSWorkspace.icon` 撤廃)。残る AppKit 依存は NSAlert の確認ダイアログのみ
-- [x] 設定画面のボタン編集タブに「**アプリから追加…**」ボタンを新設、専用シート `AppLauncherPickerSheet.swift` を実装。検索 (アプリ名 / Bundle ID)、選択中アイコンの async プレビュー、ダブルクリック / Enter で即追加
-- [x] qlmanage 経路を実検証で却下。`scripts/spikes/qlmanage-pipe-spike/` で 4 パターン (anti-pattern / null device / readabilityHandler / background readToEnd) を試したところ Calculator.app に対して 20 秒 hang を再現 (Quick Look daemon の問題、daemon 再起動でも改善せず)。ImageIO 路線に方針変更
-- [x] **NSWorkspace 経路** を UI 層に追加 (`FloatingMacroApp/Settings/NSWorkspaceIconFallback.swift`)。UTM (Assets.car-only)・Books (空 .icns プレースホルダ) のような Catalyst / モダンアプリ用。Core は Foundation + ImageIO のみのまま、AppKit 依存は UI 層に閉じる。コミュニティ標準の `NSWorkspace.shared.icon(forFile:)` を使う (orchetect の Gist 等)
-- [x] **AppIconCache** (Core actor) — memory + disk 二段キャッシュ。`~/Library/Caches/FloatingMacro/AppIcons/<bundleId>.png` にディスク保存、ファイル mtime をアプリ mtime に揃えて自動 invalidation。`contains()` で軽量ヒット判定、`get()/put()` の thread-safe 保証
-- [x] **AppIconPrewarmer** (Core) — 起動時に `/Applications` 全アプリのアイコンを並列 prewarm (デフォルト並列度 4)。`Task.detached(priority: .utility)` で UI を邪魔しない。`applicationDidFinishLaunching` から呼ばれるので、ピッカー表示時にはほぼ全アプリがキャッシュ済み
-- [x] **IconContentValidator** (Core) — PNG bytes / CGImage を decode してピクセル単位で「中身があるか」検査。1 ピクセルでも `alpha > 8` または `RGB > 8` を見つけたら早期 return。Books.app の icns のような「成功したが空の PNG」を確実に reject
-- [x] AppLauncherPickerSheet・PanelDropHandler・AppIconPrewarmer を `async` 化してキャッシュ参照と内容検査に対応。カスケード: 共有キャッシュ → ImageIO → NSWorkspace。各段で `IconContentValidator` を通し、薄い PNG (空 .icns 由来) は次段に降ろして自動修復ループを構成
-- [x] Phase 1 P1-12「DnD ボタン化の E2E テスト不能」を解消。Core ロジック (8 ファイル) を **46 件の単体テスト**でカバー (`AppEntryResolverTests` 7・`FileSystemAppListProviderTests` 7・`AppDropClassifierTests` 6・`IconAssetSaverTests` 4・`ImageIOIconExtractorTests` 5・`AppIconCacheTests` 6・`AppIconPrewarmerTests` 3・`IconContentValidatorTests` 8)
-- [x] 設計指針「**基盤系 API > GUI 系 API**」をロードマップ Phase 1.5 章とメモリ (`feedback_prefer_foundation_over_gui_apis`) に明文化。Phase 2 以降の API 選定の判断軸として利用
+### v0.10.5 (Phase 1.5: Icon Extraction Infrastructure Rebuild + App Picker) — Implemented ✅
+- [x] New `ImageIOIconExtractor` (`FloatingMacroCore/Icons/`). Directly reads `.icns` with `CGImageSource` and converts to PNG, both sync + async APIs. Zero AppKit dependency
+- [x] New `AppEntry` / `AppEntryResolver` / `FileSystemAppListProvider` (`FloatingMacroCore/Apps/`). Enumerates `/Applications` / `/System/Applications` / `~/Applications`, reads Info.plist directly for `CFBundleIdentifier` / `CFBundleDisplayName` / `CFBundleName`, deduplicates by Bundle ID, sorts by displayName
+- [x] New `AppDropClassifier` / `IconAssetSaver`. Centralizes DnD classification and icon PNG saving in Core. Testable with temp directory via `applicationSupportDirectory:` injection
+- [x] Migrated `PanelDropHandler` to Core logic (`NSWorkspace.icon` removed). Remaining AppKit dependency is only NSAlert confirmation dialog
+- [x] Added **"Add from App..."** button to settings screen button edit tab, implemented dedicated sheet `AppLauncherPickerSheet.swift`. Search (app name / Bundle ID), async preview of selected icon, instant add via double-click / Enter
+- [x] Rejected qlmanage path through practical testing. Tested 4 patterns in `scripts/spikes/qlmanage-pipe-spike/` (anti-pattern / null device / readabilityHandler / background readToEnd), reproduced 20-second hang for Calculator.app (Quick Look daemon issue, not resolved even with daemon restart). Changed direction to ImageIO approach
+- [x] Added **NSWorkspace path** to UI layer (`FloatingMacroApp/Settings/NSWorkspaceIconFallback.swift`). For Catalyst / modern apps like UTM (Assets.car-only) and Books (empty .icns placeholder). Core remains Foundation + ImageIO only, AppKit dependency is confined to UI layer. Uses community-standard `NSWorkspace.shared.icon(forFile:)` (orchetect's Gist, etc.)
+- [x] **AppIconCache** (Core actor) — memory + disk two-tier cache. Saves to disk at `~/Library/Caches/FloatingMacro/AppIcons/<bundleId>.png`, aligns file mtime with app mtime for automatic invalidation. Thread-safe `contains()` for lightweight hit detection, `get()/put()` guarantees
+- [x] **AppIconPrewarmer** (Core) — Parallel prewarming of all app icons from `/Applications` at startup (default parallelism 4). Runs via `Task.detached(priority: .utility)` to not interfere with UI. Called from `applicationDidFinishLaunching`, so nearly all apps are cached by the time the picker is displayed
+- [x] **IconContentValidator** (Core) — Inspects PNG bytes / CGImage by decoding at pixel level for "has content". Early returns if it finds even 1 pixel with `alpha > 8` or `RGB > 8`. Reliably rejects "succeeded but empty PNG" from Books.app's icns
+- [x] Converted AppLauncherPickerSheet, PanelDropHandler, and AppIconPrewarmer to `async` for cache reference and content inspection. Cascade: shared cache → ImageIO → NSWorkspace. Each stage passes through `IconContentValidator`, thin PNGs (from empty .icns) are demoted to next stage forming an auto-repair loop
+- [x] Resolved Phase 1 P1-12 "DnD buttonization E2E test impossible". Core logic (8 files) covered with **46 unit tests** (`AppEntryResolverTests` 7, `FileSystemAppListProviderTests` 7, `AppDropClassifierTests` 6, `IconAssetSaverTests` 4, `ImageIOIconExtractorTests` 5, `AppIconCacheTests` 6, `AppIconPrewarmerTests` 3, `IconContentValidatorTests` 8)
+- [x] Documented design guideline "**Foundation-based APIs > GUI-based APIs**" in roadmap Phase 1.5 section and memory (`feedback_prefer_foundation_over_gui_apis`). Used as decision axis for API selection in Phase 2+
 
-### v0.10.6 (Phase 1.5 仕上げ: アプリピッカー UI 刷新 + 内部安定化) — 実装済み ✅
-- [x] アプリピッカーシート (`AppLauncherPickerSheet`) を「リスト + 右プレビュー欄」から `LazyVGrid` 96px セルの **Launchpad 風グリッド** に再構成。シングルクリックで選択、ダブルクリック (または「追加」ボタン) で即追加、選択中アプリ詳細は下部 footer に表示
-- [x] シートサイズを 640×500 → 880×620 に拡大、8〜9 列表示。`LazyVGrid` なので画面外セルはアイコン抽出を走らせず、起動時 prewarm キャッシュ前提の設計を維持
-- [x] `AppIconCache.mtimeStillValid(cached:app:)` を新設し、`get()` / `contains()` の mtime 比較に **1.0 秒以内の tolerance** を適用。APFS sub-second 切り捨てや時計のジッタで `testDiskCachePromotesToMemoryAcrossInstances` が flaky だった問題を解消
-- [x] `ConfigIOTests.testWriteDefaultConfigCreatesConfigAndDefaultPreset` のデフォルトプリセット先頭ボタン期待値を `btn-ultrathink` → `btn-ai-copy-prompt` に追従
+### v0.10.6 (Phase 1.5 Finishing: App Picker UI Refresh + Internal Stabilization) — Implemented ✅
+- [x] Redesigned app picker sheet (`AppLauncherPickerSheet`) from "list + right preview pane" to **Launchpad-style grid** with `LazyVGrid` 96px cells. Single-click to select, double-click (or "Add" button) for instant add, selected app details shown in bottom footer
+- [x] Expanded sheet size from 640×500 → 880×620, 8–9 column display. `LazyVGrid` doesn't trigger icon extraction for off-screen cells, maintaining the startup prewarm cache-first design
+- [x] Added `AppIconCache.mtimeStillValid(cached:app:)` and applied **1.0 second tolerance** to mtime comparison in `get()` / `contains()`. Resolved flaky `testDiskCachePromotesToMemoryAcrossInstances` caused by APFS sub-second truncation or clock jitter
+- [x] Updated `ConfigIOTests.testWriteDefaultConfigCreatesConfigAndDefaultPreset` default preset first button expectation from `btn-ultrathink` → `btn-ai-copy-prompt`
 
-### v0.13.0 (Phase 5: マルチデバイス) — 実装済み ✅
-- [x] **LAN 公開モード**: `ControlAPIConfig.lanExposureEnabled` トグル。有効時 bind scope を `0.0.0.0` に拡張、ephemeral LAN token で認証（再起動失効）
-- [x] **Web Panel** (`/webpanel`): モバイルブラウザ向け SSR + HTML/CSS/JS パネル UI。card / icon-card 自動判別、critical CSS inline + skeleton で即時 first paint
-- [x] **QR / Bonjour / mDNS**: メニューバー「📱 デバイスに送信...」+ フローティング右上 QR ボタン。`_floatingmacro._tcp.` 広報でゼロコンフィグ検出
-- [x] **WebP 配信**: libwebp (SwiftPM 経由 BSD-3) でサムネイル encode。転送量 元 PNG の約 1/100
-- [x] **並列処理**: 接続ごと独立 queue + main bypass fast path。App Nap 抑止
-- [x] **`WebPanelToolWhitelist`**: Web Panel から呼べる tool を `button_press` 等の安全系に限定（破壊的 tool は 403）
-- [x] **`preset_get` ツール追加**: active 以外の preset を read-only 取得
-- [x] **管理エンドポイント**: `GET /lan-token`、`POST /lan-token/rotate`
-- [x] **テスト**: 421 件合格 (Phase 5 で +62 件追加)
-- [x] **バージョン bump**: Info.plist `0.13.0` / build `24`、`SystemPrompt.version`、`CHANGELOG.md` に v0.13.0 章追記
+### v0.13.0 (Phase 5: Multi-Device) — Implemented ✅
+- [x] **LAN Exposure Mode**: `ControlAPIConfig.lanExposureEnabled` toggle. When enabled, expands bind scope to `0.0.0.0`, authenticates with ephemeral LAN token (expires on restart)
+- [x] **Web Panel** (`/webpanel`): SSR + HTML/CSS/JS panel UI for mobile browsers. Auto-detects card / icon-card, critical CSS inline + skeleton for immediate first paint
+- [x] **QR / Bonjour / mDNS**: Menu bar "📱 Send to Device..." + floating top-right QR button. Zero-config detection via `_floatingmacro._tcp.` advertisement
+- [x] **WebP Delivery**: Thumbnail encoding via libwebp (SwiftPM, BSD-3). Transfer size approximately 1/100 of original PNG
+- [x] **Concurrent Processing**: Independent queue per connection + main bypass fast path. App Nap suppression
+- [x] **`WebPanelToolWhitelist`**: Limits tools callable from Web Panel to safe ones like `button_press` (destructive tools return 403)
+- [x] **`preset_get` tool added**: Read-only retrieval of non-active presets
+- [x] **Management Endpoints**: `GET /lan-token`, `POST /lan-token/rotate`
+- [x] **Tests**: 421 tests passing (+62 added in Phase 5)
+- [x] **Version bump**: Info.plist `0.13.0` / build `24`, `SystemPrompt.version`, `CHANGELOG.md` v0.13.0 section added
 
-### v0.16.3 (ローカライズ基盤: ツール説明・マニフェストの外部化) — 実装済み ✅
-- [x] **ツール説明の JSON 外部化**: 50 ツール + 約 70 パラメータの description を `tool_descriptions.json` に分離。`ToolCatalog.swift` は JSON 読み込み → fallback の 2 段構成に
-- [x] **マニフェスト・ACP のバイリンガル化**: `SystemPrompt.swift` の endpoints 表・helpTool 説明、`ACPManifest.swift` の agent description・tool_invocation_format を EN/JP 併記に
-- [x] **UI ダイアログの L() 化**: `ButtonView.swift` の確認ダイアログ 12 箇所をハードコードから `L()` / `L_()` 呼び出しに変換
-- [x] **バージョン bump**: Info.plist `0.16.3` / build `33`、`SystemPrompt.version`、`CHANGELOG.md` に v0.16.3 章追記
+### v0.16.3 (Localization Infrastructure: Externalizing Tool Descriptions & Manifest) — Implemented ✅
+- [x] **Tool description JSON externalization**: Separated descriptions for 50 tools + ~70 parameters into `tool_descriptions.json`. `ToolCatalog.swift` uses 2-tier JSON load → fallback structure
+- [x] **Bilingual manifest & ACP**: `SystemPrompt.swift` endpoint tables and helpTool descriptions, `ACPManifest.swift` agent description and tool_invocation_format now in EN/JP
+- [x] **UI dialog L() conversion**: Converted 12 hardcoded confirmation dialog locations in `ButtonView.swift` to `L()` / `L_()` calls
+- [x] **Version bump**: Info.plist `0.16.3` / build `33`, `SystemPrompt.version`, `CHANGELOG.md` v0.16.3 section added
 
-### v0.16.2 (内部リファクタリング: 巨大ファイル分割) — 実装済み ✅
-- [x] **`ControlHandlers.swift` (2,235 行) を 7 ファイルに分割**: 本体 (613 行) + WebPanel / Panel / Settings / Preset / ButtonGroup / ACP の 6 extension。Swift 制約上 stored property は本体に残し、メソッドのみ extension へ
-- [x] **`App.swift` (1,736 行) を 5 ファイルに分割**: 本体 (623 行) + `ContentHostView` 単独ファイル化 + ContextMenu / Dock / LANBonjour の 3 AppDelegate extension。`@objc` メソッドは selector バインドの安全性のため本体維持
-- [x] **`SettingsDetail.swift` (1,676 行) を 5 ファイルに分割**: 本体 (121 行) + ButtonEditor / GroupEditor / MacroStep / KeyRecorders に分離
-- [x] **`PresetManager.swift` (1,194 行) を 6 ファイルに分割**: 本体 (266 行) + PresetIO / ExternalRequest / PanelOps / Editing / ImportExecute の 5 extension。`@Published` 等の stored property は本体に集約
-- [x] **`SettingsView.swift` (1,181 行) を 5 ファイルに分割**: 本体 (129 行) + SecuritySettingsView / SettingsSidebar / PresetReorderSheet / RowDropDelegate に分離
-- [x] **最大行数 2,235 → 778 に縮小**。公開 API / プロトコル / 動作仕様は変更なし。`swift build` 通過、`/ping` `/state` `/preset/list` の smoke test で動作確認済み
-- [x] **バージョン bump**: Info.plist `0.16.2` / build `32`、`SystemPrompt.version`、`CHANGELOG.md` に v0.16.2 章追記
+### v0.16.2 (Internal Refactoring: Large File Splitting) — Implemented ✅
+- [x] **Split `ControlHandlers.swift` (2,235 lines) into 7 files**: Main body (613 lines) + WebPanel / Panel / Settings / Preset / ButtonGroup / ACP as 6 extensions. Stored properties remain in main body due to Swift constraints, only methods moved to extensions
+- [x] **Split `App.swift` (1,736 lines) into 5 files**: Main body (623 lines) + `ContentHostView` standalone + ContextMenu / Dock / LANBonjour as 3 AppDelegate extensions. `@objc` methods kept in main body for selector binding safety
+- [x] **Split `SettingsDetail.swift` (1,676 lines) into 5 files**: Main body (121 lines) + ButtonEditor / GroupEditor / MacroStep / KeyRecorders separated
+- [x] **Split `PresetManager.swift` (1,194 lines) into 6 files**: Main body (266 lines) + PresetIO / ExternalRequest / PanelOps / Editing / ImportExecute as 5 extensions. `@Published` and other stored properties consolidated in main body
+- [x] **Split `SettingsView.swift` (1,181 lines) into 5 files**: Main body (129 lines) + SecuritySettingsView / SettingsSidebar / PresetReorderSheet / RowDropDelegate separated
+- [x] **Max line count reduced from 2,235 → 778**. No changes to public API / protocols / behavioral specs. Verified with `swift build`, smoke tested with `/ping` `/state` `/preset/list`
+- [x] **Version bump**: Info.plist `0.16.2` / build `32`, `SystemPrompt.version`, `CHANGELOG.md` v0.16.2 section added
 
-### v0.16.1 (カードレイアウト上辺揃え修正) — 実装済み ✅
-- [x] **カード上辺揃え**: ラベルのテキスト領域を固定高さ化し、WaterfallGrid 内でカードの上辺が行ごとに揃うよう修正
-- [x] **バージョン bump**: Info.plist `0.16.1` / build `31`、`SystemPrompt.version`、`CHANGELOG.md` に v0.16.1 章追記
+### v0.16.1 (Card Layout Top Alignment Fix) — Implemented ✅
+- [x] **Card top alignment**: Fixed label text area to fixed height so card tops align per row within WaterfallGrid
+- [x] **Version bump**: Info.plist `0.16.1` / build `31`, `SystemPrompt.version`, `CHANGELOG.md` v0.16.1 section added
 
-### v0.16.0 (グリッド表示 + i18n + プリセット保存先分離) — 実装済み ✅
-- [x] **grid 表示タイプ追加**: `GroupDisplayType.grid` (Finder/Launchpad 風アイコン並び)
-- [x] **列数指定**: `ButtonGroup.columns` で `auto` / `fixed(1/2/3)` を選択可能 (CSS Grid minmax 相当)
-- [x] **アイコンサイズ選択**: `IconSize` enum (small 16pt / medium 32pt / large 48pt / xlarge 64pt)
-- [x] **ラベル表示切替**: `ButtonGroup.showLabels` で icon/grid のラベル表示有無を制御
-- [x] **i18n 基盤**: `L10n.swift` ヘルパー、`Localizable.strings` (en/ja) 各 335 件、`scripts/localize.py` でハードコード文字列の自動抽出・置換
-- [x] **プリセット保存先分離**: seed (`~/Library/Application Support/FloatingMacro/presets/`) と user (`~/Documents/FloatingMacro/presets/`) に物理的分離。編集時 copy-on-write
-- [x] **環境変数追加**: `FLOATINGMACRO_USER_DIR` でユーザーディレクトリ上書き可能
-- [x] **基本マニュアル**: `docs/manual-basic.md` (スクリーンショット入り)
-- [x] **カード/グリッドのスクロール領域計算修正**: `LazyVGrid` を `paololeonardi/WaterfallGrid` (MIT) に置換。NSScrollView への高さ集計が正しく行われるようになり、画像サムネイル付きカードを多数並べた場合でも上下スクロールが効くように
-- [x] **パネルヘッダーの長いプリセット名対応**: Menu ラベルの水平固定を解除し末尾省略 (…) で表示
-- [x] **バージョン bump**: Info.plist `0.16.0` / build `30`、`SystemPrompt.version`、`CHANGELOG.md` に v0.16.0 章追記
+### v0.16.0 (Grid Display + i18n + Preset Storage Separation) — Implemented ✅
+- [x] **Grid display type added**: `GroupDisplayType.grid` (Finder/Launchpad-style icon arrangement)
+- [x] **Column count specification**: `ButtonGroup.columns` allows `auto` / `fixed(1/2/3)` selection (CSS Grid minmax equivalent)
+- [x] **Icon size selection**: `IconSize` enum (small 16pt / medium 32pt / large 48pt / xlarge 64pt)
+- [x] **Label visibility toggle**: `ButtonGroup.showLabels` controls label display for icon/grid modes
+- [x] **i18n infrastructure**: `L10n.swift` helper, `Localizable.strings` (en/ja) with 335 entries each, `scripts/localize.py` for automated hardcoded string extraction and replacement
+- [x] **Preset storage separation**: Physical separation into seed (`~/Library/Application Support/FloatingMacro/presets/`) and user (`~/Documents/FloatingMacro/presets/`). Copy-on-write on edit
+- [x] **Environment variable added**: `FLOATINGMACRO_USER_DIR` for overriding user directory
+- [x] **Basic manual**: `docs/manual-basic.md` (with screenshots)
+- [x] **Card/grid scroll area calculation fix**: Replaced `LazyVGrid` with `paololeonardi/WaterfallGrid` (MIT). Height aggregation into NSScrollView now works correctly, enabling vertical scrolling even when displaying many cards with image thumbnails
+- [x] **Panel header long preset name handling**: Removed horizontal fixing of Menu label, now displays with trailing ellipsis (…)
+- [x] **Version bump**: Info.plist `0.16.0` / build `30`, `SystemPrompt.version`, `CHANGELOG.md` v0.16.0 section added
 
-### v0.15.1 (バグ修正: ドックバー方向判定) — 実装済み ✅
-- [x] **DockBarPosition に edge 保持**: ドラッグ移動時の方向を保存し、再ドック時に保存済み edge を優先
-- [x] **EdgeDetector クランプ修正**: パネル中心が visibleFrame 外の場合に距離が負になり意図しない辺が選ばれるバグを修正
+### v0.15.1 (Bug Fix: Dock Bar Direction Detection) — Implemented ✅
+- [x] **DockBarPosition retains edge**: Saves direction during drag movement, prioritizes saved edge on re-dock
+- [x] **EdgeDetector clamp fix**: Fixed bug where distance went negative when panel center was outside visibleFrame, causing unintended edge selection
 
-### v0.15.0 (Phase 3.5 強化 + パネル背景色) — 実装済み ✅
-- [x] **パネル背景色のカスタマイズ**: プリセット単位でパネル背景色を変更可能に（`WindowConfig.backgroundColor` に `#RRGGBB` hex で保存）。右クリックメニュー「背景色 ▸」、設定画面のパネルタブにカラーピッカーを追加。Control API: `panel_background_color` ツール追加
-- [x] **ドック遷移アニメーション**: パネル → ドックバー遷移にボーダー付き矩形オーバーレイのスライド + フェードアニメーションを追加 (`DockTransitionAnimator`)
-- [x] **ドックバーのドラッグ移動**: ドックバーをドラッグで自由に移動可能に。位置は `PanelConfig.dockBarPosition` で永続化。展開→再ドック時にカスタム位置を保持。ドラッグ中の画面外はみ出し防止クランプ
-- [x] **パネル復帰をダブルクリックに変更**: 誤タップでの意図しない展開を防止
-- [x] **× ボタンと黄色ボタンの使い分け**: × ボタンで丸アイコンに折りたたみ、黄色ボタンで Edge Dock
-- [x] **救済操作**: 右クリックメニュー「パネル ▸」に「位置をリセット」「ドックバーを集める」を追加。Control API: `panel_reset_dock_position` / `panel_gather_dock_bars` ツール追加
-- [x] **テスト**: 全 445 テスト通過
+### v0.15.0 (Phase 3.5 Enhancement + Panel Background Color) — Implemented ✅
+- [x] **Panel background color customization**: Background color changeable per preset (`WindowConfig.backgroundColor` saved as `#RRGGBB` hex). Right-click menu "Background Color ▸", color picker added to settings screen panel tab. Control API: `panel_background_color` tool added
+- [x] **Dock transition animation**: Added border-outlined rectangle overlay slide + fade animation for panel → dock bar transition (`DockTransitionAnimator`)
+- [x] **Dock bar drag movement**: Dock bars can now be freely moved by dragging. Position persisted in `PanelConfig.dockBarPosition`. Custom position preserved on expand → re-dock. Off-screen drag prevention clamp
+- [x] **Panel restore changed to double-click**: Prevents unintended expansion from accidental taps
+- [x] **× button vs. yellow button differentiation**: × button collapses to round icon, yellow button Edge Docks
+- [x] **Recovery operations**: Added "Reset Position" and "Gather Dock Bars" to right-click menu "Panel ▸". Control API: `panel_reset_dock_position` / `panel_gather_dock_bars` tools added
+- [x] **Tests**: All 445 tests passing
 
-### v0.14.0 (Phase 3.5: 縁にドック最小化) — 実装済み ✅
-- [x] **`DockEdge` enum** (left/right/top/bottom) を `Preset.swift` に追加
-- [x] **`PanelConfig.minimizedToEdge: Bool`** → **`PanelConfig.dockedEdge: DockEdge?`** に型変更。旧 JSON の `minimizedToEdge: true` は decoder で `.right` に自動移行。encode 時は `dockedEdge` のみ書き出し、旧キーは残さない
-- [x] **`AppConfig+Panels`** に `dockingPanel(id:edge:)` / `undockingPanel(id:)` 追加。旧 `settingPanelMinimizedToEdge` を削除
-- [x] **`EdgeDetector`** (Core 層): パネル中心座標から最寄り辺を判定する純粋関数
-- [x] **`EdgeDockLayout`** (Core 層): 同一辺のバー群の位置を中央寄せで計算する純粋関数
-- [x] **`EdgeDockBar`** (App 層): 画面端に張り付く薄いバー。紫グラデ背景、アイコン + ラベル、左クリックで展開・右クリックでメニュー
-- [x] **PanelManager 拡張**: `collapseToDock` / `expandFromDock` / `relayoutDockBars`、Entry に `dockBar` 追加
-- [x] **× ボタン** の挙動を MiniIconPanel 化から縁ドック化に変更
-- [x] **メニューバー** に「縁にドック ▸」サブメニュー追加、ドック中パネルに「展開」「別の辺に移動 ▸」
-- [x] **Control API**: `panel_dock` / `panel_undock` ハンドラ追加、`panel_list` レスポンスの `minimizedToEdge` → `dockedEdge`
-- [x] **起動復元**: ドック状態のパネルは `EdgeDockBar` として復元
-- [x] **テスト**: EdgeDetectorTests (6)、EdgeDockLayoutTests (7)、旧互換移行テスト (3)、ドック操作テスト (3)、ToolCatalog (3)。全 445 テスト通過
+### v0.14.0 (Phase 3.5: Edge Dock Minimization) — Implemented ✅
+- [x] **`DockEdge` enum** (left/right/top/bottom) added to `Preset.swift`
+- [x] **`PanelConfig.minimizedToEdge: Bool`** → **`PanelConfig.dockedEdge: DockEdge?`** type change. Decoder auto-migrates old JSON `minimizedToEdge: true` to `.right`. Encodes only `dockedEdge`, old key not retained
+- [x] **`AppConfig+Panels`** adds `dockingPanel(id:edge:)` / `undockingPanel(id:)`. Removed old `settingPanelMinimizedToEdge`
+- [x] **`EdgeDetector`** (Core layer): Pure function that determines nearest edge from panel center coordinates
+- [x] **`EdgeDockLayout`** (Core layer): Pure function that calculates center-aligned positions for bars on the same edge
+- [x] **`EdgeDockBar`** (App layer): Thin bar attached to screen edge. Purple gradient background, icon + label, left-click to expand, right-click for menu
+- [x] **PanelManager extensions**: `collapseToDock` / `expandFromDock` / `relayoutDockBars`, added `dockBar` to Entry
+- [x] **× button** behavior changed from MiniIconPanel to edge docking
+- [x] **Menu bar** adds "Dock to Edge ▸" submenu, docked panels get "Expand" and "Move to Another Edge ▸"
+- [x] **Control API**: Added `panel_dock` / `panel_undock` handlers, `panel_list` response `minimizedToEdge` → `dockedEdge`
+- [x] **Startup restoration**: Panels in docked state are restored as `EdgeDockBar`
+- [x] **Tests**: EdgeDetectorTests (6), EdgeDockLayoutTests (7), legacy migration tests (3), dock operation tests (3), ToolCatalog (3). All 445 tests passing
 
-### v0.12.0 (Phase 3: マルチパネル) — 実装済み ✅
-- [x] **`PanelConfig`** 構造体と **`AppConfig.panels: [PanelConfig]`** フィールドを追加 (`Sources/FloatingMacroCore/Config/Preset.swift`)。1 パネル = id (UUID) + presetName + WindowConfig + visible + minimizedToEdge
-- [x] **v1 → v2 自動移行**: 旧 `activePreset` + 単一 `window` を持つ JSON は decoder が `panels[0]` を生成して書き戻す。legacy フィールドも `panels[0]` と同期して書き出され、Phase 3 移行期は両形式が共存
-- [x] **`AppConfig+Panels.swift`** 拡張で純粋関数 (addingPanel / removingPanel / updatingPanelFrame / updatingPanelOpacity / settingPanelPreset / settingPanelVisible / withSyncedLegacyFields) を提供。AppKit 非依存で単体テスト可能
-- [x] **`PanelManager`** クラス (`Sources/FloatingMacroApp/PanelManager.swift`): id → (FloatingPanel, MiniIconPanel) のマップを管理。openInitial / openNew / close / collapseToMini / expandFromMini / toggle / setOpacity / currentFrames、`floatingPanelWantsCollapse` 通知の購読を内部化
-- [x] **AppDelegate reconcile sink**: `presetManager.$appConfig.panels` を Combine sink で監視し、追加/削除を NSWindow の生成/破棄に自動反映。menu bar・設定画面・Control API どこから panel 操作しても一元化
-- [x] **per-panel preset rendering**: `ContentHostView` を `panelID` 受付に refactor。`presetManager.panelPreset(forPanelID:)` で各パネルが別プリセットを表示可能
-- [x] **`PresetManager.loadedPresets`** 複数プリセットキャッシュ (`@Published`) と `preset(named:)` / `panelPreset(forPanelID:)` / `switchPanelPreset(panelID:to:)` / `setEditTarget(panelID:)`
-- [x] **メニューバー「パネル」サブメニュー**: 新しいパネルを追加 / 表示トグル / 閉じて削除
-- [x] **設定画面「パネル」タブ** (`PanelsSettingsView.swift`): パネル一覧 + プリセット切替 + 削除
-- [x] **Control API panel_* ツール** 5 種を ToolCatalog に追加: `panel_list` / `panel_create` / `panel_close` / `panel_show` / `panel_hide`。`window_*` は「DEPRECATED: prefer panel_*」表記に変更してプライマリパネルへの作用に意味付け直し
-- [x] **テスト**: `ConfigLoaderTests` に Phase 3 用 6 ケース (PanelConfig ラウンドトリップ、最小 JSON、id 自動生成、v1 移行、空配列移行、複数パネル、明示 panels の優先)。`AppConfigPanelOpsTests` に 14 ケース (add/remove/update/legacy 同期)。`ControlAPICatalogTests` に panel_* 登録・window_* deprecation・panel_create スキーマ検証を追加。全 349 テスト合格
-- [x] **バージョン bump**: Info.plist `0.12.0` / build `21`、`SystemPrompt.version`、`CHANGELOG.md` に v0.12.0 章追記
+### v0.12.0 (Phase 3: Multi-Panel) — Implemented ✅
+- [x] **`PanelConfig`** struct and **`AppConfig.panels: [PanelConfig]`** field added (`Sources/FloatingMacroCore/Config/Preset.swift`). 1 panel = id (UUID) + presetName + WindowConfig + visible + minimizedToEdge
+- [x] **v1 → v2 auto-migration**: JSON with old `activePreset` + single `window` generates `panels[0]` via decoder and writes back. Legacy fields are also written in sync with `panels[0]`, allowing both formats to coexist during Phase 3 transition
+- [x] **`AppConfig+Panels.swift`** extension provides pure functions (addingPanel / removingPanel / updatingPanelFrame / updatingPanelOpacity / settingPanelPreset / settingPanelVisible / withSyncedLegacyFields). AppKit-independent and unit-testable
+- [x] **`PanelManager`** class (`Sources/FloatingMacroApp/PanelManager.swift`): Manages id → (FloatingPanel, MiniIconPanel) map. openInitial / openNew / close / collapseToMini / expandFromMini / toggle / setOpacity / currentFrames, internalized `floatingPanelWantsCollapse` notification subscription
+- [x] **AppDelegate reconcile sink**: Monitors `presetManager.$appConfig.panels` via Combine sink, auto-reflects additions/deletions to NSWindow creation/destruction. Unified regardless of whether panel operations come from menu bar, settings screen, or Control API
+- [x] **Per-panel preset rendering**: Refactored `ContentHostView` to accept `panelID`. Each panel can display a different preset via `presetManager.panelPreset(forPanelID:)`
+- [x] **`PresetManager.loadedPresets`** multi-preset cache (`@Published`) with `preset(named:)` / `panelPreset(forPanelID:)` / `switchPanelPreset(panelID:to:)` / `setEditTarget(panelID:)`
+- [x] **Menu bar "Panels" submenu**: Add new panel / toggle visibility / close and remove
+- [x] **Settings screen "Panels" tab** (`PanelsSettingsView.swift`): Panel list + preset switching + deletion
+- [x] **Control API panel_* tools** 5 types added to ToolCatalog: `panel_list` / `panel_create` / `panel_close` / `panel_show` / `panel_hide`. `window_*` relabeled as "DEPRECATED: prefer panel_*" with semantics redirected to primary panel
+- [x] **Tests**: 6 Phase 3 cases in `ConfigLoaderTests` (PanelConfig round-trip, minimal JSON, auto-generated id, v1 migration, empty array migration, multiple panels, explicit panels priority). 14 cases in `AppConfigPanelOpsTests` (add/remove/update/legacy sync). panel_* registration, window_* deprecation, panel_create schema verification added to `ControlAPICatalogTests`. All 349 tests passing
+- [x] **Version bump**: Info.plist `0.12.0` / build `21`, `SystemPrompt.version`, `CHANGELOG.md` v0.12.0 section added
 
-### v0.11.0 (Phase 2: 表現力の拡張) — 実装済み ✅
-- [x] **`GroupDisplayType`** enum (`icon` / `wide` / `card`) と `ButtonGroup.displayType` フィールドを追加。後方互換 decoder で旧プリセットは自動的に `.icon` 扱い。`.icon` は encode 時に省略 (差分ゼロ)
-- [x] **`ButtonDefinition.thumbnail`** フィールド追加。card タイプで使う大判画像のパス。null で icon → iconText にフォールバック
-- [x] **Wide / Card レンダラー** を `MacroButtonView` の `buttonContent` 分岐として実装。`.wide` は全幅大型セル、`.card` は `LazyVGrid(adaptive: 96)` のギャラリーで「サムネイル + タイトル」を縦に配置
-- [x] **状態反映インジケーター** (P2-9/P2-10): `ExecutionFeedback` ステートマシンで押下 → 黄枠 (実行中、250ms) → 緑枠 (成功 800ms) → idle のアニメーション。失敗 (赤) は `executeButton` の戻り値整理後に配線予定
-- [x] **`IconAssetSaver`** に `imagesDirectory(presetName:)` と `saveThumbnail(_, buttonId:, ext:)` を追加。`presets/<name>/images/<button-id>.<ext>` の保存規約を提供
-- [x] **設定 UI**: `GroupEditor` に `displayType` の segmented picker、`ButtonEditor` にサムネイル入力 + ファイル参照 + プレビュー枠
-- [x] **Control API**: `group_add` / `group_update` に `displayType` (`icon`|`wide`|`card`)、`button_add` / `button_update` に `thumbnail` (string | null) を追加
-- [x] **既存バグ修正**: `applyPatch` が `confirm` / `confirmMessage` / `confirmDestructive` を `updateButton` に渡していなかった経路を修正。Phase 2 の `thumbnail` も同じ経路で素通し
-- [x] **テスト**: `ConfigLoaderTests` に `testButtonGroupDisplayTypeRoundTrip` / `testButtonGroupDefaultDisplayTypeOmittedFromEncoding` / `testButtonGroupLegacyJSONWithoutDisplayType` / `testButtonDefinitionThumbnailRoundTrip` を追加。`IconAssetSaverTests` に `testSaveThumbnailWritesToImagesDirectory` / `testImagesDirectoryPath` を追加。全 317 テスト合格
-- [x] **バージョン bump**: Info.plist `0.11.0` / build `19`、`SystemPrompt.version`、`CHANGELOG.md` に v0.11.0 章追記
+### v0.11.0 (Phase 2: Expanding Expressiveness) — Implemented ✅
+- [x] **`GroupDisplayType`** enum (`icon` / `wide` / `card`) and `ButtonGroup.displayType` field added. Backward-compatible decoder auto-treats old presets as `.icon`. `.icon` is omitted during encoding (zero diff)
+- [x] **`ButtonDefinition.thumbnail`** field added. Path for large images used in card type. Falls back to icon → iconText when null
+- [x] **Wide / Card renderers** implemented as `buttonContent` branching in `MacroButtonView`. `.wide` is full-width large cells, `.card` arranges "thumbnail + title" vertically in a `LazyVGrid(adaptive: 96)` gallery
+- [x] **State reflection indicators** (P2-9/P2-10): `ExecutionFeedback` state machine for press → yellow border (executing, 250ms) → green border (success 800ms) → idle animation. Failure (red) pending wiring after `executeButton` return value cleanup
+- [x] **`IconAssetSaver`** adds `imagesDirectory(presetName:)` and `saveThumbnail(_, buttonId:, ext:)`. Provides saving convention `presets/<name>/images/<button-id>.<ext>`
+- [x] **Settings UI**: Segmented picker for `displayType` in `GroupEditor`, thumbnail input + file browse + preview frame in `ButtonEditor`
+- [x] **Control API**: Added `displayType` (`icon`|`wide`|`card`) to `group_add` / `group_update`, `thumbnail` (string | null) to `button_add` / `button_update`
+- [x] **Existing bug fix**: Fixed path where `applyPatch` wasn't passing `confirm` / `confirmMessage` / `confirmDestructive` to `updateButton`. Phase 2's `thumbnail` also passes through the same path
+- [x] **Tests**: Added `testButtonGroupDisplayTypeRoundTrip` / `testButtonGroupDefaultDisplayTypeOmittedFromEncoding` / `testButtonGroupLegacyJSONWithoutDisplayType` / `testButtonDefinitionThumbnailRoundTrip` to `ConfigLoaderTests`. Added `testSaveThumbnailWritesToImagesDirectory` / `testImagesDirectoryPath` to `IconAssetSaverTests`. All 317 tests passing
+- [x] **Version bump**: Info.plist `0.11.0` / build `19`, `SystemPrompt.version`, `CHANGELOG.md` v0.11.0 section added
 
-### 将来 (未割当)
-- [ ] A2A Task API + SSE streaming (長時間実行マクロ向け)
-- [ ] `fmcli remote` サブコマンド (制御 API の薄いラッパ)
-- [ ] ログの OpenTelemetry OTLP エクスポート
-- [ ] 横並びレイアウト切替
-- [ ] iTerm のペイン分割マクロ
-- [ ] Warp / Ghostty の貼付経路最適化
-- [ ] tmux 連携
+### Future (Unassigned)
+- [ ] A2A Task API + SSE streaming (for long-running macros)
+- [ ] `fmcli remote` subcommand (thin wrapper around control API)
+- [ ] Log OpenTelemetry OTLP export
+- [ ] Horizontal layout toggle
+- [ ] iTerm pane split macros
+- [ ] Warp / Ghostty paste path optimization
+- [ ] tmux integration
 
 ### v1.0
-- [ ] Developer ID 署名 + notarization
-- [ ] 配布用 DMG
-- [ ] 自動アップデート
+- [ ] Developer ID signing + notarization
+- [ ] Distribution DMG
+- [ ] Auto-update
 
 ---
 
-## 18. 設計上の既知の判断
+## 18. Known Design Decisions
 
-### Tauri ではなく Swift を選んだ理由
-- Mac 専用で割り切るためクロスプラットフォーム性が不要
-- `NSPanel` の非アクティブ化挙動が Swift なら 1 行、Tauri だと objc ブリッジが必要
-- `NSAppleScript` / `NSWorkspace` / `CGEvent` / `AXIsProcessTrusted` / `NWListener` の全てがネイティブで即時アクセス
+### Why Swift Instead of Tauri
+- No need for cross-platform capability since it's Mac-only
+- `NSPanel` non-activation behavior is one line in Swift, requires objc bridge in Tauri
+- `NSAppleScript` / `NSWorkspace` / `CGEvent` / `AXIsProcessTrusted` / `NWListener` are all immediately accessible natively
 
-### swift-nio / Vapor を入れない理由
-- 常駐ツールの起動時間を増やしたくない
-- 依存を増やすとメンテが複雑化
-- `NWListener` で HTTP/1.1 localhost サーバーは十分実装可能
+### Why Not swift-nio / Vapor
+- Don't want to increase startup time for a resident tool
+- Adding dependencies complicates maintenance
+- `NWListener` is sufficient for implementing an HTTP/1.1 localhost server
 
-### キーボード入力は keycode 送出、テキストはクリップボード貼付
-- 日本語 / 記号で化けない
-- IME 状態に依存しない
-- キーリピート事故が起きない
+### Key Input via Keycode Dispatch, Text via Clipboard Paste
+- No corruption with Japanese / symbols
+- No dependency on IME state
+- No key repeat accidents
 
-### ログは JSON 1 行 1 イベント
-- AI が `tail -f | jq` でパイプ処理できる
-- 行単位なのでローテーションが単純
-- OTLP 移行も容易
+### Logs as JSON One Event Per Line
+- AI can pipe-process with `tail -f | jq`
+- Line-based makes rotation simple
+- Easy migration to OTLP
 
-### HTTP 制御 API はプロトコル仕様を複数対応
-- ACP (OpenAPI): REST ネイティブ、Postman / curl で即使える
-- A2A (Agent Card): Google / ADK エコシステムから discovery 可能
-- MCP (JSON-RPC 2.0): Claude Desktop / Claude Code から MCP サーバーとして登録可能
-- すべて同じ `ToolCatalog` から自動生成されるので、実装は 1 セット / 配布は複数形式
-
----
-
-## 19. クリーンルーム設計ポリシー
-
-本プロジェクトは Windows 用 FloatingButton (Trifolium Studio) の Mac 版相当を作ることを目的とするが、以下を厳守する:
-
-- 元ソフトのコード / バイナリを **見ない**
-- 元ソフトを逆アセンブル / リバースエンジニアリング **しない**
-- 参照元は **公式サイトのスクリーンショットと機能説明のみ**
-- 名称 / UI 配色 / アイコンデザインは **意図的に別物**
-
-名称を `FloatingMacro` に変更したのも、元ソフトとの差別化の一環。
+### HTTP Control API Supports Multiple Protocol Specifications
+- ACP (OpenAPI): REST-native, immediately usable with Postman / curl
+- A2A (Agent Card): Discoverable from Google / ADK ecosystem
+- MCP (JSON-RPC 2.0): Registrable as MCP server from Claude Desktop / Claude Code
+- All auto-generated from the same `ToolCatalog`, so implementation is 1 set / distribution is multiple formats
 
 ---
 
-## 20. 用語集
+## 19. Clean-Room Design Policy
 
-| 用語 | 定義 |
+This project aims to create a Mac equivalent of the Windows FloatingButton (Trifolium Studio), but strictly adheres to the following:
+
+- **Do not view** the original software's code / binaries
+- **Do not** disassemble / reverse-engineer the original software
+- Reference sources are **only official website screenshots and feature descriptions**
+- Name / UI color scheme / icon design are **intentionally different**
+
+Changing the name to `FloatingMacro` is also part of differentiating from the original software.
+
+---
+
+## 20. Glossary
+
+| Term | Definition |
 |---|---|
-| プリセット | ボタン群の 1 セット。シーン別に切り替える |
-| グループ | プリセット内でボタンをまとめる単位 |
-| アクション | ボタンが実行する 1 つの動作 |
-| マクロ | 複数アクションの順次実行 |
-| コンボ | 修飾キー + 本体キーの組み合わせ文字列 |
-| 制御 API | localhost HTTP サーバー経由の操作インターフェース |
-| ツールカタログ | MCP/OpenAI/Anthropic の 3 方言で表現可能な機能定義一覧 |
-| Agent Card | A2A 仕様の自己紹介 JSON (`/.well-known/agent.json`) |
-| MCP | Model Context Protocol (Anthropic 提唱) |
-| A2A | Agent-to-Agent protocol (Google 提唱) |
-| ACP | Agent Communication Protocol (IBM / BeeAI、REST ベース) |
+| Preset | A set of buttons. Switched between scenes |
+| Group | A unit for organizing buttons within a preset |
+| Action | A single operation executed by a button |
+| Macro | Sequential execution of multiple actions |
+| Combo | A string combining modifier keys + main key |
+| Control API | Operation interface via localhost HTTP server |
+| Tool Catalog | Feature definition list expressible in MCP/OpenAI/Anthropic 3 dialects |
+| Agent Card | A2A specification self-introduction JSON (`/.well-known/agent.json`) |
+| MCP | Model Context Protocol (proposed by Anthropic) |
+| A2A | Agent-to-Agent protocol (proposed by Google) |
+| ACP | Agent Communication Protocol (IBM / BeeAI, REST-based) |
 
 ---
 
-## 21. 参考情報
+## 21. References
 
 ### Apple Documentation
 - [NSPanel](https://developer.apple.com/documentation/appkit/nspanel)
@@ -1012,6 +1011,6 @@ override func tearDown() {
 - OpenAPI 3.1: https://spec.openapis.org/oas/v3.1.0
 - JSON-RPC 2.0: https://www.jsonrpc.org/specification
 
-### 関連ツール (inspiration, not implementation reference)
+### Related Tools (inspiration, not implementation reference)
 - Keyboard Maestro / BetterTouchTool / Hammerspoon
-- FloatingButton (Windows, Trifolium Studio) — 外部機能仕様のみ参考
+- FloatingButton (Windows, Trifolium Studio) — External feature specs only used as reference

@@ -123,10 +123,10 @@ mkdir -p "$STAGING"
 cp -R "$APP" "$STAGING/"
 ln -sf /Applications "$STAGING/Applications"
 
-# AI 連携の手順書を DMG にも同梱する。DMG ユーザーはリポジトリを見ないので、
-# AI 経由で操作するために必要な情報を Finder マウント時に並ぶ位置で渡す。
+# Include the AI integration procedure manual in the DMG. Since DMG users don't look at the repository,
+# Pass the necessary information to be passed in the order of operation via AI at the time of Finder mounting.
 if [ -f "$ROOT/CLAUDE.md" ]; then
-    cp "$ROOT/CLAUDE.md" "$STAGING/AIに渡す手順書.md"
+    cp "$ROOT/CLAUDE.md" "$STAGING/AIProcedure to Pass On.md"
 fi
 
 hdiutil create \

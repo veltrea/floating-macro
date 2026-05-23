@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# rebuild-and-relaunch.sh — 100% 確実に最新のバイナリで FloatingMacro.app を起動する。
+# rebuild-and-relaunch.sh - Launches FloatingMacro.app with the latest binary at 100% certainty.
 #
-# 目的:
-#   「ビルドしたのに古い .app が動いてる」を防ぐ。起動中のプロセスを確実に
-#   殺してから、SwiftPM のビルドキャッシュを完全に消して、build-app.sh で
-#   ゼロから .app を組み立て直し、新しい .app を open する。
+# Purpose:
+# Prevent "running old .app even after building" by reliably confirming running processes.
+# Delete first, then completely clear the SwiftPM build cache and run build-app.sh.
+# Build a new .app from scratch and open it.
 #
-# 配置先:
-#   既定では build/FloatingMacro.app から直接起動する（コピーなし）。
-#   v0.2 までこのフローで TCC が安定していたため、まずこれに戻して検証する。
+# Configuration source:
+# Launch directly from the default build/FloatingMacro.app (no copy).
+# Back to this flow for now, as TCC was stable up to v0.2, so let's verify with it first.
 #
-#   /Applications にコピーすると macOS が com.apple.provenance xattr を
-#   付与し App Management 配下に置かれる。Sequoia 以降の ad-hoc 署名アプリ
-#   は App Management 下では TCC が異常に厳しく扱われ、リビルドのたびに
-#   許可が無音で剥がれる挙動を踏んでいた疑いが強い。
+# When copied to Applications, macOS sets the com.apple.provenance xattr on the file.
+# Assigned to the App Management category. Ad-hoc signed apps since Sequoia.
+# Under the App Management category, TCC is treated unusually strictly, and every rebuild requires it.
+# Suspicion that it was behaving as if permission was silent and peeled off.
 #
-#   配布検証で /Applications に入れたいときは DEPLOY_DEST で上書きする：
+# Overwrite DEPLOY_DEST when deploying to /Applications:
 #     DEPLOY_DEST=/Applications/FloatingMacro.app bash scripts/rebuild-and-relaunch.sh
 #
-# 使い方:
+# Usage:
 #   bash scripts/rebuild-and-relaunch.sh
 #   DEPLOY_DEST=/path/to/FloatingMacro.app bash scripts/rebuild-and-relaunch.sh
 
@@ -28,8 +28,8 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 cd "$ROOT"
 
-# build-app.sh はこのパスに .app を組み立てる。デプロイ先 (DEPLOY_DEST) は
-# 別途 /Applications を既定にしている。
+# build-app.sh builds the .app at this path. The deployment destination (DEPLOY_DEST) is
+# Separately set to the default Applications.
 BUILD_APP="$ROOT/build/FloatingMacro.app"
 DEPLOY_DEST="${DEPLOY_DEST:-$BUILD_APP}"
 BIN_NAME="FloatingMacro"
@@ -39,82 +39,82 @@ ok()  { printf '\033[1;32m[OK]\033[0m %s\n' "$*" >&2; }
 err() { printf '\033[1;31m[X]\033[0m %s\n' "$*" >&2; }
 
 # ------------------------------------------------------------------- #
-# 1. 起動中のプロセスを確実に停止
+# Stop running processes reliably
 # ------------------------------------------------------------------- #
 say "Stopping any running FloatingMacro …"
 
-# .app 経由で起動したインスタンスをまず穏やかに終了
+# Gracefully terminate the instance launched via .app
 osascript -e 'tell application "FloatingMacro" to quit' >/dev/null 2>&1 || true
 
-# swift run 経由 / .app 経由 / コマンドライン経由 — 全部拾って殺す
+# Run via swift run, app via .app, command-line via - Kill them all.
 pkill -x "$BIN_NAME" >/dev/null 2>&1 || true
 pkill -f "/$BIN_NAME$" >/dev/null 2>&1 || true
 
-# まだ残っているか確認して SIGKILL
+# Check if still remaining and send SIGKILL
 sleep 0.5
 if pgrep -x "$BIN_NAME" >/dev/null 2>&1; then
     pkill -9 -x "$BIN_NAME" >/dev/null 2>&1 || true
 fi
 
 if pgrep -x "$BIN_NAME" >/dev/null 2>&1; then
-    err "$BIN_NAME がまだ生きています。手動で終了してから再実行してください。"
+    err "$BIN_NAME Still alive. Please exit manually and try again."
     pgrep -x "$BIN_NAME" | sed 's/^/   pid: /' >&2
     exit 1
 fi
 ok "stopped"
 
 # ------------------------------------------------------------------- #
-# 2. 完全クリーン
+# Fully clean
 # ------------------------------------------------------------------- #
 say "Cleaning SwiftPM build artifacts …"
 swift package clean >/dev/null
-# SwiftPM が使う .build ディレクトリを丸ごと消す
+# Delete the entire .build directory used by SwiftPM
 rm -rf "$ROOT/.build"
-# 以前組み立てた .app も消す
+# Delete previously built .app also
 rm -rf "$BUILD_APP"
 rm -rf "$ROOT/build/AppIcon.icns" "$ROOT/build/AppIcon.iconset"
 ok "cleaned"
 
 # ------------------------------------------------------------------- #
-# 3. フルビルド → .app 組み立て
+# Full build → .app assembly
 # ------------------------------------------------------------------- #
 say "Rebuilding .app from scratch …"
 bash "$ROOT/scripts/build-app.sh"
 
 if [ ! -d "$BUILD_APP" ]; then
-    err "ビルド失敗: $BUILD_APP が存在しません"
+    err "Build failed: $BUILD_APP does not exist"
     exit 1
 fi
 
 # ------------------------------------------------------------------- #
-# 4. バイナリのタイムスタンプを表示して古くないことを確認
+# Display binary timestamp and verify it is not old
 # ------------------------------------------------------------------- #
 NEW_BIN="$BUILD_APP/Contents/MacOS/$BIN_NAME"
 if [ ! -x "$NEW_BIN" ]; then
-    err "バイナリが見つかりません: $NEW_BIN"
+    err "Binary not found: $NEW_BIN"
     exit 1
 fi
 BUILT_AT="$(date -r "$NEW_BIN" '+%Y-%m-%d %H:%M:%S')"
 ok "binary built at: $BUILT_AT"
 
 # ------------------------------------------------------------------- #
-# 5. デプロイ — 既定で /Applications/FloatingMacro.app に上書きコピー。
-#     ad-hoc 署名アプリの TCC (Accessibility) はパスで識別されるため、
-#     固定パスにデプロイすることで許可がリビルドを跨いで残る。
+# 5. Deploy - Overwritten by default to /Applications/FloatingMacro.app.
+# Ad-hoc-signed app's TCC (Accessibility) is identified by the path, so
+# Deploying to a fixed path allows permissions to persist across rebuilds.
 # ------------------------------------------------------------------- #
 DEPLOY_DIR="$(dirname "$DEPLOY_DEST")"
 if [ "$BUILD_APP" = "$DEPLOY_DEST" ]; then
-    # ビルド先と配置先が同じならコピー不要
+    # Copy unnecessary if build and placement are the same
     say "Deploy dest matches build path — skipping copy"
 else
     say "Deploying to $DEPLOY_DEST …"
     if [ ! -d "$DEPLOY_DIR" ]; then
-        err "デプロイ先ディレクトリが存在しません: $DEPLOY_DIR"
+        err "Deployment directory does not exist: $DEPLOY_DIR"
         exit 1
     fi
     if [ ! -w "$DEPLOY_DIR" ]; then
-        err "デプロイ先に書き込めません: $DEPLOY_DIR"
-        err "別パスに置く場合は DEPLOY_DEST=/path/to/Foo.app を指定してください"
+        err "Cannot write to deployment target: $DEPLOY_DIR"
+        err "If you want to deploy to a different path, use DEPLOY_DEST.=/path/to/Foo.app Please specify: Please specify:"
         exit 1
     fi
     rm -rf "$DEPLOY_DEST"
@@ -123,31 +123,31 @@ else
 fi
 
 # ------------------------------------------------------------------- #
-# 5.5. TCC リセットはアプリ側 (BinaryIdentity) に一本化したため削除。
+# TCC reset has been centralized on the app side (BinaryIdentity), so it is removed.
 #
-# 以前はここで `tccutil reset Accessibility <bundleId>` を起動直前に呼んで
-# いたが、アプリ起動後 BinaryIdentity.handleStartupCheck 内でも同じ reset
-# が走るため二重発火していた。二重 reset の直後に prompt:true を呼ぶと、
-# Sequoia では System Settings 側でリスト追加の認証 + トグル ON の認証で
-# パスワードを2回要求される問題が観測されたため、script 側の reset を撤去。
-# BinaryIdentity がハッシュ変化を検出して reset するので機能上の欠落はない。
+# Previously, we called `tccutil reset Accessibility <bundleId>` right before this.
+# However, after the app launch, same reset in handleStartupCheck
+# was running twice due to double firing. Immediately after a double reset, calling prompt:true would result in:
+# In Sequoia, authentication for list addition is required at the System Settings level, along with toggle-on authentication.
+# The password is requested twice, so remove the reset on the script side.
+# BinaryIdentity detects hash changes and resets, so there are no functional gaps.
 # ------------------------------------------------------------------- #
 
 # ------------------------------------------------------------------- #
-# 6. 起動 — 必ず .app 経由で
+# Launch - Always via .app
 # ------------------------------------------------------------------- #
 say "Launching $DEPLOY_DEST …"
-# -n: 既存インスタンスがあっても新しく起動 (この時点で既存はいないはずだが保険)
-# -F: Finder キャッシュを無視して今の .app を起動
+# -: Launch a new instance even if there are existing instances (at this point, the existing ones should not exist as a precaution).
+# Launch the current .app while ignoring the Finder cache
 open -n -F "$DEPLOY_DEST"
 
-# 起動確認
+# Launch Confirmation
 sleep 1
 if pgrep -x "$BIN_NAME" >/dev/null 2>&1; then
     PID="$(pgrep -x "$BIN_NAME" | head -1)"
     ok "launched (pid: $PID)"
 else
-    err "起動に失敗しました。Console.app のログを確認してください。"
+    err "Failed to launch. Console.app Please check your logs."
     exit 1
 fi
 

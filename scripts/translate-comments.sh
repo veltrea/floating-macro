@@ -174,11 +174,11 @@ Rules:
 def has_japanese(text):
     return bool(JP_PATTERN.search(text))
 
-def find_swift_files(directory):
+def find_source_files(directory):
     result = []
     for root, dirs, files in os.walk(directory):
         for f in files:
-            if f.endswith('.swift'):
+            if f.endswith('.swift') or f.endswith('.sh'):
                 result.append(os.path.join(root, f))
     return sorted(result)
 
@@ -186,6 +186,16 @@ def extract_japanese_comments(filepath):
     comments = []
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.readlines()
+
+    is_shell = filepath.endswith('.sh')
+
+    if is_shell:
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped.startswith('#') and not stripped.startswith('#!'):
+                if has_japanese(stripped):
+                    comments.append((i, stripped))
+        return comments, lines
 
     in_block = False
     for i, line in enumerate(lines):
@@ -253,6 +263,8 @@ def strip_comment_prefix(text):
         return text[3:].strip()
     elif text.startswith('//'):
         return text[2:].strip()
+    elif text.startswith('#'):
+        return text[1:].strip()
     return text.strip()
 
 def translate_lmstudio(japanese_text, mode="comment"):
@@ -351,6 +363,8 @@ def apply_translation(lines, line_idx, original_comment, translated):
         prefix = '///'
     elif original_comment.startswith('//'):
         prefix = '//'
+    elif original_comment.startswith('#'):
+        prefix = '#'
     else:
         lines[line_idx] = old_line.replace(original_comment, translated)
         return True
@@ -366,7 +380,7 @@ def apply_translation(lines, line_idx, original_comment, translated):
 # Main
 # ------------------------------------------------------------------ #
 
-swift_files = find_swift_files(target_dir)
+swift_files = find_source_files(target_dir)
 total_files = len(swift_files)
 translated_total = 0
 comment_total = 0
@@ -439,8 +453,8 @@ PYEOF
 
 say "Translating Japanese comments in $TARGET_DIR"
 
-SWIFT_COUNT=$(find "$TARGET_DIR" -name '*.swift' | wc -l | tr -d ' ')
-say "Found $SWIFT_COUNT Swift files to process"
+SRC_COUNT=$(find "$TARGET_DIR" \( -name '*.swift' -o -name '*.sh' \) | wc -l | tr -d ' ')
+say "Found $SRC_COUNT source files to process (.swift + .sh)"
 
 CACHE_FILE="${TRANSLATE_CACHE:-$HERE/.translate-cache.json}"
 if [ "${NO_CACHE:-0}" = "1" ]; then

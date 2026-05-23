@@ -1,17 +1,17 @@
 import Foundation
 
-/// Phase 3 (v0.12) で導入された複数パネル対応のための、`AppConfig.panels` を
-/// 操作する純粋関数群。すべて値型を返し、AppKit / UI に依存しないので
-/// `FloatingMacroCore` の単体テストでカバー可能。
+/// Introduced for multi-panel support in Phase 3 (v0.12), `AppConfig.panels`.
+/// Pure functions that operate. All return value types and do not depend on AppKit/UI.
+/// Coverable by unit tests in `FloatingMacroCore`.
 ///
-/// 移行期間中、旧 `activePreset` / `window` フィールドは `panels[0]` と
-/// 同期しておく必要がある（古いコードパスがまだ参照しているため）。各 op の
-/// 末尾で `withSyncedLegacyFields()` を呼んで自動同期する設計。
+/// During the transition period, the old `activePreset` / `window` fields are equivalent to `panels[0]`.
+/// Synchronize if necessary (because old code paths still reference). Each op of
+/// Design to call `withSyncedLegacyFields()` at the end for automatic synchronization.
 extension AppConfig {
 
-    /// 新規パネルを末尾に追加し、生成された panel id とともに新しい AppConfig を返す。
-    /// `panels[0]` が新規追加されたパネル（つまり初回追加で空配列だった場合）の
-    /// ときは旧 `activePreset` / `window` も同期する。
+    /// Add a new panel to the end and return a new AppConfig with the generated panel ID.
+    /// the newly added panel (i.e., the first addition when the array is initially empty) of `panels[0]`
+    /// When the old activePreset / window also synchronizes.
     public func addingPanel(presetName: String,
                             window: WindowConfig = WindowConfig(),
                             dockedEdge: DockEdge? = nil,
@@ -25,8 +25,8 @@ extension AppConfig {
         return (copy.withSyncedLegacyFields(), panel.id)
     }
 
-    /// 指定 id のパネルを削除。最後の 1 件は削除拒否（空状態を作らない）し、
-    /// 一致する id が無い場合は no-op。
+    /// Delete the panel with the specified ID. The last one is rejected from deletion (to avoid creating an empty state).
+    /// If there are no matching IDs, do nothing.
     public func removingPanel(id: String) -> AppConfig {
         guard panels.count > 1 else { return self }
         guard panels.contains(where: { $0.id == id }) else { return self }
@@ -35,7 +35,7 @@ extension AppConfig {
         return copy.withSyncedLegacyFields()
     }
 
-    /// 任意のパネルに対する変換を適用。一致する id が無い場合は no-op。
+    /// Apply conversion to any panel. If there is no matching id, it's a no-op.
     public func updatingPanel(id: String,
                               _ transform: (PanelConfig) -> PanelConfig) -> AppConfig {
         guard let idx = panels.firstIndex(where: { $0.id == id }) else { return self }
@@ -44,7 +44,7 @@ extension AppConfig {
         return copy.withSyncedLegacyFields()
     }
 
-    /// 指定パネルのウィンドウ位置・サイズを更新。
+    /// Update the window position and size of the specified panel.
     public func updatingPanelFrame(id: String,
                                    x: Double, y: Double,
                                    width: Double, height: Double) -> AppConfig {
@@ -58,7 +58,7 @@ extension AppConfig {
         }
     }
 
-    /// 指定パネルの透明度を [0.25, 1.0] にクランプして更新。
+    /// Clamp the transparency of the specified panel to [0.25, 1.0] and update.
     public func updatingPanelOpacity(id: String, opacity: Double) -> AppConfig {
         return updatingPanel(id: id) { panel in
             var p = panel
@@ -67,7 +67,7 @@ extension AppConfig {
         }
     }
 
-    /// 指定パネルの背景色を更新。nil でシステムデフォルトに戻す。
+    /// Update the background color of the specified panel. Set to nil for system default.
     public func updatingPanelBackgroundColor(id: String, hex: String?) -> AppConfig {
         return updatingPanel(id: id) { panel in
             var p = panel
@@ -76,7 +76,7 @@ extension AppConfig {
         }
     }
 
-    /// 指定パネルの表示プリセットを切り替え。
+    /// Switch display preset for specified panel.
     public func settingPanelPreset(id: String, presetName: String) -> AppConfig {
         return updatingPanel(id: id) { panel in
             var p = panel
@@ -85,7 +85,7 @@ extension AppConfig {
         }
     }
 
-    /// 指定パネルの可視状態を更新（メニューバーから show/hide するときに使う）。
+    /// Update the visibility state of the designated panel (used when showing/hiding from the menu bar).
     public func settingPanelVisible(id: String, visible: Bool) -> AppConfig {
         return updatingPanel(id: id) { panel in
             var p = panel
@@ -94,7 +94,7 @@ extension AppConfig {
         }
     }
 
-    /// パネルを指定した辺にドックする。
+    /// Dock panel to specified edge.
     public func dockingPanel(id: String, edge: DockEdge) -> AppConfig {
         return updatingPanel(id: id) { panel in
             var p = panel
@@ -103,7 +103,7 @@ extension AppConfig {
         }
     }
 
-    /// ドックからパネルを展開する。dockBarPosition は保持し、再ドック時に復元する。
+    /// Expand the panel from the dock. Preserve dockBarPosition and restore it when redocked.
     public func undockingPanel(id: String) -> AppConfig {
         return updatingPanel(id: id) { panel in
             var p = panel
@@ -112,7 +112,7 @@ extension AppConfig {
         }
     }
 
-    /// ドックバーのカスタム位置を保存する。
+    /// Save custom position of Dock bar.
     public func updatingDockBarPosition(id: String, x: Double, y: Double, edge: DockEdge? = nil) -> AppConfig {
         return updatingPanel(id: id) { panel in
             var p = panel
@@ -121,7 +121,7 @@ extension AppConfig {
         }
     }
 
-    /// ドックバーのカスタム位置をクリアする。
+    /// Clear the custom position of the Dock bar.
     public func clearingDockBarPosition(id: String) -> AppConfig {
         return updatingPanel(id: id) { panel in
             var p = panel
@@ -130,7 +130,7 @@ extension AppConfig {
         }
     }
 
-    /// 全パネルのドックバーカスタム位置をクリアする。
+    /// Clear the custom position of all panels in the dock bar.
     public func clearingAllDockBarPositions() -> AppConfig {
         var copy = self
         copy.panels = panels.map { panel in
@@ -141,8 +141,8 @@ extension AppConfig {
         return copy
     }
 
-    /// 指定パネルのスクロール位置 (`scrollY`) を更新。負値は 0 にクランプ。
-    /// アプリ再起動後の表示位置復元 (`PanelScrollView`) が読む値。
+    /// Update the scroll position of the specified panel (`scrollY`). Clamp negative values to 0.
+    /// Restored display position (after app restart) for `PanelScrollView`.
     public func updatingPanelScrollY(id: String, scrollY: Double) -> AppConfig {
         return updatingPanel(id: id) { panel in
             var p = panel
@@ -151,10 +151,10 @@ extension AppConfig {
         }
     }
 
-    /// `panels[0]` の値を旧 `activePreset` / `window` フィールドにコピーする。
-    /// Phase 3 の移行期間中、旧フィールドを参照する既存コードと整合性を保つために
-    /// 各 op の末尾で呼ばれる。`panels` が空の場合は no-op（decoder 側で必ず
-    /// 1 件以上に正規化されているはずだが、防衛的に空チェックを残す）。
+    /// Copy the value of `panels[0]` to the old `activePreset` / `window` field.
+    /// During the transition period of Phase 3, to maintain compatibility with existing code that references old fields.
+    /// Each op is called at the end. If `panels` is empty, it's a no-op (always on the decoder side).
+    /// Should be normalized to more than one, but leave defensive null checks).
     public func withSyncedLegacyFields() -> AppConfig {
         guard let first = panels.first else { return self }
         var copy = self

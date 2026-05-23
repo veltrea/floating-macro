@@ -1,14 +1,14 @@
 import Foundation
 
 public struct EdgeDockLayout {
-    /// 同一辺にドックされたバー群の配置位置を計算する。
-    /// バーは辺の中央を基準に等間隔（gap = 4pt）で並べる。
+    /// Calculates the layout positions for a group of bars docked to the same edge.
+    /// The bar arranges the edges with a center base, evenly spaced (gap = 4pt).
     ///
     /// - Parameters:
-    ///   - edge: ドック先の辺
-    ///   - screenFrame: `NSScreen.visibleFrame` 相当（menuBar/Dock 除外済み）
-    ///   - bars: この辺にドックされるバーの (id, size) リスト（表示順）
-    /// - Returns: 各 id に対応する origin (x, y)
+    /// Dock-side edge
+    /// screenFrame: equivalent to `NSScreen.visibleFrame` (excluding menuBar/Dock)
+    /// Bars: List of (id, size) pairs of bars docked in this area (in display order).
+    /// Returns: Origin (x, y) for each id
     public static func positions(
         edge: DockEdge,
         screenFrame: CGRect,

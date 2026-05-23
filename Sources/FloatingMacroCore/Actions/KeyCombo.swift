@@ -51,8 +51,8 @@ public struct KeyCombo: Equatable {
     // MARK: - Discoverable catalog (for ACP / settings UI)
 
     /// Canonical supported-key catalog, organized for AI discovery.
-    /// `name` は `combo` 文字列でそのまま使える正規キー名。
-    /// `label` は人間向け表示名（プルダウン UI / マニフェストで使う）。
+    /// The `name` is the regular key name that can be used directly as-is in a combo string.
+    /// The `label` is a human-readable display name (used in pull-down UI / manifest).
     public struct KeyEntry: Equatable {
         public let name: String
         public let label: String

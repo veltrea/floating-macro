@@ -15,25 +15,25 @@ final class IconContentValidatorTests: XCTestCase {
     }
 
     func testAcceptsRealPNGWithContent() throws {
-        // 16x16 の赤い不透明 PNG を作る
+        // Create a 16x16 red opaque PNG
         let png = try makeSolidColorPNG(width: 16, height: 16, r: 255, g: 0, b: 0, a: 255)
         XCTAssertTrue(IconContentValidator.hasMeaningfulContent(pngData: png))
     }
 
     func testRejectsFullyTransparentPNG() throws {
-        // 全ピクセルが alpha=0 の透明 PNG (Books の icns 内部 representation 相当)
+        // All pixels are alpha=0 transparent PNGs (equivalent to Books' icns internal representation).
         let png = try makeSolidColorPNG(width: 32, height: 32, r: 0, g: 0, b: 0, a: 0)
         XCTAssertFalse(IconContentValidator.hasMeaningfulContent(pngData: png))
     }
 
     func testAcceptsPNGWithSinglePixel() throws {
-        // ほぼ透明だが 1px だけ alpha=255 のもの
+        // almost transparent but just one with alpha=255
         let cgImage = try makeCGImageWithSingleOpaquePixel(width: 32, height: 32)
         XCTAssertTrue(IconContentValidator.hasMeaningfulContent(cgImage: cgImage))
     }
 
     func testThresholdCaptures1And2AsEmpty() throws {
-        // 全ピクセルが alpha=1 (antialias 残骸) → threshold=8 では空扱い
+        // All pixels with alpha=1 (antialias remnants) are treated as empty at threshold=8.
         let png = try makeSolidColorPNG(width: 16, height: 16, r: 0, g: 0, b: 0, a: 1)
         XCTAssertFalse(IconContentValidator.hasMeaningfulContent(pngData: png))
     }
@@ -52,7 +52,7 @@ final class IconContentValidatorTests: XCTestCase {
         guard FileManager.default.fileExists(atPath: books.path) else {
             throw XCTSkip("Books.app not present")
         }
-        // ImageIO 経由で取れる Books の PNG は完全透明 (実機で検証済み: alpha=0, RGB=0)
+        // PNG obtained via ImageIO is fully transparent (verified on device: alpha=0, RGB=0).
         let png = try ImageIOIconExtractor().extractPNG(from: books, size: 128)
         XCTAssertFalse(IconContentValidator.hasMeaningfulContent(pngData: png),
                        "Books.app の icns は空プレースホルダ → validator が reject すべき")
@@ -78,7 +78,7 @@ final class IconContentValidatorTests: XCTestCase {
     private func makeCGImageWithSingleOpaquePixel(width: Int, height: Int) throws -> CGImage {
         let bytesPerRow = width * 4
         var pixels = [UInt8](repeating: 0, count: bytesPerRow * height)
-        // 真ん中の 1 ピクセルだけ完全不透明白
+        // completely opaque white at exactly one pixel in the center
         let centerY = height / 2
         let centerX = width / 2
         let base = (centerY * width + centerX) * 4

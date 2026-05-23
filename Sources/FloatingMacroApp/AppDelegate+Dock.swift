@@ -5,7 +5,7 @@ extension AppDelegate {
 
     // MARK: - Edge dock collapse / expand
 
-    /// 指定 id のパネルを縁にドックする。パネル中心から最寄りの辺を自動判定。
+    /// Dock the specified panel to the edge. Automatically determine the nearest side from the center of the panel.
     func collapseToDock(panelID: String, edge: DockEdge? = nil) {
         guard let p = panelManager?.panel(id: panelID) else { return }
         let f = p.frame
@@ -46,7 +46,7 @@ extension AppDelegate {
         presetManager.dockPanel(id: panelID, edge: resolvedEdge)
     }
 
-    /// ドックからパネルを展開する。旧 MiniIcon からの展開にも対応。
+    /// Expand the panel from the dock. Supports expansion from old MiniIcon as well.
     func expandFromDock(panelID: String) {
         panelManager?.expandFromDock(id: panelID)
         panelManager?.expandFromMini(id: panelID)

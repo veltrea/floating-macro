@@ -50,7 +50,7 @@ final class EdgeDockLayoutTests: XCTestCase {
         let result = EdgeDockLayout.positions(edge: .right, screenFrame: screen, bars: bars)
         XCTAssertEqual(result.count, 3)
 
-        // バーが重ならないことを確認
+        // Check that bars do not overlap
         for i in 0..<result.count - 1 {
             let bottom1 = result[i].origin.y
             let top2 = result[i + 1].origin.y + bars[i + 1].size.height

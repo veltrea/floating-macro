@@ -1,30 +1,30 @@
 import Foundation
 
-/// `/Applications` 配下の全アプリのアイコンをバックグラウンドで抽出して
-/// `AppIconCache` に放り込んでおく。FloatingMacro 起動時に一度だけ走らせれば
-/// 「アプリピッカーを開いた瞬間にアイコンが揃っている」状態になる。
+/// Extract icons of all apps under `/Applications` in the background
+/// Keep in the `AppIconCache`. Run only once when FloatingMacro is launched.
+/// The icon appears in the state where it is aligned when the app picker is opened.
 ///
 /// Cascade:
-///   1. ImageIO で `.icns` 直読み (Foundation のみ、ms オーダー)
-///   2. 失敗したら呼び出し側から渡された NSWorkspace fallback closure を試す
-///      (Assets.car-only のモダンアプリ — UTM など — を救済)
+/// ImageIO for reading .icns files directly (Foundation only, ms order)
+/// 2. If it fails, try the fallback closure passed from the caller to NSWorkspace.
+/// (Modern apps only with Assets.car — including UTM and more — are saved)
 ///
-/// AppKit 依存を Core に持ち込まないため、NSWorkspace fallback は closure で
-/// 注入する設計にしてある。`FloatingMacroApp` 側で `NSWorkspaceIconFallback`
-/// を bind して呼ぶ。
+/// To avoid bringing AppKit dependencies into Core, the NSWorkspace fallback is implemented via a closure.
+/// Injected design for `FloatingMacroApp`, using `NSWorkspaceIconFallback`.
+/// Call by binding.
 public struct AppIconPrewarmer {
 
     public init() {}
 
-    /// `/Applications` 等を列挙し、未キャッシュのアプリだけアイコン抽出する。
+    /// Enumerate `/Applications`, extract icons only for apps that are not cached.
     /// - Parameters:
-    ///   - provider: アプリ列挙元 (デフォルト: 標準ロケーション)
-    ///   - extractor: 1st 試行の Foundation-only 抽出器
-    ///   - nsWorkspaceFallback: 1st 失敗時の AppKit fallback closure
-    ///       (`url, size -> Data?`)。nil なら fallback しない (テスト用)
-    ///   - size: キャッシュに入れる PNG の長辺 px。128 が UI と CHANGELOG での既定
-    ///   - maxConcurrent: 並列抽出数。CPU を食い荒らさないよう控えめに
-    ///   - cache: キャッシュ実体 (デフォルト: shared)
+    /// provider: App enumeration source (default: Standard location)
+    /// extractor: First attempt Foundation-only extractor
+    /// nsWorkspaceFallback: First failure time AppKit fallback closure
+    /// (url, size -> Data?)。nil if not fallback (test)
+    /// size: The long side of the PNG to be cached in pixels. 128 is the default for UI and CHANGELOG.
+    /// maxConcurrent: Parallel extraction count. Control conservatively to avoid overloading CPU.
+    /// cache: cache entity (default: shared)
     public func prewarm(
         provider: AppListProvider = FileSystemAppListProvider(),
         extractor: ImageIOIconExtractor = ImageIOIconExtractor(),
@@ -35,13 +35,13 @@ public struct AppIconPrewarmer {
     ) async {
         guard let entries = try? provider.availableApplications() else { return }
 
-        // セマフォ的な並列度制御を TaskGroup + counter で実現。
-        // Swift 5.9 環境で素直に書ける形。
+        // Achieve parallelism control using semaphores with TaskGroup and a counter.
+        // Write in a straightforward manner suitable for Swift 5.9 environment.
         await withTaskGroup(of: Void.self) { group in
             var inflight = 0
             var iterator = entries.makeIterator()
 
-            // 初期投入
+            // Initial investment
             while inflight < maxConcurrent, let entry = iterator.next() {
                 group.addTask {
                     await Self.prewarmOne(
@@ -54,7 +54,7 @@ public struct AppIconPrewarmer {
                 inflight += 1
             }
 
-            // 完了するたびに次を投入
+            // Insert next upon completion
             for await _ in group {
                 if let entry = iterator.next() {
                     group.addTask {
@@ -77,21 +77,21 @@ public struct AppIconPrewarmer {
         size: Int,
         cache: AppIconCache
     ) async {
-        // self-healing: 既にキャッシュ済みでも、中身が薄い (Books の icns のように
-        // ImageIO で「成功」したが完全透明だったケース) なら再抽出する。
-        // 通常のアプリは IconContentValidator が早期 return で抜けるので軽い。
+        // Self-healing: Already cached, but thin in content (like Books' icns)
+        // If ImageIO succeeded but the result was completely transparent, re-extract.
+        // Typical apps exit early with a light touch due to IconContentValidator.
         if let existing = await cache.get(for: entry.url),
            IconContentValidator.hasMeaningfulContent(pngData: existing) {
             return
         }
 
-        // 1st: ImageIO + 内容検査 → 失敗扱いなら次へ
+        // 1st: ImageIO + Content Check → Fail Handle Next
         if let data = try? extractor.extractPNG(from: entry.url, size: size),
            IconContentValidator.hasMeaningfulContent(pngData: data) {
             await cache.put(for: entry.url, data: data)
             return
         }
-        // 2nd: NSWorkspace fallback (closure 経由) — 中身検査も同じく適用
+        // 2nd: NSWorkspace fallback (closure method) - content inspection also applied similarly
         if let fb = nsWorkspaceFallback,
            let data = fb(entry.url, size),
            IconContentValidator.hasMeaningfulContent(pngData: data) {

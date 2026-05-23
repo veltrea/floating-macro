@@ -2,17 +2,17 @@ import AppKit
 import Foundation
 import FloatingMacroCore
 
-/// パネルへのファイル / アプリのドラッグ&ドロップで自動的にボタンを作成する。
-/// SwiftUI 側の `.onDrop` ハンドラから `handleDroppedURLs` を呼ぶ。
+/// Create buttons automatically for file/app drag-and-drop into the panel.
+/// Call `handleDroppedURLs` from the `.onDrop` handler on the SwiftUI side.
 ///
-/// 受け付けるドロップ:
-///   - `.app` バンドル        → `launch` action (bundle id を target に保持)
-///   - その他のファイル/フォルダ → `launch` action (絶対パスを target に保持)
+/// Drop that can be accepted:
+/// `.app` bundle launch action (keep bundle id as target)
+/// Other files/folders → `launch` action (absolute path held as target)
 ///
-/// このファイルはなるべく薄く保たれており、判別・アイコン抽出・保存パス算出
-/// はすべて `FloatingMacroCore` 側 (`AppDropClassifier`, `ImageIOIconExtractor`,
-/// `IconAssetSaver`) で行われ、単体テストされる。AppKit に依存するのは
-/// `NSAlert` の確認ダイアログだけ。
+/// This file is kept as thin as possible, for discrimination, icon extraction, and save path calculation.
+/// all `FloatingMacroCore` side (`AppDropClassifier`, `ImageIOIconExtractor`,
+/// The `IconAssetSaver` is performed and unit tested. The dependency on AppKit is
+/// Only the confirmation dialog of NSAlert.
 enum PanelDropHandler {
 
     @MainActor
@@ -20,9 +20,9 @@ enum PanelDropHandler {
         guard !urls.isEmpty else { return }
         guard let preset = presetManager.currentPreset else { return }
 
-        // 追加先グループを決める:
-        //   - 既存グループがあれば 1 つめ
-        //   - 無ければ「ランチャー」グループを自動作成
+        // Determine the additional group to add:
+        // If there is an existing group, the first one
+        // If not exists, automatically create the "Launcher" group.
         let targetGroupId: String
         if let firstGroup = preset.groups.first {
             targetGroupId = firstGroup.id
@@ -49,11 +49,11 @@ enum PanelDropHandler {
             let buttonId = "b-\(Int.random(in: 1000...9999))"
             let sourceURL = URL(fileURLWithPath: c.iconSourcePath)
 
-            // アイコン抽出のカスケード (中身検査込み):
-            //   0. 共有キャッシュ → 検査
-            //   1. ImageIO で .icns 直読み (.app のみ) → 検査
-            //   2. NSWorkspace fallback → 検査
-            // 取れた段階で preset 配下に PNG を保存し、.app は共有キャッシュにも put。
+            // Icon extraction cascade (including content inspection):
+            // Shared cache → Inspection
+            // 1. ImageIO for .icns direct read (only in .app) → Inspection
+            // 2. NSWorkspace fallback → inspection
+            // Save PNG under preset folder at the point of removal, and also put .app in shared cache.
             var iconBytes: Data? = nil
             if c.kind == .app,
                let cached = await AppIconCache.shared.get(for: sourceURL),
@@ -102,7 +102,7 @@ enum PanelDropHandler {
 
     // MARK: - Confirmation
 
-    /// NSAlert で「ボタン化していい？」を確認する。`true` で続行。
+    /// Check if it's okay to convert the button in NSAlert to true for continuation.
     private static func confirmAdd(candidates: [AppDropClassifier.Candidate],
                                    groupLabel: String) -> Bool {
         let alert = NSAlert()

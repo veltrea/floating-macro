@@ -57,9 +57,9 @@ final class LANInterfaceFinderTests: XCTestCase {
     // MARK: - Live system probe (smoke test)
 
     func testLiveProbeReturnsAtLeastSomething() {
-        // 開発機 / CI どちらも en0 か en1 で何らかの IPv4 を持つ前提。
+        // Assumes both development machine and CI have some IPv4 via either en0 or en1.
         let addrs = LANInterfaceFinder.ipv4Addresses()
-        // 何も無くてもクラッシュしないだけで OK にする (Linux など)。
+        // Just make it not crash even with nothing, OK for Linux and so on.
         XCTAssertGreaterThanOrEqual(addrs.count, 0)
     }
 }

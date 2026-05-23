@@ -4,7 +4,7 @@ import FloatingMacroCore
 
 extension PresetManager {
 
-    /// `window.opacity` も自動同期される（`AppConfig+Panels.withSyncedLegacyFields()`）。
+    /// The window's opacity is also automatically synchronized (in `AppConfig+Panels.withSyncedLegacyFields()`).
     func setOpacity(_ value: Double) {
         guard let cfg = appConfig, let primaryID = cfg.panels.first?.id else { return }
         let next = cfg.updatingPanelOpacity(id: primaryID, opacity: value)
@@ -14,9 +14,9 @@ extension PresetManager {
 
     /// Persist panel geometry so the window reopens where the user left it.
     /// Called on applicationWillTerminate and opportunistically after moves.
-    /// Phase 3 移行期: プライマリパネル (panels[0]) の frame を更新し、legacy
-    /// `window` フィールドも自動同期される。複数パネル時は `updatePanelFrame(id:)`
-    /// を使うこと。
+    /// Update the frame of primary panel (panels[0]), legacy
+    /// The window field is also automatically synchronized. For multiple panels, updatePanelFrame(id:) is used.
+    /// Using it.
     func setPanelFrame(x: Double, y: Double, width: Double, height: Double) {
         guard let cfg = appConfig, let primaryID = cfg.panels.first?.id else { return }
         let next = cfg.updatingPanelFrame(id: primaryID, x: x, y: y, width: width, height: height)
@@ -26,7 +26,7 @@ extension PresetManager {
 
     // MARK: - Phase 3: per-panel ops
 
-    /// 指定 id のパネルの frame を更新して永続化。
+    /// Update the frame of the specified panel and persist it.
     func updatePanelFrame(id: String, x: Double, y: Double,
                           width: Double, height: Double) {
         guard let cfg = appConfig else { return }
@@ -35,7 +35,7 @@ extension PresetManager {
         try? writer.saveAppConfig(next)
     }
 
-    /// 指定 id のパネルの透明度を更新して永続化。
+    /// Update the transparency of the specified panel and persist it.
     func updatePanelOpacity(id: String, opacity: Double) {
         guard let cfg = appConfig else { return }
         let next = cfg.updatingPanelOpacity(id: id, opacity: opacity)
@@ -43,7 +43,7 @@ extension PresetManager {
         try? writer.saveAppConfig(next)
     }
 
-    /// 指定 id のパネルの背景色を更新して永続化。nil でシステムデフォルトに戻す。
+    /// Update the background color of the panel with the specified ID and persist it. Set to nil for system default.
     func updatePanelBackgroundColor(id: String, hex: String?) {
         guard let cfg = appConfig else { return }
         let next = cfg.updatingPanelBackgroundColor(id: id, hex: hex)
@@ -51,7 +51,7 @@ extension PresetManager {
         try? writer.saveAppConfig(next)
     }
 
-    /// 指定 id のパネルの可視状態（メニューバー show/hide）を更新。
+    /// Update the visibility state of a specified panel (menu bar show/hide).
     func setPanelVisible(id: String, visible: Bool) {
         guard let cfg = appConfig else { return }
         let next = cfg.settingPanelVisible(id: id, visible: visible)
@@ -59,7 +59,7 @@ extension PresetManager {
         try? writer.saveAppConfig(next)
     }
 
-    /// 指定 id のパネルを縁にドック。
+    /// Dock panel with specified ID on edge.
     func dockPanel(id: String, edge: DockEdge) {
         guard let cfg = appConfig else { return }
         let next = cfg.dockingPanel(id: id, edge: edge)
@@ -67,7 +67,7 @@ extension PresetManager {
         try? writer.saveAppConfig(next)
     }
 
-    /// 指定 id のパネルをドックから展開。
+    /// Expand panel with specified ID from the dock.
     func undockPanel(id: String) {
         guard let cfg = appConfig else { return }
         let next = cfg.undockingPanel(id: id)
@@ -75,7 +75,7 @@ extension PresetManager {
         try? writer.saveAppConfig(next)
     }
 
-    /// ドックバーのカスタム位置を保存。
+    /// Save custom position of Dock bar.
     func updateDockBarPosition(id: String, x: Double, y: Double, edge: DockEdge? = nil) {
         guard let cfg = appConfig else { return }
         let next = cfg.updatingDockBarPosition(id: id, x: x, y: y, edge: edge)
@@ -83,7 +83,7 @@ extension PresetManager {
         try? writer.saveAppConfig(next)
     }
 
-    /// ドックバーのカスタム位置をクリアし、自動レイアウトに戻す。
+    /// Clear the custom position of the Dock bar and return to automatic layout.
     func clearDockBarPosition(id: String) {
         guard let cfg = appConfig else { return }
         let next = cfg.clearingDockBarPosition(id: id)
@@ -91,7 +91,7 @@ extension PresetManager {
         try? writer.saveAppConfig(next)
     }
 
-    /// 全パネルのドックバーカスタム位置をクリアし、自動レイアウトに戻す。
+    /// Clear custom dock bar position for all panels and revert to automatic layout.
     func clearAllDockBarPositions() {
         guard let cfg = appConfig else { return }
         let next = cfg.clearingAllDockBarPositions()
@@ -99,13 +99,13 @@ extension PresetManager {
         try? writer.saveAppConfig(next)
     }
 
-    /// 指定 id のパネルのスクロール位置を更新。AppKit のスクロール通知から
-    /// 高頻度 (1 ドラッグで数十〜百回) で呼ばれるため、disk 書き込みは
-    /// 350ms デバウンスで集約する。in-memory の `appConfig` は即時反映。
+    /// Update the scroll position of a panel with a specified ID from AppKit scroll notifications.
+    /// High frequency (called tens to hundreds of times with one drag), so disk writing is
+    /// Debounce aggregation for 350ms. In-memory `appConfig` reflects immediately.
     func updatePanelScrollY(id: String, y: Double) {
         guard let cfg = appConfig else { return }
         let next = cfg.updatingPanelScrollY(id: id, scrollY: y)
-        // 値が変わっていなければ何もしない (スクロール停止中の無駄打ち防止)。
+        // Do nothing if the value hasn't changed (preventing unnecessary typing during scroll stop).
         if cfg == next { return }
         appConfig = next
 
@@ -118,7 +118,7 @@ extension PresetManager {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: work)
     }
 
-    /// 新規パネルを追加。生成された id を返す（呼び出し側で NSWindow 生成に使う）。
+    /// Add a new panel. Returns the generated ID (used by the caller for creating an NSWindow).
     @discardableResult
     func addPanel(presetName: String, window: WindowConfig = WindowConfig()) -> String? {
         guard let cfg = appConfig else { return nil }
@@ -128,8 +128,8 @@ extension PresetManager {
         return id
     }
 
-    /// 指定 id のパネルを削除。最後の 1 件は削除されない（Core 側で拒否）。
-    /// 削除に成功した場合 true を返す。
+    /// Delete the panel with the specified ID. The last one is not deleted (rejected by Core).
+    /// Returns true if deletion was successful.
     @discardableResult
     func removePanel(id: String) -> Bool {
         guard let cfg = appConfig else { return false }

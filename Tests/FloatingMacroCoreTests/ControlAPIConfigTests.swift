@@ -1,8 +1,8 @@
 import XCTest
 @testable import FloatingMacroCore
 
-/// Phase 5 (P5-1) — `ControlAPIConfig.lanExposureEnabled` の追加に伴う
-/// ラウンドトリップ / 後方互換 / デフォルト値の検証。
+/// Addition of ControlAPIConfig.lanExposureEnabled
+/// Round trip compatibility / Backward compatibility / Validation of default values.
 final class ControlAPIConfigTests: XCTestCase {
 
     // MARK: - Default
@@ -32,8 +32,8 @@ final class ControlAPIConfigTests: XCTestCase {
     // MARK: - Backward compatibility
 
     func testLegacyJSONWithoutLanExposureDefaultsToOff() throws {
-        // v0.12 以前に保存された JSON は lanExposureEnabled キーを含まない。
-        // 既存ユーザーが LAN 公開モードに勝手に入らないことを保証する。
+        // JSON saved before v0.12 does not contain the `lanExposureEnabled` key.
+        // Guarantee that existing users cannot arbitrarily enter the LAN public mode.
         let legacyJSON = """
         {
           "enabled": true,
@@ -64,7 +64,7 @@ final class ControlAPIConfigTests: XCTestCase {
     }
 
     func testEmptyJSONDecodesToAllDefaults() throws {
-        // 完全に空のオブジェクトでも各フィールドのデフォルト値で埋まる。
+        // Even an entirely empty object is filled with default values for each field.
         let empty = "{}".data(using: .utf8)!
         let decoded = try JSONDecoder().decode(ControlAPIConfig.self, from: empty)
         XCTAssertFalse(decoded.enabled)

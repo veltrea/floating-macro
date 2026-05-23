@@ -1,29 +1,30 @@
 #!/usr/bin/env bash
-# publish-public.sh — Publish a clean, history-less snapshot of this project
-# to the public GitHub repository.
+# publish-public.sh — Publish whitelisted files to the public GitHub repository
+# with history preserved (no force-push).
 #
 # What this script does:
-#   1. Copies ONLY whitelisted files into a fresh /tmp/ directory.
-#   2. Initializes a brand-new git repo there (no prior history).
-#   3. Makes a single initial commit.
-#   4. Force-pushes to https://github.com/veltrea/floating-macro.git on branch `main`.
+#   1. Shallow-clones the public repo into /tmp.
+#   2. Removes all tracked files (keeping .git/).
+#   3. Copies ONLY whitelisted files from the private repo via rsync.
+#   4. Sanitizes transient/sensitive files that may have snuck in.
+#   5. If there are changes, commits and pushes (normal push, no -f).
 #
-# Everything outside the whitelist stays private. Iterate the whitelist if
-# something is missing.
+# Everything outside the whitelist stays private. Update the whitelist
+# arrays below when the project structure changes.
 #
 # Assumptions:
 #   - `gh` is authenticated as `veltrea`
-#   - Origin at https://github.com/veltrea/floating-macro.git exists (public)
-#   - You are OK with overwriting the public repo's history every run
+#   - Public repo exists: https://github.com/veltrea/floating-macro.git
+#   - Force-push is intentionally NOT used — public history is preserved
 #
 # Usage:
-#   bash scripts/publish-public.sh              # preview + run
-#   DRY_RUN=1 bash scripts/publish-public.sh    # preview only, no push
-#   KEEP_TMP=1 bash scripts/publish-public.sh   # don't delete the tmp copy
+#   bash scripts/publish-public.sh              # diff preview + commit + push
+#   DRY_RUN=1 bash scripts/publish-public.sh    # diff preview only, no push
+#   KEEP_TMP=1 bash scripts/publish-public.sh   # don't delete the tmp clone
 #
-# Re-runnable: safe to call repeatedly. Each run overwrites the public repo.
+# Re-runnable: safe to call repeatedly. If nothing changed, no commit is made.
 
-set -u -o pipefail
+set -euo pipefail
 
 # ------------------------------------------------------------------------- #
 # Config
@@ -31,7 +32,6 @@ set -u -o pipefail
 
 PUBLIC_URL="https://github.com/veltrea/floating-macro.git"
 PUBLIC_BRANCH="main"
-COMMIT_MESSAGE="${COMMIT_MESSAGE:-Release of FloatingMacro}"
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SRC="$(cd "$HERE/.." && pwd)"
@@ -41,17 +41,17 @@ TMP="/tmp/floatingmacro-public-$(date +%Y%m%d-%H%M%S)-$$"
 # ------------------------------------------------------------------------- #
 # Whitelist: only these files/directories are published.
 #
-# If you change the project structure, update this list. Paths are relative
-# to the project root.
+# Paths are relative to the project root. Everything else stays private.
 # ------------------------------------------------------------------------- #
 
 INCLUDE_DIRS=(
     "Sources"          # All source code (Core + CLI + App + bundled Lucide)
     "Tests"            # Unit tests
-    "scripts"          # fmcli_smoke, control_api_smoke, this script
+    "scripts"          # Build / smoke-test / publish scripts
     "App"              # Info.plist (build-app.sh reads it as a template)
-    "npm"              # Bundled MCP stdio package — required by AI 連携 CLI 登録
+    "npm"              # Bundled MCP stdio package — AI 連携 CLI 登録に必要
     "manual"           # User-facing manuals (basic + AI examples + images)
+    ".github"          # GitHub Actions workflows
 )
 
 INCLUDE_FILES=(
@@ -74,9 +74,11 @@ INCLUDE_FILES=(
 # Intentionally NOT published:
 #   .build/ .swiftpm/ Package.resolved   -> build artifacts
 #   .claude/                              -> Claude Code local settings
-#   .git/                                 -> source repo history
+#   .git/                                 -> source repo history (private)
 #   assets/ (除く hero PNG)               -> Stitch 中間生成物
-#   blog_draft.md / HANDOVER.md / TODO.md -> author's working notes
+#   blog/                                 -> ブログ下書き
+#   docs/                                 -> 内部文書 (HANDOVER, INCIDENT, plans)
+#   TODO.md                               -> 作業メモ
 
 # ------------------------------------------------------------------------- #
 # Pretty logging
@@ -101,33 +103,73 @@ if ! gh auth status >/dev/null 2>&1; then
     err "gh not authenticated. Run 'gh auth login' first."
     exit 1
 fi
-if ! git --version >/dev/null 2>&1; then
-    err "git not found."
+if ! command -v rsync >/dev/null 2>&1; then
+    err "rsync not found."
     exit 1
 fi
-ok "gh + git available"
+ok "gh + git + rsync available"
+
+# Derive commit message from private repo's latest commit.
+PRIVATE_MSG="$(cd "$SRC" && git log -1 --format='%s')"
+PRIVATE_HASH="$(cd "$SRC" && git log -1 --format='%h')"
 
 # ------------------------------------------------------------------------- #
-# 1. Build the /tmp snapshot
+# 1. Shallow-clone the public repo
 # ------------------------------------------------------------------------- #
 
-say "Creating snapshot at $TMP"
-mkdir -p "$TMP"
+say "Cloning public repo (shallow) into $TMP"
+
+if git clone --depth 1 --branch "$PUBLIC_BRANCH" "$PUBLIC_URL" "$TMP" 2>/dev/null; then
+    ok "Cloned existing public repo"
+else
+    # Public repo might be empty (first run after switching from force-push).
+    say "Clone failed — initializing fresh repo"
+    mkdir -p "$TMP"
+    cd "$TMP"
+    git init -b "$PUBLIC_BRANCH" >/dev/null
+    git remote add origin "$PUBLIC_URL"
+fi
+
+cd "$TMP"
+git config user.name  "veltrea"
+git config user.email "veltrea@users.noreply.github.com"
+
+# ------------------------------------------------------------------------- #
+# 2. Remove all tracked content (keep .git/)
+# ------------------------------------------------------------------------- #
+
+say "Clearing working tree"
+# Remove everything except .git to get a clean slate for the whitelist copy.
+find "$TMP" -mindepth 1 -maxdepth 1 -not -name '.git' -exec rm -rf {} +
+
+# ------------------------------------------------------------------------- #
+# 3. Copy whitelisted files via rsync
+# ------------------------------------------------------------------------- #
+
+say "Copying whitelisted content from private repo"
 
 copied=0
 for dir in "${INCLUDE_DIRS[@]}"; do
     if [ -d "$SRC/$dir" ]; then
-        cp -R "$SRC/$dir" "$TMP/"
+        # rsync with trailing / to copy contents into the matching dir.
+        mkdir -p "$TMP/$dir"
+        rsync -a --exclude '.DS_Store' \
+                 --exclude '*.log' \
+                 --exclude '.build' \
+                 --exclude '.swiftpm' \
+                 --exclude 'Package.resolved' \
+                 --exclude 'fm_stitch_project.json' \
+                 --exclude '.translate-cache.json' \
+            "$SRC/$dir/" "$TMP/$dir/"
         copied=$((copied+1))
         printf '   + %s/\n' "$dir" >&2
     else
         warn "directory missing in source: $dir (skipped)"
     fi
 done
+
 for f in "${INCLUDE_FILES[@]}"; do
     if [ -f "$SRC/$f" ]; then
-        # Preserve the relative path so e.g. "assets/icons/foo.png" lands at
-        # $TMP/assets/icons/foo.png (not $TMP/foo.png).
         mkdir -p "$TMP/$(dirname "$f")"
         cp "$SRC/$f" "$TMP/$f"
         copied=$((copied+1))
@@ -137,63 +179,91 @@ for f in "${INCLUDE_FILES[@]}"; do
     fi
 done
 
-# Extra sanitation — delete known transient / sensitive files that may have
-# snuck into included directories.
+# Extra sanitation — belt-and-suspenders cleanup.
 find "$TMP" -name '.DS_Store' -delete 2>/dev/null || true
 find "$TMP" -name '*.log' -delete 2>/dev/null || true
-find "$TMP" -name 'fm_stitch_project.json' -delete 2>/dev/null || true
-# SPM ビルドキャッシュ。.gitignore は cp -R で無視されるので個別に削除。
-# 例: scripts/spikes/qlmanage-pipe-spike/.build (約 49MB)
-find "$TMP" -name '.build' -type d -exec rm -rf {} + 2>/dev/null || true
-find "$TMP" -name '.swiftpm' -type d -exec rm -rf {} + 2>/dev/null || true
-find "$TMP" -name 'Package.resolved' -delete 2>/dev/null || true
 
 file_count=$(find "$TMP" -type f ! -path '*/.git/*' | wc -l | tr -d ' ')
 dir_size=$(du -sh "$TMP" | awk '{print $1}')
 ok "Snapshot ready: $file_count files, $dir_size"
 
 # ------------------------------------------------------------------------- #
-# 2. Show a preview of what will be published
+# 3.5. Translate Japanese comments to English
 # ------------------------------------------------------------------------- #
 
-say "Top-level contents of the snapshot:"
+if [ "${SKIP_TRANSLATE:-0}" != "1" ]; then
+    say "Translating Japanese comments to English"
+    bash "$HERE/translate-comments.sh" "$TMP" || warn "Comment translation had errors (continuing)"
+else
+    warn "SKIP_TRANSLATE=1 → skipping comment translation"
+fi
+
+# ------------------------------------------------------------------------- #
+# 4. Show diff preview
+# ------------------------------------------------------------------------- #
+
+say "Top-level contents:"
 (cd "$TMP" && ls -1) | sed 's/^/   /' >&2
 
+# Stage everything to compute the diff.
+cd "$TMP"
+git add -A
+
+say "Changes to be published:"
+DIFF_STAT="$(git diff --cached --stat 2>/dev/null || true)"
+if [ -z "$DIFF_STAT" ]; then
+    ok "No changes — public repo is already up to date."
+    if [ "${KEEP_TMP:-0}" != "1" ]; then
+        cd /; rm -rf "$TMP"
+    fi
+    exit 0
+fi
+echo "$DIFF_STAT" | sed 's/^/   /' >&2
+echo >&2
+
 if [ "${DRY_RUN:-0}" = "1" ]; then
-    warn "DRY_RUN=1 → stopping before git init / push"
-    if [ "${KEEP_TMP:-0}" = "1" ]; then
-        ok "Snapshot kept at $TMP"
-    else
-        rm -rf "$TMP"
+    warn "DRY_RUN=1 → stopping before commit/push"
+    say "Full diff available at: $TMP"
+    if [ "${KEEP_TMP:-0}" != "1" ]; then
+        cd /; rm -rf "$TMP"
         ok "Snapshot removed"
+    else
+        ok "Snapshot kept at $TMP"
     fi
     exit 0
 fi
 
 # ------------------------------------------------------------------------- #
-# 3. git init + single commit
+# 4.5. Translate commit message to English
 # ------------------------------------------------------------------------- #
 
-say "Initializing fresh git history"
-cd "$TMP"
-
-git init -b "$PUBLIC_BRANCH" >/dev/null
-git config user.name  "veltrea"
-git config user.email "veltrea@users.noreply.github.com"
-
-git add -A
-git commit -m "$COMMIT_MESSAGE" >/dev/null
-ok "Single-commit history created"
+COMMIT_MSG="$PRIVATE_MSG"
+if printf '%s' "$PRIVATE_MSG" | grep -q '[ぁ-んァ-ヶ一-龥]'; then
+    say "Translating commit message to English"
+    TRANSLATE_PROMPT="Translate this git commit message from Japanese to English. Keep it concise (one line). Keep version numbers, file names, and technical terms unchanged. Output ONLY the English translation, nothing else: $PRIVATE_MSG"
+    if command -v claude >/dev/null 2>&1; then
+        TRANSLATED_MSG="$(claude -p "$TRANSLATE_PROMPT" 2>/dev/null)" || true
+        if [ -n "$TRANSLATED_MSG" ]; then
+            COMMIT_MSG="$TRANSLATED_MSG"
+            ok "Commit message: $COMMIT_MSG"
+        else
+            warn "Commit message translation failed, using original"
+        fi
+    else
+        warn "claude CLI not available, using original commit message"
+    fi
+fi
 
 # ------------------------------------------------------------------------- #
-# 4. Force-push to public repo
+# 5. Commit and push (normal push — history preserved)
 # ------------------------------------------------------------------------- #
 
-say "Force-pushing to $PUBLIC_URL ($PUBLIC_BRANCH)"
-git remote add origin "$PUBLIC_URL"
+say "Committing"
+git commit -m "$COMMIT_MSG" >/dev/null
+ok "Committed: $COMMIT_MSG"
 
-# -f is intentional: we are replacing the public repo each run by design.
-if git push -f -u origin "$PUBLIC_BRANCH" 2>&1; then
+say "Pushing to $PUBLIC_URL ($PUBLIC_BRANCH)"
+if git push -u origin "$PUBLIC_BRANCH" 2>&1; then
     ok "Published successfully"
 else
     err "Push failed. Snapshot kept at $TMP for inspection."
@@ -201,7 +271,7 @@ else
 fi
 
 # ------------------------------------------------------------------------- #
-# 5. Clean up
+# 6. Clean up
 # ------------------------------------------------------------------------- #
 
 if [ "${KEEP_TMP:-0}" = "1" ]; then
@@ -212,4 +282,4 @@ else
     ok "Snapshot removed"
 fi
 
-say "Done."
+say "Done. Public repo updated with history preserved."

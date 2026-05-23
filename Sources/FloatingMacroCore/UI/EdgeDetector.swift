@@ -1,8 +1,8 @@
 import Foundation
 
 public struct EdgeDetector {
-    /// パネルの中心座標から最寄りの画面辺を判定する。
-    /// パネル中心が visibleFrame 外の場合でも正しく判定できるようクランプする。
+    /// Determines the nearest screen edge from the center coordinates of a panel.
+    /// Clamp the panel center to be correctly judged even if it is outside the visibleFrame.
     public static func nearestEdge(
         panelCenter: CGPoint,
         screenFrame: CGRect

@@ -8,8 +8,8 @@ extension ControlHandlers {
 
     // MARK: - Panel (Phase 3 multi-panel)
 
-    /// 全パネルの一覧を JSON で返す。各エントリには id / presetName /
-    /// displayName / visible / window 形状 / dockedEdge を含む。
+    /// Returns a list of all panels in JSON format. Each entry includes id, presetName, and other details.
+    /// Display name / visible / window shape / docked edge included.
     @MainActor
     func handlePanelList() -> HTTPResponse {
         let panels = presetManager.appConfig?.panels ?? []
@@ -45,19 +45,19 @@ extension ControlHandlers {
         return HTTPResponse.json(["panels": entries])
     }
 
-    /// 新規パネルを生成。presetName 必須、x/y/width/height/opacity はオプション
-    /// (省略時はプライマリの隣にオフセット配置)。生成された id を返す。
+    /// Create a new panel. presetName is required, x/y/width/height/opacity are optional.
+    /// Returns the generated ID when omitted, placed adjacent to the primary one.
     @MainActor
     func handlePanelCreate(_ req: HTTPRequest) -> HTTPResponse {
         guard let dict = req.jsonDictionary(),
               let presetName = dict["presetName"] as? String, !presetName.isEmpty else {
             return HTTPResponse.badRequest("body must include {\"presetName\": String}")
         }
-        // 指定された preset が存在しない場合は失敗。
+        // If the specified preset does not exist, it fails.
         guard presetManager.preset(named: presetName) != nil else {
             return HTTPResponse.badRequest("preset not found: \(presetName)")
         }
-        // 開始位置・サイズの解決: 指定 → primary オフセット → デフォルト の順。
+        // Resolution of start position and size: Specify → primary offset → default in order.
         let primary = presetManager.appConfig?.panels.first
         let baseX = primary?.window.x ?? 100
         let baseY = primary?.window.y ?? 100
@@ -77,7 +77,7 @@ extension ControlHandlers {
         else {
             return HTTPResponse.internalError("failed to create panel")
         }
-        // NSWindow の生成は AppDelegate の reconcile sink が自動で行う。
+        // The creation of NSWindow is automatically performed by the AppDelegate's reconcile sink.
         return HTTPResponse.json([
             "id": id,
             "presetName": presetName,
@@ -91,8 +91,8 @@ extension ControlHandlers {
         ])
     }
 
-    /// パネルを削除。Core 側で最後の 1 件は削除拒否される。
-    /// NSWindow の破棄は AppDelegate の reconcile sink が自動で行う。
+    /// Remove the panel. The last one will be rejected by Core side.
+    /// The destruction of NSWindow is automatically handled by the AppDelegate's reconcile sink.
     @MainActor
     func handlePanelClose(_ req: HTTPRequest) -> HTTPResponse {
         guard let dict = req.jsonDictionary(),
@@ -103,7 +103,7 @@ extension ControlHandlers {
         return HTTPResponse.json(["removed": removed, "id": id])
     }
 
-    /// 指定 id のパネルを表示 (orderFront)。存在しない場合は 404。
+    /// Display panel with specified ID (orderFront). If not found, return 404.
     @MainActor
     func handlePanelShow(_ req: HTTPRequest) -> HTTPResponse {
         guard let dict = req.jsonDictionary(),
@@ -113,7 +113,7 @@ extension ControlHandlers {
         guard let p = panelManager?.panel(id: id) else {
             return HTTPResponse.notFound("panel id: \(id)")
         }
-        // ドック中 or ミニアイコン中なら展開してから親パネルを出す。
+        // If in the dock or mini-icon state, expand and then show the parent panel.
         panelManager?.expandFromDock(id: id)
         panelManager?.expandFromMini(id: id)
         presetManager.undockPanel(id: id)
@@ -122,7 +122,7 @@ extension ControlHandlers {
         return HTTPResponse.json(["id": id, "visible": true])
     }
 
-    /// 指定 id のパネルを非表示 (orderOut)。
+    /// Hide panel with specified ID (orderOut).
     @MainActor
     func handlePanelHide(_ req: HTTPRequest) -> HTTPResponse {
         guard let dict = req.jsonDictionary(),
@@ -141,7 +141,7 @@ extension ControlHandlers {
 
     // MARK: - Panel (Phase 3.6 per-id move/resize/opacity/preset)
 
-    /// 指定 id のパネルを絶対座標に移動。NSWindow と config.json の両方を更新。
+    /// Move the panel with the specified ID to absolute coordinates. Update both NSWindow and config.json.
     @MainActor
     func handlePanelMove(_ req: HTTPRequest) -> HTTPResponse {
         guard let dict = req.jsonDictionary(),
@@ -169,7 +169,7 @@ extension ControlHandlers {
         ])
     }
 
-    /// 指定 id のパネルをリサイズ。Core 側で min 120×80 にクランプされる。
+    /// Resize the panel with the specified ID. The Core side clamps it to a minimum of 120x80.
     @MainActor
     func handlePanelResize(_ req: HTTPRequest) -> HTTPResponse {
         guard let dict = req.jsonDictionary(),
@@ -181,7 +181,7 @@ extension ControlHandlers {
         guard let p = panelManager?.panel(id: id) else {
             return HTTPResponse.notFound("panel id: \(id)")
         }
-        // Core の updatingPanelFrame と同じクランプを NSWindow にも適用。
+        // Apply the same clamping to updatingPanelFrame as in NSWindow.
         let clampedW = max(120, CGFloat(w))
         let clampedH = max(80, CGFloat(h))
         var frame = p.frame
@@ -200,7 +200,7 @@ extension ControlHandlers {
         ])
     }
 
-    /// 指定 id のパネルの透明度を更新。Core 側で [0.25, 1.0] にクランプ。
+    /// Update the transparency of a panel with a specified ID. Core side clamps to [0.25, 1.0].
     @MainActor
     func handlePanelOpacity(_ req: HTTPRequest) -> HTTPResponse {
         guard let dict = req.jsonDictionary(),
@@ -217,7 +217,7 @@ extension ControlHandlers {
         return HTTPResponse.json(["id": id, "opacity": clamped])
     }
 
-    /// 指定 id のパネルの背景色を更新。`#RRGGBB` hex 文字列、または null でリセット。
+    /// Update the background color of the panel with the specified ID. Use `#RRGGBB` hex string or null to reset.
     @MainActor
     func handlePanelBackgroundColor(_ req: HTTPRequest) -> HTTPResponse {
         guard let dict = req.jsonDictionary(),
@@ -233,8 +233,8 @@ extension ControlHandlers {
         return HTTPResponse.json(["id": id, "backgroundColor": hex as Any])
     }
 
-    /// 指定 id のパネルが表示するプリセットを切り替え。
-    /// `presetName` は preset_list で取得できる内部 id (ファイル名)。
+    /// Switch to a preset that the panel with the specified ID displays.
+    /// `presetName` is the internal ID (file name) that can be obtained from `preset_list`.
     @MainActor
     func handlePanelSetPreset(_ req: HTTPRequest) -> HTTPResponse {
         guard let dict = req.jsonDictionary(),
@@ -331,9 +331,9 @@ extension ControlHandlers {
 
     // MARK: - Snapshot
 
-    /// パネルの現在の表示内容を PNG 画像として返す。
-    /// Screen Recording 権限不要 — NSView.cacheDisplay で自プロセスの
-    /// ウィンドウ内容を直接ビットマップ化する。
+    /// Return the current display content of the panel as a PNG image.
+    /// Screen Recording permission not required - self-process cache display with NSView
+    /// Directly bitmapize window content.
     @MainActor
     func handlePanelSnapshot(_ req: HTTPRequest) -> HTTPResponse {
         let id: String

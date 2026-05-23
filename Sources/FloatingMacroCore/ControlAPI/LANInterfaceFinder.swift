@@ -4,15 +4,15 @@ import Foundation
 import Darwin
 #endif
 
-/// Phase 5: LAN 公開時に「どの IPv4 アドレスを QR / URL に載せるか」を決める。
+/// Phase 5: When publicly releasing, decide which IPv4 address to include in the QR code and URL.
 ///
-/// 物理 LAN (en0/Ethernet) と Wi-Fi (en1) と仮想 (utun*, awdl0, vmnet*) など
-/// 多数のインターフェースがあるが、Bonjour で来るスマホが期待するのは普段の
-/// LAN セグメント。ループバックと AppleTalk over WiFi (awdl0) と utun* と
-/// IPv6 リンクローカルは除外する。
+/// Physical LAN (en0/Ethernet) and Wi-Fi (en1) and virtual (utun*, awdl0, vmnet*) types
+/// There are many interfaces, but the smartphone coming via Bonjour expects the usual
+/// LAN segment. Loopback and AppleTalk over WiFi (awdl0) and utun*.
+/// Exclude link-local IPv6.
 public enum LANInterfaceFinder {
 
-    /// 候補の IPv4 アドレスを優先順位順に返す。最初の要素が「もっとも妥当」。
+    /// Return the candidate IPv4 addresses in priority order, with the most valid address first.
     public static func ipv4Addresses() -> [String] {
         var ipv4: [(name: String, addr: String)] = []
         #if canImport(Darwin)
@@ -22,7 +22,7 @@ public enum LANInterfaceFinder {
         var ptr: UnsafeMutablePointer<ifaddrs>? = first
         while let cur = ptr {
             let flags = Int32(cur.pointee.ifa_flags)
-            // Up + Running + 非 Loopback。
+            // Up and Running - Non-Loopback.
             let up      = (flags & IFF_UP) != 0
             let running = (flags & IFF_RUNNING) != 0
             let loop    = (flags & IFF_LOOPBACK) != 0
@@ -31,7 +31,7 @@ public enum LANInterfaceFinder {
                up, running, !loop,
                let cname = cur.pointee.ifa_name {
                 let name = String(cString: cname)
-                // 仮想 / AWDL / VPN tun は除外。
+                // Exclude virtual/AWDL/VPN tunnels.
                 if !shouldExclude(name) {
                     var addrBuf = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
                     sa.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { sin in
@@ -50,12 +50,12 @@ public enum LANInterfaceFinder {
         return rank(ipv4)
     }
 
-    /// LAN URL に最適な 1 つを返す。なければ nil。
+    /// Returns the optimal one from LAN URLs, nil if none.
     public static func bestIPv4Address() -> String? {
         return ipv4Addresses().first
     }
 
-    /// 除外すべきインターフェース名 (プレフィクス一致)。
+    /// Exclude interface names (prefix match).
     static func shouldExclude(_ name: String) -> Bool {
         let excludePrefixes = [
             "lo",     // loopback
@@ -64,19 +64,19 @@ public enum LANInterfaceFinder {
             "utun",   // VPN tunnel
             "ipsec",  // IPSec tunnel
             "ppp",    // PPP
-            "bridge", // 仮想ブリッジ (内部用)
+            "bridge", // Virtual bridge (internal use)
             "vmnet",  // VMware
             "vboxnet",// VirtualBox
-            "tun",    // 一般 VPN
-            "tap",    // 一般 VPN
+            "tun",    // General VPN
+            "tap",    // General VPN
         ]
         return excludePrefixes.contains { name.hasPrefix($0) }
     }
 
-    /// 並び順のルール:
-    /// - private LAN (192.168.*, 10.*, 172.16-31.*) を優先 (= 普段の家庭/オフィス LAN)
-    /// - その中でも en0 → en1 → en2 ... の順 (= 物理 Ethernet → Wi-Fi)
-    /// - 残りは元の順序を維持
+    /// Ordering rules:
+    /// private LAN (192.168.*, 10.*, 172.16-31.*) priority (= usual home/offices LAN)
+    /// Among them, from en0 to en1 to en2... (= physical Ethernet to Wi-Fi)
+    /// The remaining ones maintain the original order
     static func rank(_ list: [(name: String, addr: String)]) -> [String] {
         let scored = list.enumerated().map { idx, item -> (Int, Int, String) in
             let priv = isPrivate(item.addr) ? 0 : 1

@@ -165,8 +165,8 @@ final class ConfigLoaderTests: XCTestCase {
         XCTAssertEqual(preset, decoded)
     }
 
-    /// Phase 2 で追加した `ButtonGroup.displayType` が `wide` / `card` のとき
-    /// JSON にエンコード → デコードしても値が保たれることを検証する。
+    /// When the added `ButtonGroup.displayType` is either "wide" or "card" in Phase 2,
+    /// Verify that the value is preserved when encoding to JSON and decoding.
     func testButtonGroupDisplayTypeRoundTrip() throws {
         for type in [GroupDisplayType.wide, .card] {
             let group = ButtonGroup(
@@ -190,8 +190,8 @@ final class ConfigLoaderTests: XCTestCase {
         }
     }
 
-    /// `displayType: .icon` (既定値) はエンコード結果に出力されない。
-    /// 既存プリセットファイルが意図せず差分扱いされない後方互換配慮。
+    /// The default value `.icon` for `displayType:` is not output in the encoded result.
+    /// Existing preset files are not mistakenly treated as differences, considering backward compatibility.
     func testButtonGroupDefaultDisplayTypeOmittedFromEncoding() throws {
         let group = ButtonGroup(id: "g1", label: "G", buttons: [])
         let data = try JSONEncoder().encode(group)
@@ -200,8 +200,8 @@ final class ConfigLoaderTests: XCTestCase {
                        "displayType=icon should not be emitted; got: \(str)")
     }
 
-    /// 旧プリセット（displayType フィールドが無い JSON）をロードすると
-    /// `.icon` にフォールバックする。
+    /// Loading old presets (JSON without displayType field)
+    /// Fallback to `.icon`.
     func testButtonGroupLegacyJSONWithoutDisplayType() throws {
         let legacy = """
         {
@@ -240,8 +240,8 @@ final class ConfigLoaderTests: XCTestCase {
         XCTAssertEqual(btn.cardThumbnailMode, .fill)
     }
 
-    /// `ButtonDefinition.thumbnail` が JSON ラウンドトリップで保たれる。
-    /// 旧プリセット（thumbnail フィールド無し）では nil でロードされる。
+    /// The `ButtonDefinition.thumbnail` is preserved during the JSON round trip.
+    /// Old preset (without thumbnail field) is loaded as nil.
     func testButtonDefinitionThumbnailRoundTrip() throws {
         let original = ButtonDefinition(
             id: "b1",
@@ -309,7 +309,7 @@ final class ConfigLoaderTests: XCTestCase {
     }
 
     func testPanelConfigGeneratesIDWhenMissing() throws {
-        // 手書き JSON で id を省いても UUID が割り当たる（書き戻しで永続化される想定）。
+        // Handwritten JSON where the ID is omitted, a UUID is assigned (assumed to be persisted during rewrite).
         let json = #"""
         { "presetName": "midjourney" }
         """#.data(using: .utf8)!
@@ -319,7 +319,7 @@ final class ConfigLoaderTests: XCTestCase {
     }
 
     func testAppConfigLegacyJSONMigratesToSinglePanel() throws {
-        // v1 互換 JSON（panels フィールド無し）→ activePreset + window から 1 件の Panel を自動生成。
+        // Compatibility JSON (panel field not included) → Active preset and panel automatically generated from the window.
         let json = #"""
         {
           "version": 1,
@@ -338,7 +338,7 @@ final class ConfigLoaderTests: XCTestCase {
     }
 
     func testAppConfigEmptyPanelsArrayMigrates() throws {
-        // 明示的に空配列で書かれた JSON も同じ移行ロジックに乗る。
+        // Explicitly empty array written in JSON also rides the same migration logic.
         let json = #"""
         {
           "version": 1,
@@ -398,8 +398,8 @@ final class ConfigLoaderTests: XCTestCase {
     }
 
     func testAppConfigExplicitPanelsTakePrecedenceOverLegacyFields() throws {
-        // panels が明示的に指定されている場合は activePreset + window から
-        // 自動生成される 1 件目を上書きしない（移行は空のときだけ）。
+        // If panels are explicitly specified, use activePreset + window to create the window.
+        // Do not overwrite the first automatically generated item (migration only when empty).
         let json = #"""
         {
           "version": 1,
@@ -414,7 +414,7 @@ final class ConfigLoaderTests: XCTestCase {
         XCTAssertEqual(decoded.panels.count, 1)
         XCTAssertEqual(decoded.panels[0].id, "explicit-1")
         XCTAssertEqual(decoded.panels[0].presetName, "midjourney")
-        // 旧フィールド自体はそのまま残る（移行期の互換性のため）。
+        // The old field itself remains unchanged (for compatibility during the transition period).
         XCTAssertEqual(decoded.activePreset, "default")
         XCTAssertEqual(decoded.window.x, 999)
     }

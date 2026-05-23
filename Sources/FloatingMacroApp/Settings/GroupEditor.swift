@@ -36,7 +36,7 @@ struct GroupEditor: View {
                         Spacer()
                     }
 
-                    // グループヘッダーのエディター内プレビュー
+                    // Group header editor preview
                     VStack(alignment: .leading, spacing: 4) {
                         Text(L("プレビュー_21b7d4")).font(.caption).foregroundColor(.secondary)
                         HStack {
@@ -263,7 +263,7 @@ struct GroupEditor: View {
     }
 
     private func commit() {
-        // ButtonEditor と同じ自動移行: 外部絶対パスを preset 配下にコピー。
+        // Same automatic migration as ButtonEditor: Copy external absolute path to preset under.
         let migratedIcon = ButtonEditor.migrateIfNeeded(
             path: iconPath.isEmpty ? nil : iconPath,
             into: .icons,
@@ -356,7 +356,7 @@ struct GroupEditor: View {
         }
     }
 
-    /// 表示タイプの違いを 1 行で説明するヘルプ文字列。
+    /// Explanation of the differences in display types in one line.
     private func displayTypeHint(_ type: GroupDisplayType) -> String {
         switch type {
         case .icon: return L("既存の小さなアイコン_ラベルを縦に並べる_コンパクトな表示_08324c")
@@ -384,7 +384,7 @@ struct GroupEditor: View {
         }
     }
 
-    /// DnD / クリックで受け取った画像をグループアイコンとして preset 配下にコピー。
+    /// Copy the received image as a preset group icon under preset/.
     fileprivate func importIconFile(from url: URL) {
         guard let newPath = ButtonEditor.importImage(
             from: url, into: .icons,

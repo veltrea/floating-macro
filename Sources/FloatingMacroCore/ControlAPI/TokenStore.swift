@@ -1,61 +1,61 @@
 import Foundation
 import Security
 
-/// Control API トークンの永続化。
+/// Persistence of Control API tokens.
 ///
-/// 保存先は **ファイル**（`~/Library/Application Support/FloatingMacro/control_api_token`,
-/// mode 0600）が一次ソース。Keychain は `security find-generic-password ...` CLI
-/// 経由でトークン取得する documented API を維持するためのミラーで、初回作成時のみ
-/// 書き込みを試みる（best-effort）。
+/// The save location is **File** (`~/Library/Application Support/FloatingMacro/control_api_token`,
+/// Mode 0600 is the primary source. Keychain uses the `security find-generic-password ...` CLI.
+/// Mirror for maintaining the documented API to obtain tokens via the specified method, only on initial creation.
+/// Attempt to write (best-effort).
 ///
-/// なぜファイル一次か:
-///   ad-hoc 署名のリビルド/リリース毎にバイナリハッシュが変わると、Keychain ACL は
-///   「別アプリ」と判定して読み出し時にパスワード入力ダイアログを毎回出す。これは
-///   開発体験/更新体験を著しく悪化させる。Control API のトークンは loopback でしか
-///   通用せず、同一ユーザーで動く他プロセスからは ~/Library/Application Support/
-///   が読めるので、Keychain ACL で守る付加価値はほぼ無い (mode 0600 ファイルと
-///   同等)。よってファイルを authoritative にする。
+/// Why file one-time?
+/// Ad-hoc signature rebuild/release for each binary hash change, Keychain ACL is
+/// Determines the app as a separate application and prompts for password input dialog every time it is read. This is
+/// Development experience / update experience significantly deteriorates. The Control API token is only via loopback.
+/// Not universal, from another process running under the same user: ~/Library/Application Support/
+/// Since it can be read, there is almost no added value to protect with Keychain ACLs (similar to mode 0600 files and)
+/// Equal). Therefore, make the file authoritative.
 public enum TokenStore {
 
     private static let service = "FloatingMacro"
     private static let account = "ControlAPIToken"
 
-    /// ファイル保存先。ConfigLoader.defaultBaseURL に依存。
+    /// Save location. Depends on ConfigLoader.defaultBaseURL.
     private static var fileURL: URL {
         ConfigLoader.defaultBaseURL.appendingPathComponent("control_api_token")
     }
 
-    /// トークンを返す。なければ生成して保存する。
-    /// - Returns: トークン文字列（32バイトのランダム hex）
-    /// - Throws: 保存に失敗した場合
+    /// Returns a token. If none exists, generate and save one.
+    /// Returns: Token string (32-byte random hex)
+    /// Throws: Save failed
     public static func loadOrCreate() throws -> String {
-        // 1) ファイル一次ソース。リビルド後もこちらは prompt を出さない。
+        // File source code. After rebuilding, this will not display the prompt.
         if let token = try loadFromFile() { return token }
 
-        // 2) Migration: 旧バージョンで Keychain にだけ保存していたユーザー向け。
-        //    この経路は新バイナリの初回起動 1 回だけ Keychain prompt を踏むが、
-        //    以降はファイルに移してくるので二度と踏まない。
+        // 2) Migration: For users who previously saved in Keychain only for older versions.
+        // This route only prompts the Keychain once for a new binary launch,
+        // From now on, I will not step on it again in a file.
         if let token = try? loadFromKeychain() {
             try writeToFile(token)
             return token
         }
 
-        // 3) どちらにも無ければ新規生成。ファイルが authoritative。
+        // Create new if neither exists in either. File is authoritative.
         let token = generate()
         try writeToFile(token)
-        // `security` CLI 互換のため Keychain にも best-effort で書く。
-        // 失敗 (prompt 拒否等) してもファイル側が真実なので無視。
+        // Write to Keychain for best-effort compatibility with `security` CLI.
+        // Ignore even if the file side fails (prompt refusal, etc.).
         try? saveToKeychain(token)
         return token
     }
 
-    /// トークンを削除する（リセット用）。ファイルと Keychain の両方を消す。
+    /// Delete tokens (reset). Remove both file and Keychain.
     public static func delete() throws {
-        // ファイル側
+        // file side
         if FileManager.default.fileExists(atPath: fileURL.path) {
             try FileManager.default.removeItem(at: fileURL)
         }
-        // Keychain 側
+        // Keychain side
         let query: [CFString: Any] = [
             kSecClass:       kSecClassGenericPassword,
             kSecAttrService: service,
@@ -82,7 +82,7 @@ public enum TokenStore {
     }
 
     private static func writeToFile(_ token: String) throws {
-        // 親ディレクトリは ConfigLoader が掃除してくれることが多いが念のため。
+        // The parent directory is often cleaned up by ConfigLoader, just in case.
         try FileManager.default.createDirectory(
             at: ConfigLoader.defaultBaseURL,
             withIntermediateDirectories: true
@@ -90,8 +90,8 @@ public enum TokenStore {
         guard let data = token.data(using: .utf8) else {
             throw TokenStoreError.invalidData
         }
-        // mode 0600 で書く。loopback Control API トークンなので、
-        // 同一ユーザー以外は到達できない時点で十分強い保護。
+        // Write in mode 0600. The loopback Control API token, so that...
+        // Sufficiently strong protection when unreachable by users other than the same user.
         try data.write(to: fileURL, options: [.atomic])
         try FileManager.default.setAttributes(
             [.posixPermissions: 0o600],
@@ -99,7 +99,7 @@ public enum TokenStore {
         )
     }
 
-    // MARK: - Keychain backend (legacy / CLI 互換)
+    // MARK: - Keychain backend (legacy / CLI compatible)
 
     private static func loadFromKeychain() throws -> String? {
         let query: [CFString: Any] = [
@@ -146,7 +146,7 @@ public enum TokenStore {
         }
     }
 
-    /// 32バイトのランダム hex 文字列を生成する。
+    /// Generate a random 32-byte hexadecimal string.
     internal static func generate() -> String {
         var bytes = [UInt8](repeating: 0, count: 32)
         _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)

@@ -85,9 +85,9 @@ public enum ToolCatalog {
               inputSchema: emptyObject()),
 
         // MARK: - Panel (Phase 3: multi-panel)
-        // Phase 3 (v0.12) で導入。FloatingMacro は複数のフローティングパネルを
-        // 同時に常駐させられる。各パネルは独立した位置・サイズ・透明度・
-        // プリセットを持つ。新しい AI 連携コードはこちらを使うこと。
+        // Introduced in Phase 3 (v0.12). FloatingMacro allows multiple floating panels to be created and managed simultaneously.
+        // Can be simultaneously resident. Each panel has an independent position, size, transparency, and
+        // Has presets. New AI integration code uses this.
         .init(name: "panel_list",
               description: desc("panel_list", fallback: "List all floating panels."),
               method: "GET", path: "/panel/list",
@@ -127,9 +127,9 @@ public enum ToolCatalog {
                   "id": stringSchema(description: paramDesc("panel_hide.id", fallback: "Panel id from panel_list."))
               ], required: ["id"])),
 
-        // Phase 3.6: id 指定で個別パネルを操作するツール群。マウス・トラックパッドの
-        // ドラッグが困難なユーザーが、音声入力 + AI 経由で「右上のパネルを左下に移動」
-        // 「Claude Code パネルを画面の右半分に広げて」等の指示で完結できるようにする。
+        // Phase 3.6: Tool group for operating individual panels by ID. Mouse and trackpad operations.
+        // Dragging is difficult for users, so they use voice input and AI to "move the panel in the upper right corner to the lower left".
+        // To make it possible to complete with instructions such as "Expand the Claude Code panel to the right half of the screen."
         .init(name: "panel_move",
               description: desc("panel_move", fallback: "Move the panel to absolute screen coordinates."),
               method: "POST", path: "/panel/move",
@@ -172,7 +172,7 @@ public enum ToolCatalog {
                   "presetName": stringSchema(description: paramDesc("panel_set_preset.presetName", fallback: "Preset internal id from preset_list.")),
               ], required: ["id", "presetName"])),
 
-        // Phase 3.5: 縁にドック
+        // Dock to Phase 3.5
         .init(name: "panel_dock",
               description: desc("panel_dock", fallback: "Dock a panel to a screen edge."),
               method: "POST", path: "/panel/dock",
@@ -201,8 +201,8 @@ public enum ToolCatalog {
               inputSchema: emptyObject()),
 
         // MARK: - Window (Phase 3: deprecated — operates on the primary panel)
-        // Phase 3 で複数パネル化されたため、これらのツールは panels[0]
-        // (primary panel) に作用する後方互換 API。新規開発は panel_* を使うこと。
+        // In Phase 3, since the panels are multi-panelized, these tools correspond to panels[0].
+        // (Primary panel) backward-compatible API that acts on. New development should use panel_*.
         .init(name: "window_show",
               description: desc("window_show", fallback: "DEPRECATED: prefer panel_show."),
               method: "POST", path: "/window/show",

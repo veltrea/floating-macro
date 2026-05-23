@@ -2,17 +2,17 @@ import SwiftUI
 import AppKit
 import FloatingMacroCore
 
-/// インストール済みアプリのアイコンを選んでボタン / グループのアイコンに
-/// 設定するシート。`AppLauncherPickerSheet` と同じ Launchpad 風フラット表示で、
-/// `/Applications` 配下を `FileSystemAppListProvider` で再帰的に列挙する。
+/// Select icon of installed app and set to button/group icon
+/// Setting sheet. Flat display similar to Launchpad, same as `AppLauncherPickerSheet`.
+/// Enumerate recursively under `/Applications` using `FileSystemAppListProvider`.
 ///
-/// 違い: ピッカーで選んだ結果は **bundle id** を `selection` バインディングに
-/// 書き戻すだけで、ボタン本体は作らない (icon ソースの選定だけ)。
+/// Difference: The result of selecting with the picker is bound to the `selection` binding as a **bundle ID**.
+/// Just undo writing, do not create the button itself (only selecting icon source).
 ///
-/// 旧実装は `AppIconCatalog` のハードコード bundle id リスト + 4 ジャンル分類
-/// だったが、リストにないアプリは全く出てこない設計だったので撤廃した。
+/// Old implementation uses hard-coded bundle ID list of `AppIconCatalog` and 4 genre categories.
+/// However, since the design did not include apps that were not in the list at all, it was abolished.
 struct AppIconPicker: View {
-    /// 選択時に書き込まれる bundle id (Settings 側の `iconPath` バインディング)。
+    /// Bundle ID written when selected (Settings side `iconPath` binding).
     @Binding var selection: String
     let onClose: () -> Void
 
@@ -24,7 +24,7 @@ struct AppIconPicker: View {
     private let provider: AppListProvider = FileSystemAppListProvider()
     private let extractor = ImageIOIconExtractor()
 
-    /// セルあたりの正方形サイズ。AppLauncherPickerSheet と同じ 96px。
+    /// Size of square cells per cell. Same as AppLauncherPickerSheet, 96px.
     private let cellSize: CGFloat = 96
 
     private var filteredApps: [AppEntry] {
@@ -140,9 +140,9 @@ struct AppIconPicker: View {
         }
     }
 
-    /// 選んだアプリの bundle id をバインディングに書き込んでシートを閉じる。
-    /// bundle id が無いアプリ (Info.plist 欠落) は icon ソースとして使えないので
-    /// 「決定」ボタンが無効化されて到達しない。
+    /// Write the bundle ID of the selected app into the binding and close the sheet.
+    /// Cannot use as icon source because bundle ID is missing (Info.plist missing)
+    /// The "Decide" button is disabled and cannot be reached.
     private func commitSelection() {
         guard let entry = selectedEntry,
               let bid = entry.bundleIdentifier

@@ -3,8 +3,8 @@ import AppKit
 import UniformTypeIdentifiers
 import FloatingMacroCore
 
-/// 行ベースの DnD 用デリゲート。
-/// テキスト UTType でドラッグペイロードを受け取り、ハイライト管理と onDrop を行う。
+/// Row-based delegate for DnD.
+/// Receive drag payload with UTType and perform highlighting and onDrop.
 struct RowDropDelegate: DropDelegate {
     let destGroupId: String
     let beforeButtonId: String?
@@ -40,8 +40,8 @@ struct RowDropDelegate: DropDelegate {
         guard let item = info.itemProviders(for: [UTType.text.identifier]).first else {
             return false
         }
-        // ペイロード読み出しは非同期。メインスレッドをブロックしないこと。
-        // 同期 wait + main.sync の組み合わせは確実にデッドロックする。
+        // Payload reading is asynchronous, not blocking the main thread.
+        // Synchronization with `wait` and `main.sync` combination will definitely cause a deadlock.
         let onDrop = self.onDrop
         item.loadItem(forTypeIdentifier: UTType.text.identifier, options: nil) { data, _ in
             let payload: String?

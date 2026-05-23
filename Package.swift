@@ -15,12 +15,12 @@ let package = Package(
         .executable(name: "fm-test-target", targets: ["FMTestTarget"]),
     ],
     dependencies: [
-        // Phase 5: Web Panel の画像配信を WebP で行うため、libwebp を SPM
-        // 経由でリンクする (BSD-3-clause)。macOS の ImageIO は WebP デコード
-        // のみで encode 未対応のため。
+        // Phase 5: To deliver images for the Web Panel in WebP format, use libwebp with Swift Package Manager (SPM).
+        // Link via BSD-3-clause. macOS's ImageIO supports WebP decoding.
+        // Only encode not supported.
         .package(url: "https://github.com/SDWebImage/libwebp-Xcode.git", from: "1.5.0"),
-        // 試作: 不規則アスペクト比のカードに強い WaterfallGrid (Pinterest 風) を試す。
-        // 既出の ExyteGrid / WaterfallGrids は aspectRatio が細い帯に潰れる症状あり。
+        // Test: Try irregular aspect ratio cards strong WaterfallGrid (Pinterest-like).
+        // Previous ExyteGrid/WaterfallGrids have a problem where they get squished into narrow strips.
         .package(url: "https://github.com/paololeonardi/WaterfallGrid.git", from: "1.1.0"),
     ],
     targets: [
@@ -34,9 +34,9 @@ let package = Package(
                 // the bundle. `.process` would flatten everything to the
                 // bundle root, breaking Bundle.module.urls(subdirectory:).
                 .copy("Resources/seedPresets"),
-                // Phase 5: Web Panel 配信用の静的アセット (HTML/CSS/JS)。
-                // ディレクトリ構造を残すため .copy。サーバーは Bundle.module
-                // から読み出して 200 で返す。
+                // Phase 5: Static Assets for Web Panel Delivery (HTML/CSS/JS).
+                // Copy to preserve directory structure. Server is Bundle.module.
+                // Return 200 after reading from.
                 .copy("Resources/webpanel"),
             ]
         ),
@@ -49,9 +49,9 @@ let package = Package(
             name: "FloatingMacroApp",
             dependencies: [
                 "FloatingMacroCore",
-                // Phase 5: libwebp は WebPanelIconRenderer の WebP encoder で利用。
+                // Phase 5: libwebp is used by the WebPanelIconRenderer as a WebP encoder.
                 .product(name: "libwebp", package: "libwebp-Xcode"),
-                // 試作: レスポンシブグリッド検証 #3 (paololeonardi/WaterfallGrid)
+                // Prototype: Responsive Grid Verification #3 (paololeonardi/WaterfallGrid)
                 .product(name: "WaterfallGrid", package: "WaterfallGrid"),
             ],
             path: "Sources/FloatingMacroApp",

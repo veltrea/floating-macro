@@ -20,16 +20,16 @@ public struct ButtonDefinition: Codable, Equatable {
     public var height: Double?
     /// Tooltip shown on mouse hover. nil = no tooltip.
     public var tooltip: String?
-    /// クリック前に確認ダイアログを表示する。誤クリックや視線入力ユーザーの
-    /// 意図しない発火を防ぎたい操作 (再起動・シャットダウン等) で true。
+    /// Display a confirmation dialog before clicking. Prevent accidental clicks and gaze input users.
+    /// Prevent unintended triggering to avoid operations (restart, shutdown, etc.) - true.
     public var confirm: Bool
-    /// 確認ダイアログ本文。空 / nil ならボタンラベルから自動生成する。
+    /// Confirmation dialog body. If empty or nil, automatically generate from button label.
     public var confirmMessage: String?
-    /// true で「実行する」ボタンを赤い destructive スタイルにする。
-    /// 取り返しのつかない操作 (シャットダウン等) でだけ true にする。
+    /// True to make the "Execute" button red with a destructive style.
+    /// Only allow true for irreversible operations (shutdown, etc.).
     public var confirmDestructive: Bool
-    /// card レイアウトで画像をどう正方形セルに収めるか。
-    /// `.fill`（既定）= クロップ、`.fit` = 全体表示。ボタン単位で選択。
+    /// How to fit an image into square cells in a card layout.
+    /// .fill (default) = crop, .fit = full display. Select by button unit.
     public var cardThumbnailMode: CardThumbnailMode
     public var action: Action
 

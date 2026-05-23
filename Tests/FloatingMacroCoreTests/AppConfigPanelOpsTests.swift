@@ -1,14 +1,14 @@
 import XCTest
 @testable import FloatingMacroCore
 
-/// Phase 3 (P3-1〜P3-2 のフォローアップ) — `AppConfig+Panels` 拡張の純粋関数群を検証。
+/// Validate pure functions in the extension of `AppConfig+Panels` (follow-up for P3-1 to P3-2).
 final class AppConfigPanelOpsTests: XCTestCase {
 
     // MARK: - addingPanel
 
     func testAddingPanelAppendsAndReturnsID() {
         let initial = AppConfig(activePreset: "default", window: WindowConfig())
-        // initial には decoder ロジックで 1 件パネルが入っているはず
+        // The initial should have one panel entry in the decoder logic
         XCTAssertEqual(initial.panels.count, 1)
 
         let (after, newID) = initial.addingPanel(
@@ -24,7 +24,7 @@ final class AppConfigPanelOpsTests: XCTestCase {
     }
 
     func testAddingPanelDoesNotMutateLegacyFieldsWhenNotFirst() {
-        // 末尾追加は panels[0] を動かさないので legacy フィールドも変わらない。
+        // Appending to the end does not move panels[0], so legacy fields remain unchanged.
         let initial = AppConfig(activePreset: "default",
                                 window: WindowConfig(x: 100, y: 100))
         let (after, _) = initial.addingPanel(
@@ -53,7 +53,7 @@ final class AppConfigPanelOpsTests: XCTestCase {
     }
 
     func testRemovingLastPanelRefuses() {
-        // 最後の 1 件は削除しない（空状態は許可しない）。
+        // Do not delete the last one (empty is not allowed).
         let cfg = AppConfig(activePreset: "default", window: WindowConfig())
         XCTAssertEqual(cfg.panels.count, 1)
         let lastID = cfg.panels[0].id
@@ -73,7 +73,7 @@ final class AppConfigPanelOpsTests: XCTestCase {
     }
 
     func testRemovingFirstPanelSyncsLegacyFieldsToNewFirst() {
-        // panels[0] を削除すると panels[1] が繰り上がるので legacy フィールドも追従する。
+        // Removing panels[0] causes panels[1] to shift up, so the legacy field also follows.
         let initial = AppConfig(activePreset: "default",
                                 window: WindowConfig(x: 100, y: 100))
         let (cfg2, _) = initial.addingPanel(
@@ -184,7 +184,7 @@ final class AppConfigPanelOpsTests: XCTestCase {
     }
 
     func testUpdatingPanelScrollYClampsNegative() {
-        // NSScrollView 由来の負値 (バウンス領域) は 0 に丸める。
+        // Clamp negative values (bounce region) of NSScrollView to 0.
         let cfg = AppConfig(activePreset: "default", window: WindowConfig())
         let id = cfg.panels[0].id
         let clamped = cfg.updatingPanelScrollY(id: id, scrollY: -50)
@@ -203,7 +203,7 @@ final class AppConfigPanelOpsTests: XCTestCase {
     }
 
     func testPanelConfigDecodesLegacyJSONWithoutScrollY() throws {
-        // scrollY フィールドが無い旧 JSON は 0 にデフォルトされる。
+        // The old JSON without the scrollY field is defaulted to 0.
         let json = #"""
         { "id": "p1", "presetName": "default" }
         """#.data(using: .utf8)!
@@ -215,7 +215,7 @@ final class AppConfigPanelOpsTests: XCTestCase {
 
     func testWithSyncedLegacyFieldsCopiesPanelZero() {
         var cfg = AppConfig(activePreset: "default", window: WindowConfig())
-        // panels[0] を直接書き換えて legacy 同期前の状態を作る。
+        // Create a state identical to the legacy synchronization before by directly rewriting panels[0].
         cfg.panels[0].presetName = "midjourney"
         cfg.panels[0].window.x = 999
         XCTAssertEqual(cfg.activePreset, "default", "同期前は legacy フィールドはそのまま")

@@ -1,10 +1,10 @@
 import SwiftUI
 import FloatingMacroCore
 
-/// Phase 3 (P3-9) で導入された設定画面の「パネル」タブ。
-/// 複数フローティングパネルの一覧と各パネルへの操作 (preset 切替・閉じる)
-/// を提供する。メニューバーの「パネル」サブメニューと機能は重複するが、
-/// 設定 window から発見しやすくし、複数パネルが多いときの一覧性を上げる。
+/// Panel tab introduced in Phase 3 (P3-9) settings screen.
+/// List of multiple floating panels and operations for each panel (switch preset, close)
+/// Provides a panel. The menu bar's "Panel" submenu and feature overlap, but
+/// Make the settings window easier to find and improve listability when there are many panels.
 struct PanelsSettingsView: View {
     @ObservedObject var presetManager: PresetManager
 
@@ -14,7 +14,7 @@ struct PanelsSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // ヘッダー: 新規追加ボタンと説明文
+            // Header: New Add Button and Description
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L("フローティングパネル_9df495"))
@@ -57,7 +57,7 @@ struct PanelsSettingsView: View {
         }
     }
 
-    /// プライマリパネルの位置からオフセットして新規追加。
+    /// Add new panel at an offset from the primary panel's position.
     private func addNewPanel() {
         let primary = presetManager.appConfig?.panels.first
         let baseX = primary?.window.x ?? 100
@@ -71,15 +71,15 @@ struct PanelsSettingsView: View {
         )
         let presetName = primary?.presetName ?? "default"
         _ = presetManager.addPanel(presetName: presetName, window: win)
-        // NSWindow の生成は AppDelegate.addNewPanel 経由ではなく、ここでは
-        // appConfig 更新のみに留める。Settings 画面で追加されたパネルが
-        // 即座に画面に出るには、AppDelegate 側で appConfig.panels の差分を
-        // 監視して openNew する仕組みが要るが、現状は次回起動時に反映される。
-        // (将来 AppDelegate に observer を追加して即時反映にする予定)
+        // The creation of NSWindow is not done through AppDelegate.addNewPanel, but here
+        // Keep only updates to appConfig. Settings screen added panels should be
+        // Instantly appear on the screen, you need to calculate the difference in appConfig.panels from the AppDelegate side.
+        // A mechanism is required to monitor and trigger openNew, but currently it only reflects on the next startup.
+        // Plans to add observers to AppDelegate for immediate reflection.
     }
 }
 
-/// 1 つのパネル行。プリセット選択・背景色・現在の表示状態・閉じるボタン。
+/// One panel row. Preset selection, background color, current display state, close button.
 private struct PanelRowView: View {
     @ObservedObject var presetManager: PresetManager
     let panel: PanelConfig
@@ -106,7 +106,7 @@ private struct PanelRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                // 左: アイコン + パネル概要
+                // Left: Icon + Panel Overview
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
                         Image(systemName: panel.visible
@@ -126,7 +126,7 @@ private struct PanelRowView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                // 中央: プリセット選択
+                // Central: Preset Selection
                 Menu {
                     ForEach(presetManager.presetEntries) { entry in
                         Button(action: {
@@ -156,7 +156,7 @@ private struct PanelRowView: View {
                 .fixedSize()
                 .help(L("このパネルが表示するプリセットを切り替え_1e7816"))
 
-                // 右: 削除ボタン
+                // Delete button
                 Button(role: .destructive) {
                     _ = presetManager.removePanel(id: panel.id)
                 } label: {
@@ -171,7 +171,7 @@ private struct PanelRowView: View {
                       : L("最後の_1_件は削除できません_81a5fa"))
             }
 
-            // 背景色
+            // background color
             HStack(spacing: 8) {
                 Text(L("背景色_2f97db"))
                     .font(.system(size: 11))

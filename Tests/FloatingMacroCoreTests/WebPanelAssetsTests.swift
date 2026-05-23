@@ -1,8 +1,8 @@
 import XCTest
 @testable import FloatingMacroCore
 
-/// Phase 5 (P5-4): バンドルから Web Panel 静的アセットが取り出せること、
-/// HTML テンプレートのトークン置換と JS エスケープが期待通り動くこと。
+/// Phase 5 (P5-4): Static assets can be retrieved from the bundle.
+/// Replacement of tokens in HTML templates and JavaScript escaping works as expected.
 final class WebPanelAssetsTests: XCTestCase {
 
     // MARK: - Bundle access
@@ -49,8 +49,8 @@ final class WebPanelAssetsTests: XCTestCase {
     }
 
     func testRenderHTMLEscapesScriptTagInToken() throws {
-        // hex token のはずだが、保険として `</script>` を含むトークンが渡された
-        // ときに HTML 全体が壊れない (= JS リテラルから抜けない) ことを確認。
+        // It should be a hex token, but a token containing "</script>" was passed as an insurance.
+        // Check that the entire HTML does not break (not escaping from JS literals).
         let evil = "abc</script><script>alert(1)</script>"
         let data = try XCTUnwrap(WebPanelAssets.renderHTML(
             token: evil, presetJSON: "null", presetDisplay: "test", ssrHTML: ""
@@ -58,7 +58,7 @@ final class WebPanelAssetsTests: XCTestCase {
         let html = try XCTUnwrap(String(data: data, encoding: .utf8))
         XCTAssertFalse(html.contains("</script><script>alert"),
                        "エスケープなしで script タグを差し込ませてはいけない")
-        // < > & が unicode escape に変換されている
+        // <>, &, and are being converted to Unicode escapes.
         XCTAssertTrue(html.contains("\\u003c") || html.contains("\\u003C"))
     }
 
@@ -67,17 +67,17 @@ final class WebPanelAssetsTests: XCTestCase {
     func testSanitizeForJSONHandlesAllControlChars() {
         let s = "\\\"\n\r\t<>&"
         let out = WebPanelAssets.sanitizeForJSON(s)
-        // 入力 8 文字 (\ " LF CR TAB < > &) を 1 つずつ JS リテラル安全な
-        // 表現に変換する。誤読防止のため期待値を部品から組み立てる。
+        // Input: 8 characters ( " \n\r\t<>&) ) to be safely escaped in JavaScript literals.
+        // Convert to an expression. To prevent misreading, assemble the expected value from components.
         let expected =
-            "\\\\" +     // \  → \\        (2 文字)
-            "\\\"" +     // "  → \"        (2 文字)
-            "\\n"  +     // LF → \n        (2 文字)
-            "\\r"  +     // CR → \r        (2 文字)
-            "\\t"  +     // TAB → \t       (2 文字)
-            "\\u003c" +  // <  → <    (6 文字)
-            "\\u003e" +  // >  → >    (6 文字)
-            "\\u0026"    // &  → &    (6 文字)
+            "\\\\" +     // `\` → `\\` (2 characters)
+            "\\\"" +     // → "        (2 characters)
+            "\\n"  +     // LF -> \n (2 characters)
+            "\\r"  +     // CR -> \r (2 characters)
+            "\\t"  +     // tab → \t       (2 characters)
+            "\\u003c" +  // <  → <    (6 characters)
+            "\\u003e" +  // >    (6 characters)
+            "\\u0026"    // &  → &    (6 characters)
         XCTAssertEqual(out, expected)
         XCTAssertEqual(out.count, 28)
     }

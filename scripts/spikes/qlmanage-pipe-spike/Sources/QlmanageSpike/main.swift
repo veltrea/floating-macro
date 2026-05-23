@@ -2,14 +2,14 @@ import Foundation
 import ImageIO
 import CoreServices  // for kUTTypePNG (legacy) — actually we use string literal "public.png"
 
-// QlmanageSpike: qlmanage を Process 経由で呼ぶときの「pipe deadlock」アンチパターン
-// 検証用の最小 spike。3 つのパターンで挙動を比較する。
+// QlmanageSpike: When calling qlmanage through a Process, the "pipe deadlock" anti-pattern occurs.
+// Minimal spike for verification. Compares behavior across three patterns.
 //
-// 背景:
-//   `process.standardOutput = Pipe()` を設定したまま `waitUntilExit()` を呼ぶと、
-//   子プロセスが pipe バッファ (64KB) を超える出力をしたところで write が
-//   ブロックされ、親が exit を待ち続けてデッドロックする。
-//   qlmanage は thumbnail 生成中に warning 等を吐くため、これに該当する。
+// Background
+// If you set `process.standardOutput = Pipe()` and then call `waitUntilExit()`, the process will wait until it exits before returning.
+// Child process exceeded output in pipe buffer (64KB), causing write to fail.
+// Blocked, parent continues to wait for exit, causing deadlock.
+// qlmanage generates warnings during thumbnail creation, so it matches this.
 //
 //   refs:
 //   - https://cocoadev.github.io/NSTaskWaitUntilExit/
@@ -18,10 +18,10 @@ import CoreServices  // for kUTTypePNG (legacy) — actually we use string liter
 let calculator = "/System/Applications/Calculator.app"
 
 enum SpikePattern: String, CaseIterable {
-    case nullDevice           = "1-null-device"          // /dev/null に捨てる
-    case readabilityHandler   = "2-readability-handler"  // readabilityHandler で吸い続ける
-    case backgroundReadToEnd  = "3-background-read-to-end" // 別 thread で readToEndOfFile
-    case anti                 = "0-anti-pattern"         // 再現用: pipe を吸わずに wait
+    case nullDevice           = "1-null-device"          // Redirect to /dev/null
+    case readabilityHandler   = "2-readability-handler"  // Continuously sucking in readabilityHandler
+    case backgroundReadToEnd  = "3-background-read-to-end" // Read to end in separate thread
+    case anti                 = "0-anti-pattern"         // Reproduction: wait without using pipe
 }
 
 func runSpike(pattern: SpikePattern, timeoutSeconds: TimeInterval = 30) {
@@ -40,7 +40,7 @@ func runSpike(pattern: SpikePattern, timeoutSeconds: TimeInterval = 30) {
     case .anti:
         p.standardOutput = stdoutPipe
         p.standardError = stderrPipe
-        // 意図的にハンドラを設定しない → デッドロックすることを確認
+        // Do not intentionally set handlers to ensure deadlocks are confirmed.
 
     case .nullDevice:
         p.standardOutput = FileHandle.nullDevice
@@ -62,7 +62,7 @@ func runSpike(pattern: SpikePattern, timeoutSeconds: TimeInterval = 30) {
             if chunk.isEmpty { return }
             lock.lock(); stderrBytes.append(chunk); lock.unlock()
         }
-        // collected を後で表示できるように weak ref 的なものは spike なので省略
+        // Collected to display later, weak ref-like things are omitted as they are a spike.
 
     case .backgroundReadToEnd:
         p.standardOutput = stdoutPipe
@@ -83,7 +83,7 @@ func runSpike(pattern: SpikePattern, timeoutSeconds: TimeInterval = 30) {
         return
     }
 
-    // タイムアウト付き wait
+    // wait with timeout
     let group = DispatchGroup()
     group.enter()
     DispatchQueue.global().async {
@@ -97,7 +97,7 @@ func runSpike(pattern: SpikePattern, timeoutSeconds: TimeInterval = 30) {
     if waitResult == .timedOut {
         print("[\(pattern.rawValue)] HUNG after \(String(format: "%.2f", elapsed))s. Terminating.")
         p.terminate()
-        // SIGTERM で死ななければ SIGKILL
+        // If not killed by SIGTERM, then SIGKILL
         Thread.sleep(forTimeInterval: 1)
         if p.isRunning {
             kill(p.processIdentifier, SIGKILL)
@@ -110,20 +110,20 @@ func runSpike(pattern: SpikePattern, timeoutSeconds: TimeInterval = 30) {
     print("[\(pattern.rawValue)] OK exit=\(p.terminationStatus) elapsed=\(String(format: "%.2f", elapsed))s pngs=\(pngs.map(\.lastPathComponent))")
 }
 
-// MARK: - ImageIO 直読み (qlmanage に依存しない代替路線)
+// MARK: - ImageIO Direct Reading (Alternative Route Not Dependent on qlmanage)
 
 func runImageIOSpike(appPath: String, size: Int = 256) {
     let appURL = URL(fileURLWithPath: appPath)
     let infoPlistURL = appURL.appendingPathComponent("Contents/Info.plist")
 
-    // Info.plist から CFBundleIconFile を読む
+    // Read CFBundleIconFile from Info.plist
     var iconFile: String? = nil
     if let data = try? Data(contentsOf: infoPlistURL),
        let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] {
         iconFile = plist["CFBundleIconFile"] as? String
     }
 
-    // 拡張子が無ければ .icns を補完。それでも無ければ AppIcon.icns / icon.icns を順に探索
+    // If there is no extension, add .icns. If still missing, search for AppIcon.icns and icon.icns in order.
     let candidates: [String] = {
         var list: [String] = []
         if let f = iconFile {
@@ -151,7 +151,7 @@ func runImageIOSpike(appPath: String, size: Int = 256) {
 
     let start = Date()
 
-    // CGImageSource で .icns を開く
+    // Open .icns with CGImageSource
     guard let source = CGImageSourceCreateWithURL(icns as CFURL, nil) else {
         print("[imageio] \(appURL.lastPathComponent): CGImageSourceCreateWithURL failed")
         return
@@ -162,7 +162,7 @@ func runImageIOSpike(appPath: String, size: Int = 256) {
         return
     }
 
-    // 目的サイズに最も近い representation を選ぶ
+    // Choose the representation closest to the target size.
     var bestIndex = 0
     var bestDelta = Int.max
     for i in 0..<count {
@@ -177,7 +177,7 @@ func runImageIOSpike(appPath: String, size: Int = 256) {
         return
     }
 
-    // PNG として書き出し
+    // Write PNG
     let outData = NSMutableData()
     guard let dest = CGImageDestinationCreateWithData(outData, "public.png" as CFString, 1, nil) else {
         print("[imageio] \(appURL.lastPathComponent): CGImageDestinationCreateWithData failed")
@@ -196,7 +196,7 @@ func runImageIOSpike(appPath: String, size: Int = 256) {
     print("[imageio] \(appURL.lastPathComponent): OK \(cgImage.width)x\(cgImage.height) \(outData.length)B elapsed=\(String(format: "%.3f", elapsed))s → \(outPath)")
 }
 
-// 実行する pattern を引数で指定。なければ全部走らせる（anti は最後）。
+// Specify the execution pattern as an argument; if not specified, run all of them (anti runs last).
 let args = CommandLine.arguments.dropFirst()
 let patterns: [SpikePattern]
 if args.isEmpty {
@@ -206,7 +206,7 @@ if args.isEmpty {
 }
 
 if args.first == "imageio" {
-    // ImageIO 路線: いくつかのアプリで挙動を比較
+    // ImageIO Route: Comparing behavior across several apps
     let apps = [
         "/System/Applications/Calculator.app",
         "/Applications/Slack.app",

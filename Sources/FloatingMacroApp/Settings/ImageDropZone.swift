@@ -3,28 +3,28 @@ import AppKit
 import UniformTypeIdentifiers
 import FloatingMacroCore
 
-/// 編集ウィンドウで「アイコン」「サムネイル」を登録するためのビジュアルな
-/// ドロップ枠。テキスト欄を排してドラッグ&ドロップ + クリックで参照を主導線にする。
+/// Visual representation for registering icons and thumbnails in the edit window.
+/// Drop frame. Drag & drop and click to guide references with reference lines, excluding the text field.
 ///
-/// - 中身がある (画像 / 絵文字) ときはそれをプレビューする
-/// - 空のときはガイダンステキストと点線枠を出す
-/// - ドラッグオーバー中はアクセントカラーの太枠でフィードバック
-/// - クリックで `onClickFallback` を起動 (キーボード派・ドロップを使えない人向け)
+/// When there is content (image / emoji), preview it
+/// Show guidance text and dashed frame when empty
+/// During drag-over, provide feedback with a thicker frame in accent color.
+/// Launch onClickFallback via click (for people who can't use keyboard or drop)
 struct ImageDropZone<Content: View>: View {
-    /// 表示倍率を決めるサイズ。アイコン用 = 96 正方、サムネイル用 = 160×120 等。
+    /// Display scale size. Icon: 96 square, thumbnail: 160x120 etc.
     let width: CGFloat
     let height: CGFloat
-    /// 中身が空かどうか。プレースホルダ表示の判定に使う。
+    /// Is it empty? Used for determining placeholder display.
     let isEmpty: Bool
-    /// プレースホルダ用のキャプション (例: 「画像をドロップ」)。
+    /// Placeholder caption for use (e.g., "Drop image here").
     let placeholderCaption: String
-    /// プレースホルダ用の SF Symbol 名 (例: "photo.on.rectangle.angled")。
+    /// placeholder SF Symbol name (e.g., "photo.on.rectangle.angled").
     let placeholderSystemImage: String
-    /// 中身。`isEmpty == false` のときに描画される。
+    /// The content. It is drawn when `isEmpty == false`.
     @ViewBuilder let content: () -> Content
-    /// 画像ファイル URL がドロップされたら呼ばれる (DnD のメイン経路)。
+    /// Image file URL is called when dropped (main path of DnD).
     let onDropImageURL: (URL) -> Void
-    /// 枠をクリックしたときのフォールバック (NSOpenPanel 起動など)。
+    /// Fallback when clicking the frame (e.g., NSOpenPanel launch).
     let onClickFallback: () -> Void
 
     @State private var isDropTargeted: Bool = false
@@ -79,9 +79,9 @@ struct ImageDropZone<Content: View>: View {
         .padding(8)
     }
 
-    /// `NSItemProvider` の配列から最初の画像ファイル URL を取り出して
-    /// `onDropImageURL` に渡す。受理できれば true を返して SwiftUI に
-    /// 「成功した」と知らせる (緑チェック → 通常カーソルへ)。
+    /// Get the first image file URL from an array of `NSItemProvider`.
+    /// Pass to `onDropImageURL`. If accepted, return true to SwiftUI.
+    /// Notify success by changing to a green checkmark and normal cursor.
     private func handleDrop(providers: [NSItemProvider]) -> Bool {
         guard let provider = providers.first else { return false }
         provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier,
@@ -103,12 +103,12 @@ struct ImageDropZone<Content: View>: View {
     }
 }
 
-/// アイコン用ドロップゾーン (96pt 正方)。画像があれば画像を、無ければ絵文字を、
-/// それも無ければプレースホルダを出す。
+/// Icon drop zone (96pt square). Image if available, otherwise emoji.
+/// If there is nothing else, display a placeholder.
 struct IconDropZoneView: View {
-    /// 現在のアイコン参照 (file path / sf:foo / bundle id 等)。
+    /// Current icon reference (file path / sf:foo / bundle id, etc.).
     let iconRef: String
-    /// 画像参照が無いときのフォールバック絵文字。
+    /// Fallback emoji when image reference is missing.
     let iconText: String
     let onDropImageURL: (URL) -> Void
     let onClickFallback: () -> Void
@@ -144,8 +144,8 @@ struct IconDropZoneView: View {
     }
 }
 
-/// サムネイル用ドロップゾーン (160×120)。画像があれば画像を、無ければ
-/// プレースホルダを出す。card 表示タイプ用なので絵文字フォールバックは出さない。
+/// Thumbnail drop zone (160x120). Image if available, otherwise
+/// Display a placeholder. It is for card display type, so no emoji fallback will be shown.
 struct ThumbnailDropZoneView: View {
     let thumbnailPath: String
     let onDropImageURL: (URL) -> Void

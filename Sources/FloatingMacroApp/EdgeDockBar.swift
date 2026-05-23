@@ -1,13 +1,13 @@
 import AppKit
 import FloatingMacroCore
 
-/// パネルが画面端にドックされた時に表示する細長いバー。
-/// ダブルクリックで展開、ドラッグで移動、右クリックでコンテキストメニューを表示する。
+/// The thin bar that appears when a panel is docked to the screen edge.
+/// Expand with double-click, move by dragging, display context menu on right-click.
 final class EdgeDockBar: NSPanel {
     var onExpand: (() -> Void)?
     var onShowMenu: ((NSEvent) -> Void)?
     var onDragEnd: ((NSPoint) -> Void)?
-    /// ドラッグでカスタム位置に移動された場合 true。relayoutDockBars で上書きしない。
+    /// True if moved to a custom position by drag. Do not overwrite with relayoutDockBars.
     var hasCustomPosition = false
 
     let edge: DockEdge
@@ -126,7 +126,7 @@ private final class EdgeDockBarView: NSView {
             }
         }
 
-        // 縁
+        // destiny
         NSColor(srgbRed: 0.87, green: 0.72, blue: 1.0, alpha: 0.35).setStroke()
         let stroke = NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 6, yRadius: 6)
         stroke.lineWidth = 1
@@ -143,7 +143,7 @@ private final class EdgeDockBarView: NSView {
     }
 
     private func drawVerticalContent(textColor: NSColor) {
-        // アイコン（上部）
+        // icon (top)
         var yOffset = bounds.maxY - 8 - 16
         if let sym = resolveIcon() {
             let cfg = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
@@ -154,7 +154,7 @@ private final class EdgeDockBarView: NSView {
         }
         yOffset -= 6
 
-        // ラベル（縦書き: 1 文字ずつ描画）
+        // Label (vertical writing: draw each character)
         let font = NSFont.systemFont(ofSize: 10, weight: .medium)
         let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: textColor]
         for char in label {
@@ -171,7 +171,7 @@ private final class EdgeDockBarView: NSView {
     private func drawHorizontalContent(textColor: NSColor) {
         var xOffset: CGFloat = 8
 
-        // アイコン
+        // icon
         if let sym = resolveIcon() {
             let cfg = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
             let img = sym.withSymbolConfiguration(cfg) ?? sym
@@ -181,7 +181,7 @@ private final class EdgeDockBarView: NSView {
             xOffset += tinted.size.width + 6
         }
 
-        // ラベル
+        // Label
         let font = NSFont.systemFont(ofSize: 10, weight: .medium)
         let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: textColor]
         let labelSize = (label as NSString).size(withAttributes: attrs)
@@ -235,7 +235,7 @@ private final class EdgeDockBarView: NSView {
         didDrag = false
     }
 
-    /// バーの全辺が visibleFrame 内に収まるよう origin をクランプ。
+    /// Clamp the origin so that all edges of the bar fit within visibleFrame.
     private static func clampedOrigin(_ origin: NSPoint, size: NSSize) -> NSPoint {
         guard let screen = NSScreen.main?.visibleFrame else { return origin }
         return NSPoint(

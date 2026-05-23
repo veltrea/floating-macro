@@ -85,6 +85,14 @@ extension PresetManager {
         try? writer.saveAppConfig(cfg)
     }
 
+    func setControlAPILanPort(_ port: Int) {
+        guard var cfg = appConfig else { return }
+        let clamped = max(1024, min(65535, port))
+        cfg.controlAPI.lanPort = clamped == cfg.controlAPI.port ? clamped + 1 : clamped
+        appConfig = cfg
+        try? writer.saveAppConfig(cfg)
+    }
+
     /// Clamped to [0.25, 1.0] so users can't make the panel fully invisible.
 
 }

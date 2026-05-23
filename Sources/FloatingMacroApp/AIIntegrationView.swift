@@ -2,22 +2,22 @@ import SwiftUI
 import AppKit
 import FloatingMacroCore
 
-/// "AI 連携" の独立ウィンドウ用ビュー。FloatingMacro を AI（Claude Code /
-/// Cursor / Gemini CLI / ChatGPT 等）に操作させるための初期セットアップを
-/// ワンクリックで行う。
+/// Independent view for AI integration window. FloatingMacro is an AI (Claude Code /
+/// Initial setup to allow Cursor, Gemini CLI, ChatGPT, etc. to perform actions
+/// One-click operation.
 ///
-/// 設計判断：Settings ウィンドウのタブにするのではなく独立ウィンドウとした。
-/// Settings は「ボタン編集」というオブジェクト単位の編集ツールである一方、
-/// このビューは「アプリ全体に対する初期セットアップ」で UI の粒度が違う。
-/// 同じウィンドウに入れると per-button 操作と app-wide 操作が混在して
-/// 混乱するため、`AIIntegrationWindowController` から呼ばれる別ウィンドウとして扱う。
+/// Design decision: The Settings window is made into a separate window instead of a tab in the Settings window.
+/// Settings is a tool for editing objects individually, while "button editing" refers to a specific type of edit operation.
+/// This view is for "initial setup across the entire app", with a different granularity of UI.
+/// When placed in the same window, there is a mix of per-button operation and app-wide operation.
+/// To avoid confusion, treat it as a separate window called from `AIIntegrationWindowController`.
 ///
-/// 提供する操作：
-/// 1. AI に貼り付ける接続用プロンプトをクリップボードへコピーする
-///    （Bearer トークンを埋め込み済み — そのまま貼ればAIが /manifest 経由で
-///    自己紹介を読み、以降の操作方法を理解する）
-/// 2. Claude Code (`~/.claude.json`) に MCP エントリをワンクリック登録する
-///    （次回 Claude Code 起動時に floatingmacro が自動接続される）
+/// Provided Operations:
+/// Copy connection prompt to clipboard for AI attachment
+/// Embedding Bearer token — Paste directly for AI to read via /manifest
+/// Understand the introduction and subsequent operation methods)
+/// 2. Claude Code ( ~/.claude.json ) One-click Register MCP Entry
+/// FloatingMacro will automatically connect the next time Claude Code is launched.
 struct AIIntegrationView: View {
     @ObservedObject var presetManager: PresetManager
     @State private var statusMessage: String = ""
@@ -36,7 +36,7 @@ struct AIIntegrationView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
 
-                // ─── 概要 ───────────────────────────────────────────
+                // Overview - Summary
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L("AI_に_FloatingMacro_を操作させる_943488"))
                         .font(.title3).fontWeight(.semibold)
@@ -48,7 +48,7 @@ struct AIIntegrationView: View {
 
                 Divider()
 
-                // ─── アクション 1: プロンプトをコピー ────────────────────
+                // Action 1: Copy Prompt
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 6) {
                         Image(systemName: "doc.on.clipboard")
@@ -91,7 +91,7 @@ struct AIIntegrationView: View {
                 .cornerRadius(8)
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2)))
 
-                // ─── アクション 2: 各 AI クライアントに MCP 登録 ───────────
+                // Action 2: Register each AI client with MCP
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 6) {
                         Image(systemName: "gearshape.2")
@@ -156,7 +156,7 @@ struct AIIntegrationView: View {
                 .cornerRadius(8)
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2)))
 
-                // ─── 接続情報（参考） ───────────────────────────────
+                // Connection information (reference)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L("接続情報_4b0c51")).font(.headline)
                     HStack(spacing: 6) {
@@ -179,7 +179,7 @@ struct AIIntegrationView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                // ─── 結果メッセージ ──────────────────────────────────
+                // Result message -------------------------------------------
                 if !statusMessage.isEmpty {
                     HStack(spacing: 8) {
                         Image(systemName: statusIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
@@ -225,8 +225,8 @@ struct AIIntegrationView: View {
     }
 
     private func registerCursorMCP() {
-        // Cursor: ~/.cursor/mcp.json の mcpServers に { url, headers } を書く。
-        // 最新の Cursor は url の存在で HTTP transport と判別する (type 不要)。
+        // Write the URL and headers to the mcpServers in ~/.cursor/mcp.json.
+        // The latest Cursor determines the type based on the presence of URL (no need for explicit type).
         registerHTTPMCP(
             clientName: "Cursor",
             relativePath: "~/.cursor/mcp.json",
@@ -239,9 +239,9 @@ struct AIIntegrationView: View {
     }
 
     private func registerGeminiCLIMCP() {
-        // Gemini CLI: ~/.gemini/settings.json の mcpServers に
-        // { httpUrl, headers } を書く。Gemini CLI は httpUrl フィールドを
-        // StreamableHTTPClientTransport にマップする (url は SSE 用で別物)。
+        // Gemini CLI: The mcpServers in ~/.gemini/settings.json
+        // Write {httpUrl, headers}. The Gemini CLI writes the httpUrl field.
+        // Map to StreamableHTTPClientTransport (URL is for SSE, separate).
         registerHTTPMCP(
             clientName: "Gemini CLI",
             relativePath: "~/.gemini/settings.json",
@@ -254,9 +254,9 @@ struct AIIntegrationView: View {
     }
 
     private func registerVSCodeMCP() {
-        // VS Code: 新仕様の ~/Library/Application Support/Code/User/mcp.json
-        // を使う。ルートキーは "servers" (他クライアントの "mcpServers" とは違う)、
-        // type は "http"。
+        // VS Code: New specification's ~/Library/Application Support/Code/User/mcp.json
+        // Use it. The root key is "servers" (different from other clients' "mcpServers").
+        // "type" is "http".
         registerHTTPMCP(
             clientName: "VS Code",
             relativePath: "~/Library/Application Support/Code/User/mcp.json",
@@ -270,8 +270,8 @@ struct AIIntegrationView: View {
     }
 
     private func registerWindsurfMCP() {
-        // Windsurf: ~/.codeium/windsurf/mcp_config.json の mcpServers に
-        // { serverUrl, headers } を書く (URL フィールド名が他と違う)。
+        // Windsurf: The mcpServers in the mcpConfig.json file located at ~/.codeium/windsurf/mcp_config.json.
+        // Write {serverUrl, headers} (URL field name differs from others).
         registerHTTPMCP(
             clientName: "Windsurf",
             relativePath: "~/.codeium/windsurf/mcp_config.json",
@@ -283,10 +283,10 @@ struct AIIntegrationView: View {
         )
     }
 
-    /// 各クライアントの設定ファイルに floatingmacro エントリを追記する共通実装 (HTTP 版)。
-    /// 既存設定を壊さないよう、ファイルが存在すれば JSON として読み込み、
-    /// 指定された rootKey 配下に "floatingmacro" キーを上書きで挿入する。
-    /// 親ディレクトリが存在しない場合は作成する (例: ~/.cursor/, ~/.gemini/)。
+    /// Common implementation to append a floatingmacro entry to each client's configuration file (HTTP version).
+    /// If the file exists, load it as JSON without breaking existing settings.
+    /// Insert the key "floatingmacro" under the specified rootKey with overwrite.
+    /// Create the parent directory if it does not exist (e.g., ~/.cursor/, ~/.gemini/).
     private func registerHTTPMCP(
         clientName: String,
         relativePath: String,
@@ -307,16 +307,16 @@ struct AIIntegrationView: View {
         )
     }
 
-    /// stdio 版 (Node.js 製 MCP server 経由) で登録する共通実装。
-    /// 登録名は HTTP 版と衝突しないよう "floatingmacro-stdio" を固定で使う。
+    /// Common implementation for registering via Node.js-based MCP server (stdio version).
+    /// Use "floatingmacro-stdio" fixed to avoid collision with HTTP version.
     ///
-    /// 仕組み:
-    ///   1. アプリバンドル内 (Contents/Resources/npm/) に同梱された
-    ///      Node.js 製 MCP server (npm パッケージ) を、ユーザー環境の
-    ///      npx 経由でローカルファイルパスから起動する。
-    ///   2. 認証トークンは args 経由で渡す (Keychain アクセス不要)。
-    ///   3. npx の絶対パスは ~/.zshrc / ~/.bash_profile を読んだ login shell
-    ///      経由で解決 (各 AI クライアントが PATH を継承しないため)。
+    /// System:
+    /// Packed in the app bundle (Contents/Resources/npm/)
+    /// Node.js-based MCP server (npm package) for user environment
+    /// Launch from local file path via npx.
+    /// 2. Authentication token is passed via args (no need for Keychain access).
+    /// The absolute path of npx is read from ~/.zshrc and ~/.bash_profile in a login shell.
+    /// Solved via (each AI client does not inherit PATH).
     private func registerStdioMCP(
         clientName: String,
         relativePath: String,
@@ -331,11 +331,11 @@ struct AIIntegrationView: View {
             setStatus(L("バンドル内に同梱された_npm_パッケージが見つかりません_Contents_Resources_n_2fa8e7"), isError: true)
             return
         }
-        // ユーザーの login shell を経由して npx を起動する。
-        // fnm / nvm / Homebrew のどのインストール方式でも、ログインシェルは
-        // ~/.zshrc / ~/.bash_profile を読み込んで PATH を組み立てるので、
-        // npx の絶対パスを設定ファイルに直書きする必要がない (fnm の session
-        // 固有 shim パスは shell 終了で無効化されるので絶対パスは脆弱)。
+        // Launch npx via the user's login shell.
+        // All installation methods for fnm, nvm, and Homebrew require that the login shell be
+        // Reads ~/.zshrc and ~/.bash_profile to assemble the PATH.
+        // No need to directly write the absolute path of npx in the configuration file (session of fnm)
+        // The unique shim path becomes invalid after the shell exits, making absolute paths vulnerable).
         let loginShell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
         let packageRef = "file:\(bundleNpmPath)"
         writeServerEntry(
@@ -348,9 +348,9 @@ struct AIIntegrationView: View {
         )
     }
 
-    /// アプリバンドルに同梱されている npm パッケージの絶対パス。
-    /// build-app.sh が Contents/Resources/npm/ にコピーしている前提。
-    /// 開発中 (swift run 直起動など) では nil を返し、呼び出し側がエラーを出す。
+    /// Absolute path to the npm package bundled with the app bundle.
+    /// Assumes build-app.sh copies to Contents/Resources/npm/.
+    /// Returns nil during development (such as swift run directly), and the caller throws an error.
     private func bundledNpmPackagePath() -> String? {
         guard let res = Bundle.main.resourcePath else { return nil }
         let path = res + "/npm"
@@ -359,7 +359,7 @@ struct AIIntegrationView: View {
               isDir.boolValue else {
             return nil
         }
-        // package.json があるかも軽く検証
+        // Check if package.json exists briefly
         if !FileManager.default.fileExists(atPath: path + "/package.json") {
             return nil
         }
@@ -367,9 +367,9 @@ struct AIIntegrationView: View {
     }
 
 
-    /// HTTP 版・stdio 版共通の書き込みロジック。
-    /// 既存ファイルを JSON として読み込み、rootKey 配下に serverName エントリを上書きし、
-    /// atomic 書き込みで保存する。親ディレクトリは必要なら自動作成。
+    /// Common write logic for HTTP version and stdio version.
+    /// Overwrite the serverName entry under rootKey by loading an existing file as JSON.
+    /// Save atomically with parent directory automatically created if needed.
     private func writeServerEntry(
         clientName: String,
         mode: String,
@@ -409,8 +409,8 @@ struct AIIntegrationView: View {
         }
     }
 
-    /// 各クライアント用の登録ボタン 1 行。アイコン + クライアント名 + パス +
-    /// 「CLI 登録」(主、青) + 「HTTP 登録」(補助、枠) の横並び。
+    /// Each client's registration button line. Icon + client name + path +
+    /// "CLI Registration" (primary, blue) + "HTTP Registration" (auxiliary, frame) side by side.
     @ViewBuilder
     private func registerRow(
         icon: String,
@@ -445,21 +445,21 @@ struct AIIntegrationView: View {
         }
     }
 
-    // MARK: - stdio 版 (Node.js 製 npm パッケージ経由) 各クライアント別登録
+    // MARK: - Stdio Version (Node.js-based NPM Package via) Per Client Registration
     //
-    // 各関数は (shellPath, packageRef, token) を受け取り、各クライアントの
-    // 設定ファイル形式に合わせた JSON エントリを返す。
+    // Each function takes (shellPath, packageRef, token) and returns the corresponding client.
+    // Returns a JSON entry conforming to the configuration file format.
     //
-    // shellPath はユーザーの $SHELL (通常 /bin/zsh)。login shell として
-    // 起動して ~/.zshrc / ~/.bash_profile を読み込むことで、fnm / nvm /
-    // Homebrew どれで Node.js を入れているユーザーでも PATH 上の npx を
-    // 見つけられるようにしている。
+    // shellPath is the user's $SHELL (usually /bin/zsh). As a login shell,
+    // Launch and load ~/.zshrc and ~/.bash_profile to load fnm/nvm/
+    // How to install Node.js for users who already have it on their PATH and access npx via Homebrew:
+    // Findable.
 
-    /// 共通の args を作る。`<shell> -lc "exec npx -y <pkg> --token <token>"`
+    /// Create common args: `<shell> -lc "exec npx -y <pkg> --token <token>"`
     private func stdioArgs(packageRef: String, token: String) -> [String] {
-        // single-quote で囲って token / pkg を shell metacharacter から守る。
-        // token は 64-char hex で危険な文字は無いが念のため。
-        // シングルクォートを文字列内で使う必要はない (token も pkg も含まない)。
+        // Enclose single-quote to protect token / pkg from shell metacharacters.
+        // The token is a 64-character hex string with no dangerous characters, just in case.
+        // Single quotes do not need to be used within strings (neither token nor pkg).
         let inner = "exec npx -y '\(packageRef)' --token '\(token)'"
         return ["-lc", inner]
     }
@@ -501,7 +501,7 @@ struct AIIntegrationView: View {
     }
 
     private func registerVSCodeStdio() {
-        // VS Code は stdio の場合 type: "stdio" が必要 (HTTP 版は type: "http")。
+        // VS Code requires type: "stdio" for stdio cases (type: "http" is needed for the HTTP version).
         registerStdioMCP(
             clientName: "VS Code",
             relativePath: "~/Library/Application Support/Code/User/mcp.json",
@@ -541,8 +541,8 @@ struct AIIntegrationView: View {
         statusIsError = isError
     }
 
-    /// 文字列の右脇に置く小さなコピーボタン。クリックでクリップボードに
-    /// コピーし、約 1.5 秒だけアイコンが ✓ に変わって完了をフィードバックする。
+    /// Copy button placed on the right side of a string. Clicking copies to clipboard.
+    /// Copy and change icon to ✓ in about 1.5 seconds for completion feedback.
     private struct CopyInlineButton: View {
         let text: String
         @State private var copied: Bool = false

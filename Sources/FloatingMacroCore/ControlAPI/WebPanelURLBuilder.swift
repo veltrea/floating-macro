@@ -1,27 +1,27 @@
 import Foundation
 
-/// Phase 5: Web Panel の接続 URL を組み立てる純粋関数。
+/// Pure function to assemble the connection URL for Web Panel Phase 5.
 ///
-/// 用途は 2 つ:
-/// - QR コードに埋め込む URL を作る
-/// - Settings / Device Send 画面に「コピーできるテキスト」として表示する
+/// The purpose is two-fold:
+/// Create a URL to embed in the QR code
+/// Settings / Device Send Display as "copyable text" on the screen
 ///
-/// 「QR の URL を作る」だけなら 1 行で済むが、ホスト名の選定 (LAN IP / .local /
-/// 127.0.0.1) とポートとトークンを 1 箇所にまとめ、テストで境界条件を固定して
-/// おきたいので関数化する。
+/// Creating a QR code for just the URL can be done in one line, but selecting a host name (LAN IP/.local/) requires more consideration.
+/// (127.0.0.1) and port and token combined into one place, fixed boundary conditions for testing
+/// I will convert this into a function.
 public enum WebPanelURLBuilder {
 
-    /// 与えられた host + port + token から `http://host:port/webpanel?token=...`
-    /// 形式の URL 文字列を作る。
+    /// Given the provided host, port, and token, construct an HTTP URL in the format `http://host:port/webpanel?token=...`.
+    /// Create a URL string of the specified format.
     /// - Parameters:
-    ///   - host: 接続先ホスト。LAN IP (`192.168.x.x`) / mDNS (`floatingmacro.local`) / 127.0.0.1 のどれでも。
-    ///   - port: バインド済みポート。
-    ///   - token: ephemeral LAN token (hex)。空でない前提。
-    ///   - preset: パネル単位で QR を発行するときの対象 preset 名。`nil` のときは
-    ///             Web Panel が active preset を表示する。Phase 5 でフローティング
-    ///             ウィンドウ右上の QR ボタンから渡される。
+    /// host: Connection target host. LAN IP (192.168.x.x) / mDNS (floatingmacro.local) / 127.0.0.1 of any kind.
+    /// Binded port.
+    /// Ephemeral LAN token (hex). Assumed to be non-empty.
+    /// - preset: When issuing a QR code panel-wise, the target preset name. If `nil`, then
+    /// The Web Panel displays the active preset. Floating in Phase 5.
+    /// Passed from the QR button in the upper right corner of the window.
     public static func make(host: String, port: Int, token: String, preset: String? = nil) -> String {
-        // host にコロンが含まれている場合 (IPv6 リテラル) は [] で括る。
+        // Enclose in [] if host contains a colon (IPv6 literal).
         let h = host.contains(":") && !host.hasPrefix("[") ? "[\(host)]" : host
         let q = token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token
         var url = "http://\(h):\(port)/webpanel?token=\(q)"
@@ -32,10 +32,10 @@ public enum WebPanelURLBuilder {
         return url
     }
 
-    /// LAN 公開時に使う「最も妥当そうなホスト」を選ぶ。優先順位:
-    /// 1. mDNS の `*.local` (Bonjour 広報している場合)
-    /// 2. 渡された LAN IPv4
-    /// 3. 何もなければ 127.0.0.1 (動かないが落ちない)
+    /// Select the most plausible host to use when launching LAN. Priority:
+    /// 1. mDNS's `*.local` (if Bonjour is advertising)
+    /// LAN IPv4 passed
+    /// If nothing is there, 127.0.0.1 (does not move but does not crash)
     public static func preferredHost(localName: String? = nil,
                                      lanIPv4: String? = nil) -> String {
         if let name = localName, !name.isEmpty {

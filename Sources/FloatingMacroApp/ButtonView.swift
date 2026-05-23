@@ -3,11 +3,11 @@ import AppKit
 import FloatingMacroCore
 import WaterfallGrid
 
-/// 押下フィードバックの内部ステートマシン。`MacroButtonView` が実行直後に
-/// `.running` → `.success` (1 秒) → `.idle` と自前のタイマーで遷移する。
-/// アクションは現状 fire-and-forget なので「実行完了 = 成功扱い」(P2-10)。
-/// 失敗時の赤フィードバックは将来 `executeButton` が結果を返すように
-/// なってから配線する。
+/// Internal state machine for push feedback. `MacroButtonView` executes immediately after
+/// Running → Success (1 second) → Idle transition using a custom timer.
+/// The action is currently fire-and-forget, so "execution complete = success" (P2-10).
+/// Failure red feedback will ensure that `executeButton` returns results in the future.
+/// Connect after completion.
 private enum ExecutionFeedback {
     case idle
     case running
@@ -18,13 +18,13 @@ private enum ExecutionFeedback {
 struct MacroButtonView: View {
     let button: ButtonDefinition
     let onTap: () -> Void
-    /// 親グループの表示タイプ。`.icon` (既定) / `.wide` / `.card` / `.grid` で
-    /// それぞれ別レイアウトに分岐する。エディター内プレビュー等、
-    /// グループ文脈の無い呼び出し元は省略すれば既存挙動。
+    /// Display type of parent group. `.icon` (default) / `.wide` / `.card` / `.grid` for
+    /// Each branch into separate layouts. Editor preview, etc.,
+    /// Without context, omitting the caller results in existing behavior.
     var displayType: GroupDisplayType = .icon
-    /// グリッド/アイコン系レイアウトでのアイコン表示サイズ。
+    /// Icon display size in grid/icon layout.
     var iconSize: IconSize = .medium
-    /// グリッドレイアウトでラベルを表示するかどうか。
+    /// Whether to display labels in grid layout.
     var showLabel: Bool = true
     var onEdit: (() -> Void)? = nil
     var onCut: (() -> Void)? = nil
@@ -55,7 +55,7 @@ struct MacroButtonView: View {
         return nil
     }
 
-    /// Card タイプのときに使う画像。icon に統合されたため inferredImage と同一。
+    /// Image type used for Card. Integrated into icon, same as inferredImage.
     private var thumbnailImage: NSImage? { inferredImage }
 
     /// Parse `backgroundColor` hex string into a SwiftUI Color. nil = default.
@@ -75,7 +75,7 @@ struct MacroButtonView: View {
         return button.backgroundColor != nil ? .white : .primary
     }
 
-    /// 状態フィードバック用の枠線色。idle のときは `.clear` で枠線を出さない。
+    /// Frame border color for state feedback. When idle, do not draw the frame border with `.clear`.
     private var feedbackBorderColor: Color {
         switch feedback {
         case .idle:    return .clear
@@ -205,7 +205,7 @@ struct MacroButtonView: View {
         }
     }
 
-    /// onTap を直接呼ぶ前に、ButtonDefinition.confirm が true なら確認ダイアログを介在させる。
+    /// If onTap is called directly, if ButtonDefinition.confirm is true, insert a confirmation dialog in between.
     private func handleTap() {
         if button.confirm {
             confirmingExecute = true
@@ -215,15 +215,15 @@ struct MacroButtonView: View {
         }
     }
 
-    /// 確認ダイアログ経由で実行するときも feedback を出す。
+    /// Output a confirmation dialog and provide feedback when executed via the dialog.
     private func handleConfirmedTap() {
         triggerFeedback()
         onTap()
     }
 
-    /// 実行中 → 成功の枠線アニメーションを開始する。
-    /// アクション側に成功/失敗の戻り値が無いので、現状は「押された＝成功扱い」。
-    /// 連打されたら最新の押下を優先するため既存タスクをキャンセルする。
+    /// Start success frame animation on execution.
+    /// Since there is no return value indicating success/failure on the action side, currently it is treated as "pressed = success".
+    /// Cancel existing tasks to prioritize the latest press if pressed repeatedly.
     private func triggerFeedback() {
         feedbackTask?.cancel()
         feedback = .running
@@ -237,7 +237,7 @@ struct MacroButtonView: View {
         }
     }
 
-    /// displayType によって描画するレイアウトを切り替える。`.icon` は既存挙動。
+    /// Switch the layout to be drawn by displayType. The `.icon` retains existing behavior.
     @ViewBuilder
     private var buttonContent: some View {
         switch displayType {
@@ -248,8 +248,8 @@ struct MacroButtonView: View {
         }
     }
 
-    /// Grid: アイコン + (任意の) ラベル。Finder のアイコン表示風。
-    /// card と違いサムネイルを使わずアプリアイコン/絵文字が主役。
+    /// Grid: Icon + (optional) label. Finder icon display style.
+    /// Unlike card, the app icon/emoticon takes center stage without using a thumbnail.
     private var gridLayout: some View {
         let sz = iconSize.points
         return VStack(spacing: 2) {
@@ -321,7 +321,7 @@ struct MacroButtonView: View {
         )
     }
 
-    /// Wide: 全幅・大きめのアイコン + 中央寄せラベル。長いタイトルを 2 行まで許容する。
+    /// Wide: Full-width large icon + centered label. Allows up to 2 lines for long titles.
     private var wideLayout: some View {
         HStack(spacing: 10) {
             if let img = inferredImage {
@@ -335,7 +335,7 @@ struct MacroButtonView: View {
                     .foregroundColor(resolvedForeground)
                     .frame(width: 28, height: 28)
             } else {
-                // 不在のときも左マージンを保つ。
+                // Keep left margin even when not in use.
                 Color.clear.frame(width: 28, height: 28)
             }
             Text(button.label)
@@ -358,20 +358,20 @@ struct MacroButtonView: View {
         )
     }
 
-    /// Card: サムネイルを上、タイトルを下に出すギャラリー風レイアウト。
-    /// 親 GroupView 側の `LazyVGrid` の中で使う前提。
+    /// Gallery-style layout with thumbnail on top and title below.
+    /// Assuming use in the parent LazyVGrid.
     ///
-    /// レイアウト戦略:
-    ///   1. `Color.clear.aspectRatio(1, .fit)` でセルの幅から正方形ボックスを取る
-    ///   2. その上に overlay + clipShape で画像/絵文字/プレースホルダを乗せる
-    ///   3. `.aspectRatio(.fill)` した画像は clipShape で正方形に切り抜かれる
-    /// この構成だと Image の intrinsic size が ZStack を引き伸ばす問題を踏まない。
+    /// Layout Strategy:
+    /// 1. `Color.clear.aspectRatio(1, .fit)` to get a square box from the cell's width
+    /// Place images, emojis, placeholders on top using overlay and clipShape.
+    /// An image with `.aspectRatio(.fill)` will be clipped to a square by `clipShape`.
+    /// This configuration avoids the problem of Image's intrinsic size stretching ZStack.
     ///
-    /// 縦方向アラインメント: LazyVGrid は同じ行内の cell 高さを揃えるが、ラベルが
-    /// 1 行の cell と 2 行の cell では VStack 全体の高さが違う。デフォルトでは
-    /// 行の cell が center 揃えになり「短いラベルの cell だけサムネイルが下に
-    /// ずれる」ため、`.frame(maxHeight: .infinity, alignment: .top)` で **基準点を
-    /// 上端に固定** する。サムネイルとラベルの位置はラベル行数によらず常に同じ。
+    /// Vertical alignment: LazyVGrid aligns the height of cells within the same row, but labels...
+    /// The height of the entire VStack differs between a single-line cell and a two-line cell. By default,
+    /// The cells are aligned to the center, and only short label cells have thumbnails below.
+    /// above the top edge of the window.
+    /// Fix to the top. The position of the thumbnail and label is always the same regardless of the number of label rows.
     private var cardLayout: some View {
         VStack(spacing: 6) {
             Color.clear
@@ -399,8 +399,8 @@ struct MacroButtonView: View {
         )
     }
 
-    /// Card レイアウトの正方形ボックスに乗せるサムネイル中身。
-    /// `button.cardThumbnailMode == .fill` なら外接クロップ、`.fit` なら内接余白。
+    /// Thumbnail content placed on a square box in Card layout.
+    /// If button.cardThumbnailMode is .fill, use outer crop; if .fit, use inner padding.
     @ViewBuilder
     private var thumbnailContent: some View {
         if let img = thumbnailImage {
@@ -433,8 +433,8 @@ struct MacroButtonView: View {
         }
     }
 
-    /// 実行確認ダイアログのメッセージ部。confirmMessage が空なら破壊性に応じて
-    /// デフォルト文言を出す。
+    /// The message part of the execution confirmation dialog. If confirmMessage is empty, it depends on the destructive nature.
+    /// Display default text.
     @ViewBuilder
     private func executeConfirmMessageView() -> some View {
         let trimmed = button.confirmMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -608,10 +608,10 @@ struct GroupView: View {
         }
     }
 
-    /// グループの displayType に応じてボタン群のレイアウトを変える。
-    /// - icon : 既存の縦並び
-    /// - wide : 全幅セルの縦並び (left padding なし)
-    /// - card : 2 列の LazyVGrid (Midjourney 風ギャラリー)
+    /// Change the button layout based on the group's display type.
+    /// icon: existing vertical layout
+    /// wide: Full-width cell vertical layout (no left padding)
+    /// card: 2-column LazyVGrid (Midjourney-style gallery)
     @ViewBuilder
     private var buttonsBody: some View {
         switch group.displayType {
@@ -646,8 +646,8 @@ struct GroupView: View {
         }
     }
 
-    /// `group.columns` を LazyVGrid の columns 定義に変換する。
-    /// `.auto` は `adaptive(minimum:maximum:)`、`.fixed(n)` は `flexible()` を n 個。
+    /// Convert `group.columns` to a LazyVGrid columns definition.
+    /// `.auto` is `adaptive(minimum:max:)`, `.fixed(n)` is `flexible()` with n pieces.
     private func gridColumns(minCellWidth: CGFloat,
                              maxCellWidth: CGFloat,
                              spacing: CGFloat) -> [GridItem] {

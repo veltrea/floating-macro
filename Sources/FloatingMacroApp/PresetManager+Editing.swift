@@ -10,11 +10,11 @@ extension PresetManager {
     /// Errors bubble through `errorMessage` for the GUI, and the function
     /// returns whether the edit succeeded so HTTP callers can report it.
     ///
-    /// Phase 3 fix: `loadedPresets[next.name]` も同期的に更新する。これがないと、
-    /// 編集対象が panels[0] 以外のプリセットだったとき、複数パネルが読んでいる
-    /// キャッシュが古いままになり、編集後の表示が反映されない。directory
-    /// watcher 経由の遅延 reload に頼ると "保存後にちらっと反映されない瞬間"
-    /// + "watcher 起動と currentPreset の race" の 2 つのバグの温床になる。
+    /// Fix Phase 3: Update `loadedPresets[next.name]` synchronously. Without this, the...
+    /// When the edit target is a preset other than panels[0], multiple panels are being read.
+    /// The cache remains old, and the display after editing does not reflect it. directory
+    /// Relying on a delay via watcher to reload may result in "moments of flickering after saving".
+    /// Two bugs that will become the breeding ground for watcher and currentPreset.
     @discardableResult
     func editActivePreset(_ transform: (Preset) throws -> Preset) -> Bool {
         guard let preset = currentPreset else { return false }
@@ -249,7 +249,7 @@ extension PresetManager {
         do {
             try writer.savePreset(next)
             if currentPreset?.name == name { currentPreset = next }
-            // Phase 3: 表示中のキャッシュも同期。既存パネルの即時再描画用。
+            // Displaying cache synchronized. Immediate redraw for existing panels.
             if loadedPresets[name] != nil { loadedPresets[name] = next }
             refreshPresetEntries()
             return true
@@ -266,7 +266,7 @@ extension PresetManager {
         do {
             try writer.savePreset(next)
             if currentPreset?.name == name { currentPreset = next }
-            // Phase 3: 表示中のキャッシュも同期。
+            // Synchronize cache that is currently being displayed.
             if loadedPresets[name] != nil { loadedPresets[name] = next }
             return true
         } catch {

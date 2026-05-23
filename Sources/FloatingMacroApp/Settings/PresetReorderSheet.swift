@@ -5,8 +5,8 @@ import FloatingMacroCore
 
 // MARK: - Preset reorder sheet
 
-/// プリセット表示順を DnD で並べ替えるシート。確定するまでメモリ上で
-/// 編集し、「保存」で `presetManager.reorderPresets` を呼んで永続化する。
+/// Preset display order for rearranging by DnD. Until confirmed, in memory only.
+/// Edit and call `presetManager.reorderPresets` to persist using "save".
 struct PresetReorderSheet: View {
     @ObservedObject var presetManager: PresetManager
     @Binding var isPresented: Bool
@@ -100,8 +100,8 @@ struct PresetReorderSheet: View {
     }
 }
 
-/// プリセット並べ替えシート用の DropDelegate。テキストペイロード
-/// `p:<id>` を読み取り、ソース行をドロップ先の直前に挿入する。
+/// DropDelegate for preset rearrangement sheet. Text payload
+/// Read `p:<id>` and insert the source line before the drop target.
 private struct PresetRowDropDelegate: DropDelegate {
     let destId: String
     @Binding var workingOrder: [PresetEntry]

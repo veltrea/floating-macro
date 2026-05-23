@@ -1,11 +1,11 @@
 import XCTest
 @testable import FloatingMacroCore
 
-/// Phase 5 (P5-3) — LAN 公開モード用の再起動失効トークンストアの単体テスト。
+/// Phase 5 (P5-3) - Unit test for the token store of LAN public mode restart invalidation.
 final class EphemeralLANTokenStoreTests: XCTestCase {
 
-    // 各テストで shared を再利用するとテスト間で状態が漏れるので、
-    // 独立インスタンスを直接生成して検証する。
+    // Each test reusing shared should not leak state between tests.
+    // Generate an independent instance directly for verification.
     private func makeStore() -> EphemeralLANTokenStore {
         return EphemeralLANTokenStore()
     }
@@ -22,7 +22,7 @@ final class EphemeralLANTokenStoreTests: XCTestCase {
         XCTAssertFalse(first.isEmpty)
         XCTAssertEqual(store.current, first)
 
-        // 2 回目の ensureIssued は既存トークンをそのまま返す (rotate しない)。
+        // The second ensureIssued does not rotate existing tokens; it simply returns them as-is.
         let second = store.ensureIssued()
         XCTAssertEqual(first, second)
     }
@@ -74,7 +74,7 @@ final class EphemeralLANTokenStoreTests: XCTestCase {
     }
 
     func testConstantTimeEqualsHandlesLengthDifference() {
-        // 内部ヘルパの直接テスト: 長さが違う場合も crash せず false を返す。
+        // Direct test of internal helpers: Do not crash if lengths differ, return false instead.
         XCTAssertFalse(EphemeralLANTokenStore.constantTimeEquals("abc", "abcd"))
         XCTAssertFalse(EphemeralLANTokenStore.constantTimeEquals("", "x"))
         XCTAssertTrue(EphemeralLANTokenStore.constantTimeEquals("same", "same"))

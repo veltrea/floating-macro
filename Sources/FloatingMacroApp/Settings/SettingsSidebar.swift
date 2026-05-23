@@ -12,16 +12,17 @@ struct SettingsSidebar: View {
 
     @State private var newPresetName = ""
     @State private var portText = ""
-    /// ドラッグ中のドロップ先ハイライト（グループ行用）
+    @State private var lanPortText = ""
+    /// Drop target highlight during drag (for group rows)
     @State private var dropTargetGroupId: String?
-    /// ドラッグ中のドロップ先ハイライト（ボタン行用）
+    /// Drag-and-drop drop target highlight (for button row)
     @State private var dropTargetButtonId: String?
-    /// プリセット並べ替えシートの表示フラグ
+    /// Display flag for preset sorting sheet
     @State private var showingPresetReorderSheet: Bool = false
-    /// 「アプリから追加…」ピッカーシートの表示フラグ
+    /// Flag for displaying the "Add from App..." picker sheet
     @State private var showingAppPickerSheet: Bool = false
-    /// プリセットメモ編集用のローカル State。プリセット切替時に
-    /// `currentPreset.memo` から読み戻し、変更時に PresetManager 経由で保存。
+    /// Local State for Preset Memo Editing. Switching Presets When
+    /// Load from `currentPreset.memo`, save via PresetManager when changed.
     @State private var memoText: String = ""
 
     var body: some View {
@@ -65,7 +66,7 @@ struct SettingsSidebar: View {
                 .help(L("リネーム_並べ替え_エクスポート_インポート_174c89"))
             }
 
-            // プリセットメモ
+            // preset memo
             HStack {
                 Text(L("メモ_9490ad")).font(.caption).foregroundColor(.secondary)
                 Spacer()
@@ -87,7 +88,7 @@ struct SettingsSidebar: View {
                 .font(.caption2)
                 .foregroundColor(.secondary)
 
-            // AI モード picker
+            // AI mode picker
             HStack {
                 Text(L("AI_モード_fec4eb")).font(.caption).foregroundColor(.secondary)
                 Spacer()
@@ -103,7 +104,7 @@ struct SettingsSidebar: View {
             .labelsHidden()
             .help(L("GET_manifest_で返すシステムプロンプトを切り替えます_767f36"))
 
-            // AI 接続 設定 (旧称: Control API)
+            // AI Connection Configuration (Formerly Known As: Control API)
             HStack {
                 Text(L("AI_接続_3d125f")).font(.caption).foregroundColor(.secondary)
                 Spacer()
@@ -127,9 +128,22 @@ struct SettingsSidebar: View {
                     .onSubmit { commitPort() }
                 Text("1024–65535").font(.caption2).foregroundColor(.secondary)
             }
-            Text(L("変更後はアプリの再起動が必要です_0b37da"))
-                .font(.caption2)
-                .foregroundColor(.secondary)
+            if presetManager.appConfig?.controlAPI.lanExposureEnabled == true {
+                HStack(spacing: 4) {
+                    Text("LAN ポート").font(.caption).foregroundColor(.secondary)
+                    TextField("17431", text: $lanPortText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 70)
+                        .onAppear {
+                            lanPortText = String(presetManager.appConfig?.controlAPI.lanPort ?? 17431)
+                        }
+                        .onChange(of: presetManager.appConfig?.controlAPI.lanPort) { newPort in
+                            lanPortText = String(newPort ?? 17431)
+                        }
+                        .onSubmit { commitLanPort() }
+                    Text("1024–65535").font(.caption2).foregroundColor(.secondary)
+                }
+            }
 
             Divider()
 
@@ -188,15 +202,15 @@ struct SettingsSidebar: View {
         }
     }
 
-    /// プリセット切替時に編集中の memoText を currentPreset から読み戻す。
-    /// 同じプリセットの再描画では `memoText` が既に最新のはずなので何もしない。
+    /// Restore memoText that is being edited from currentPreset when switching presets.
+    /// In the case of redrawing with the same preset, since `memoText` should already be up-to-date, do nothing.
     private func syncMemoFromCurrentPreset() {
         let next = presetManager.currentPreset?.memo ?? ""
         if memoText != next { memoText = next }
     }
 
-    /// 編集中のメモを保存する。空文字列は nil に正規化されるため、
-    /// 読み戻し時の "" との往復で保存ループにならない。
+    /// Save the memo being edited. The empty string is normalized to nil because,
+    /// Ensure that the forward and backward conversion between "" does not result in a save loop.
     private func commitMemoIfChanged(_ newValue: String) {
         guard let preset = presetManager.currentPreset else { return }
         let normalized: String? = newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -335,10 +349,10 @@ struct SettingsSidebar: View {
         }
     }
 
-    /// ドラッグ&ドロップのコア処理。
-    /// - payload: `"g:<id>"` でグループ、`"b:<id>"` でボタン
-    /// - ontoGroupId: ドロップ先グループ
-    /// - beforeButtonId: 指定があればそのボタンの直前に挿入。nil ならグループ末尾。
+    /// Core processing for drag-and-drop.
+    /// payload: `"g:<id>"` for group, `"b:<id>"` for button
+    /// drop target group
+    /// Insert before button ID: Insert before the specified button. nil means at the end of the group.
     private func handleDrop(payload: String,
                             ontoGroupId destGroupId: String,
                             beforeButtonId: String?) -> Bool {
@@ -347,10 +361,10 @@ struct SettingsSidebar: View {
         if payload.hasPrefix("b:") {
             let srcButtonId = String(payload.dropFirst(2))
             guard !srcButtonId.isEmpty else { return false }
-            // 同じボタンに drop しても何もしない
+            // Nothing happens when dropped on the same button
             if let bid = beforeButtonId, bid == srcButtonId { return false }
 
-            // 同一グループ内の並べ替えなら reorderButtons を、グループ跨ぎなら moveButton を使う
+            // Use reorderButtons for reordering within the same group, and moveButton for cross-group movement.
             let srcGroupId: String? = preset.groups.first(where: {
                 $0.buttons.contains(where: { $0.id == srcButtonId })
             })?.id
@@ -368,7 +382,7 @@ struct SettingsSidebar: View {
                 ids.insert(srcButtonId, at: insertIdx)
                 return presetManager.reorderButtons(ids: ids, inGroupId: destGroupId)
             } else {
-                // グループ跨ぎ: 行先グループ内での挿入位置を決める
+                // Cross-group insertion: Determines the insertion position within the destination group.
                 let position: Int?
                 if let bid = beforeButtonId,
                    let dest = preset.groups.first(where: { $0.id == destGroupId }),
@@ -388,7 +402,7 @@ struct SettingsSidebar: View {
         if payload.hasPrefix("g:") {
             let srcGroupId = String(payload.dropFirst(2))
             guard !srcGroupId.isEmpty, srcGroupId != destGroupId else { return false }
-            // グループは「ドロップ先グループの直前」に挿入
+            // The group is inserted immediately before the drop target group.
             var ids = preset.groups.map { $0.id }
             ids.removeAll { $0 == srcGroupId }
             let insertIdx = ids.firstIndex(of: destGroupId) ?? ids.count
@@ -514,13 +528,22 @@ struct SettingsSidebar: View {
 
     private func commitPort() {
         guard let port = Int(portText) else {
-            // 無効な値はリセット
+            // Reset invalid value
             portText = String(presetManager.appConfig?.controlAPI.port ?? 17430)
             return
         }
         presetManager.setControlAPIPort(port)
-        // setControlAPIPort 内でクランプされた値に合わせて表示を更新
+        // Update display to match clamped value within setControlAPIPort
         portText = String(presetManager.appConfig?.controlAPI.port ?? port)
+    }
+
+    private func commitLanPort() {
+        guard let port = Int(lanPortText) else {
+            lanPortText = String(presetManager.appConfig?.controlAPI.lanPort ?? 17431)
+            return
+        }
+        presetManager.setControlAPILanPort(port)
+        lanPortText = String(presetManager.appConfig?.controlAPI.lanPort ?? port)
     }
 
     private func addEmptyButton() {

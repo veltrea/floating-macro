@@ -2,20 +2,20 @@ import SwiftUI
 import AppKit
 import FloatingMacroCore
 
-/// `/Applications` 配下の `.app` を Launchpad のような格子で表示し、
-/// 選んで現在のグループに `launch` ボタンとして追加するシート。
-/// DnD と並列の追加導線で、キーボード派 / 身体的にマウスドラッグが
-/// 難しいユーザー向け。
+/// Display the `.app` files under `/Applications` in a grid-like layout similar to Launchpad.
+/// Add a sheet to the current group as a launch button.
+/// In parallel with DnD, keyboard-based additions and mouse-drag physicality.
+/// Difficult for advanced users.
 ///
-/// 列挙 (`FileSystemAppListProvider`)・アイコン抽出 (`ImageIOIconExtractor`)・
-/// 内容検査 (`IconContentValidator`)・キャッシュ (`AppIconCache`)・
-/// 保存 (`IconAssetSaver`) はすべて `FloatingMacroCore` 側で単体テスト済み。
-/// このファイルは UI ラッパーのみ。
+/// Listing (FileSystemAppListProvider)・Icon Extraction (ImageIOIconExtractor)・
+/// content inspection (IconContentValidator)・cache (AppIconCache)・
+/// The `IconAssetSaver` is fully unit tested on the `FloatingMacroCore` side.
+/// This file contains only UI wrappers.
 ///
-/// 起動時 `AppIconPrewarmer` が `/Applications` 全アプリのアイコンを
-/// バックグラウンドでキャッシュ済みなので、各セルは 0th 段の `cache.get`
-/// だけでヒットして即時表示される (Launchpad 同等の体感)。キャッシュ
-/// 未生成のアプリだけ ImageIO → NSWorkspace のカスケードを裏で叩く。
+/// Launch time, the `AppIconPrewarmer` prewarms icons for all applications in "/Applications".
+/// Since it is cached in the background, each cell uses `cache.get` of the 0th stage.
+/// Hit only once and displayed immediately (similar to Launchpad). Cache.
+/// Only generate uncompiled apps to cascade behind ImageIO → NSWorkspace.
 struct AppLauncherPickerSheet: View {
     @ObservedObject var presetManager: PresetManager
     let groupId: String
@@ -29,8 +29,8 @@ struct AppLauncherPickerSheet: View {
     private let provider: AppListProvider = FileSystemAppListProvider()
     private let extractor = ImageIOIconExtractor()
 
-    /// セルあたりの正方形サイズ (アイコン + ラベル枠)。Launchpad 比で少し
-    /// 小さめの 96px。8〜9 アプリ/行を想定。
+    /// Cell size per square (icon + label frame). Slightly larger than Launchpad.
+    /// Small size: 96px. Assume 8-9 apps per line.
     private let cellSize: CGFloat = 96
 
     private var filteredApps: [AppEntry] {
@@ -152,8 +152,8 @@ struct AppLauncherPickerSheet: View {
 
         let buttonId = "b-\(Int.random(in: 1000...9999))"
 
-        // カスケード: 共有キャッシュ → ImageIO → NSWorkspace
-        // (各段で IconContentValidator)
+        // Cascade: Shared Cache → ImageIO → NSWorkspace
+        // Each segment IconContentValidator
         var iconBytes: Data? = nil
         if let cached = await AppIconCache.shared.get(for: entry.url),
            IconContentValidator.hasMeaningfulContent(pngData: cached) {
@@ -200,5 +200,5 @@ struct AppLauncherPickerSheet: View {
     }
 }
 
-// `AppGridCell` は別ファイル ([AppGridCell.swift](AppGridCell.swift)) に切り出し、
-// `AppIconPicker` と共有している。
+// `AppGridCell` is extracted into a separate file (AppGridCell.swift).
+// Shared with `AppIconPicker`.

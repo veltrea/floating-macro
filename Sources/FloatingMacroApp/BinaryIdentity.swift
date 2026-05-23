@@ -77,8 +77,8 @@ enum BinaryIdentity {
     /// `prompt: true` were observed to trigger an unbreakable OS dialog
     /// loop on macOS Sequoia (TCC daemon keeps re-prompting while a
     /// permission request is pending). Recovery is handled by the panel's
-    /// [修復] button which the user clicks after seeing the
-    /// "アクセシビリティ権限が無効" badge.
+    /// [Repair] button that the user clicks after viewing the
+    /// Accessibility permission is invalid.
     ///
     /// The badge is driven by `accessibilityTrusted` polling in
     /// `PresetManager`, which catches the silent revoke via the AX probe
@@ -108,7 +108,7 @@ enum BinaryIdentity {
         // intentionally do NOT call tccutil reset here: doing so triggers
         // the OS to spontaneously re-prompt this AX-using process, which
         // loops indefinitely in Sequoia. The panel badge will alert the
-        // user and the [修復] button handles recovery.
+        // and the [Repair] button handles recovery.
         log.info(category, "binary changed — TCC silent-revoke expected; user must use [修復] button to recover", [
             "from":     String(last.prefix(12)),
             "to":       String(current.prefix(12)),

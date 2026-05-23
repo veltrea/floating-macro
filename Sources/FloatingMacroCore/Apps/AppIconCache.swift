@@ -1,26 +1,26 @@
 import Foundation
 
-/// 二段キャッシュ (memory + disk) でアプリアイコン PNG を保持する。
+/// Maintain the app icon PNG in a two-tier cache of memory and disk.
 ///
 /// Background:
-///   どんな OS の Explorer / Finder / Dock もアイコンの取得をキャッシュしている。
-///   FloatingMacro でも、`/Applications` のスキャン結果や Assets.car を毎回
-///   NSWorkspace に問い合わせると遅いし重いので、抽出済み PNG を保存して
-///   再利用する。
+/// All OS Explorers/Finder/Dock cache icon retrieval.
+/// FloatingMacro, also scan results from /Applications and Assets.car every time
+/// Saving extracted PNGs to speed up queries and reduce load on NSWorkspace.
+/// Reuse.
 ///
 /// Layout:
-///   - メモリ: actor 内の Dictionary。プロセス生存中だけ有効
-///   - ディスク: `~/Library/Caches/FloatingMacro/AppIcons/<key>.png`
-///     ファイルの mtime をアプリの mtime と一致させて保存し、アプリが
-///     更新された (mtime が変わった) ときだけ再抽出するようにする。
+/// Memory: Dictionary within the actor. Valid only during process lifetime
+/// Disk: `~/Library/Caches/FloatingMacro/AppIcons/<key>.png`
+/// Save the file's mtime to match the app's mtime and have the app
+/// Update only when mtime changes.
 ///
 /// Key:
-///   bundle id があればそれ。無ければアプリパスから / を _ に置換した文字列。
-///   sha256 hash 等は使わずプレーンに保つ (デバッグしやすさ優先)。
+/// If there is a bundle ID, use that. Otherwise, replace "/" in the app path with "_" to form the string.
+/// Do not use sha256 hash, keep plain. (Prioritize debuggability).
 ///
 /// Concurrency:
-///   actor で thread-safe。複数の `loadPreviewIcon` が同時に走っても
-///   put/get が安全に直列化される。
+/// thread-safe with actor. Multiple `loadPreviewIcon` can run simultaneously without
+/// put/get are serialized safely in sequence.
 public actor AppIconCache {
 
     public static let shared = AppIconCache()
@@ -51,9 +51,9 @@ public actor AppIconCache {
             at: self.cacheDirectory, withIntermediateDirectories: true)
     }
 
-    /// `appURL` のキャッシュ済みアイコンを返す。
-    /// アプリの mtime とキャッシュの mtime を比較し、アプリが更新されていれば
-    /// nil を返す (上位で再抽出させる)。
+    /// Returns the cached icon for `appURL`.
+    /// Compare the app's mtime and cache mtime, and if the app has been updated,
+    /// Return nil (re-fetch at the upper level).
     public func get(for appURL: URL) -> Data? {
         let key = cacheKey(for: appURL)
         guard let appMtime = appMtime(at: appURL) else { return nil }
@@ -62,7 +62,7 @@ public actor AppIconCache {
             return entry.pngData
         }
 
-        // ディスクからメモリへ昇格
+        // Upgrade from disk to memory
         let diskFile = self.diskFile(for: key)
         if let attrs = try? FileManager.default.attributesOfItem(atPath: diskFile.path),
            let diskMtime = attrs[.modificationDate] as? Date,
@@ -74,9 +74,9 @@ public actor AppIconCache {
         return nil
     }
 
-    /// 抽出済みの PNG bytes をキャッシュに格納する (memory + disk)。
-    /// ディスクファイルの mtime をアプリの mtime に合わせて、後から
-    /// アプリ側が更新された場合に再抽出が走るようにする。
+    /// Store cached PNG bytes in memory and disk.
+    /// Set the disk file's mtime to match the app's mtime later.
+    /// Run re-extraction when the app side is updated.
     public func put(for appURL: URL, data: Data) {
         let key = cacheKey(for: appURL)
         guard let appMtime = appMtime(at: appURL) else { return }
@@ -89,13 +89,13 @@ public actor AppIconCache {
                 [.modificationDate: appMtime],
                 ofItemAtPath: diskFile.path)
         } catch {
-            // ディスク書き込み失敗はメモリキャッシュだけで許容する
+            // Disk write failure is acceptable only in memory cache.
         }
     }
 
-    /// 既にキャッシュ済みかを軽量に判定する (バックグラウンドプリキャッシング用)。
-    /// 返り値が true でも次の `get` で nil 返ることがある (mtime invalidation 等) が、
-    /// 「再抽出をスキップしてよいか」を高速に判定するのには十分。
+    /// Determine if already cached lightly (for background caching).
+    /// Return value is true, but the next `get` may return nil (due to mtime invalidation, etc.).
+    /// Sufficient to quickly determine whether it is sufficient to skip the re-extraction.
     public func contains(_ appURL: URL) -> Bool {
         let key = cacheKey(for: appURL)
         guard let appMtime = appMtime(at: appURL) else { return false }
@@ -111,22 +111,24 @@ public actor AppIconCache {
         return false
     }
 
-    /// `setAttributes(.modificationDate:)` で書いた mtime を `attributesOfItem`
-    /// で読み戻すと、APFS の sub-second 精度切り捨てや時計のジッタで
-    /// nanosecond オーダーの誤差が出る (cached が app よりわずかに小さく
-    /// なる)。素朴に `cached >= app` で比較するとこの誤差で「アプリが
-    /// 更新された」と誤判定し、キャッシュを無効化してしまうので、
-    /// `mtimeTolerance` 秒以内の差は「同じ世代」と扱う。
+    /// Set the modification date using `.modificationDate:` and retrieve it with `attributesOfItem`.
+    /// Reverting to read, APFS's sub-second truncation and clock jitter.
+    /// nanosecond order error occurs (cached is slightly smaller than app)
+    /// The comment appears to be incomplete and contains a mix of Japanese text with English code identifiers. Here is the translation focusing on the provided portion:
+
+"Comparing `cached >= app` reveals this error, making it seem like 'the app'."
+    /// Updated and mistakenly judged as invalid, so the cache is disabled.
+    /// Within seconds of `mtimeTolerance`, treat as the same generation.
     ///
-    /// 1.0 秒は HFS+/APFS の典型的な mtime 解像度を超える保守的な値。
-    /// アプリの本当の更新は秒単位以上で発生するので問題にならない。
+    /// 1.0 seconds is a conservative value exceeding the typical mtime resolution of HFS+ and APFS.
+    /// The actual updates of the app occur at intervals longer than seconds, so it will not be a problem.
     private static let mtimeTolerance: TimeInterval = 1.0
 
     private static func mtimeStillValid(cached: Date, app: Date) -> Bool {
         return cached >= app || abs(cached.timeIntervalSince(app)) < mtimeTolerance
     }
 
-    /// すべてのメモリ + ディスクキャッシュを削除する (テスト・デバッグ用)。
+    /// Remove all memory and disk cache (for testing/debugging).
     public func clear() {
         memory.removeAll()
         try? FileManager.default.removeItem(at: cacheDirectory)
@@ -134,7 +136,7 @@ public actor AppIconCache {
             at: cacheDirectory, withIntermediateDirectories: true)
     }
 
-    /// キャッシュエントリ数 (テスト用)。
+    /// Number of cache entries (for testing).
     public func memoryCount() -> Int { memory.count }
 
     // MARK: - Private
@@ -144,7 +146,7 @@ public actor AppIconCache {
            let bid = entry.bundleIdentifier, !bid.isEmpty {
             return bid
         }
-        // bundle id 無しのアプリ向けフォールバック: パスから安全な文字列
+        // Fallback for apps without bundle ID: Safe string from path
         return appURL.path
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: " ", with: "_")

@@ -143,8 +143,8 @@ final class ControlServerTests: XCTestCase {
     // MARK: - Phase 5: Bind scope
 
     func testDefaultBindScopeIsLoopback() throws {
-        // 引数省略時は必ず loopback。LAN 公開がデフォルトで ON にならない
-        // ことを構築レベルで保証する。
+        // When arguments are omitted, always use loopback. LAN exposure is not enabled by default.
+        // To guarantee at the construction level.
         let s = ControlServer(preferredPort: randomHighPort()) { _ in
             HTTPResponse.json(["ok": true])
         }
@@ -153,9 +153,10 @@ final class ControlServerTests: XCTestCase {
     }
 
     func testAnyInterfaceScopeBindsAndAccepts127Loopback() throws {
-        // .anyInterface でも 127.0.0.1 経由は引き続き受信できることを確認。
-        // (LAN IP 経由は CI ネットワークが不安定なのでテストしない;
-        //  ここは「壊れていない」ことだけ保証する)
+        // Verify that receiving via 127.0.0.1 is still possible through anyInterface.
+        // LAN IP via is not tested because the CI network is unstable.
+        // Here is the translation:
+This guarantees only that it is not broken)
         let port = randomHighPort()
         let s = ControlServer(preferredPort: port,
                               maxPortProbes: 10,

@@ -1,14 +1,14 @@
 import XCTest
 @testable import FloatingMacroCore
 
-/// バンドル同梱の seed JSON 群が Preset として decode できることと、
-/// アクセシビリティ seed の destructive 操作 (再起動 / シャットダウン /
-/// ログアウト) が confirm ガード付きであることを保証する。
+/// The bundled seed JSON group can be decoded as a preset.
+/// Accessibility seed for destructive operations (restart / shutdown /
+/// Guarantee that the logout is confirmed with a guard.
 ///
-/// なぜテストにするか:
-///   - confirm が外れたまま release されると、視線入力 / Switch Control
-///     ユーザーが誤発火で電源を落とすリスクがある。スキーマ変更や JSON
-///     編集ミスで confirm が抜け落ちないことを CI 時点で必ず検知する。
+/// Why test?
+/// If the `confirm` is left out and released, visual input / Switch Control
+/// The user may risk turning off the power due to a false trigger. Schema changes or JSON...
+/// Ensure that the missing "confirm" is always detected by CI.
 final class SeedPresetInstallerTests: XCTestCase {
 
     func testAllBundledSeedsDecodeSuccessfully() {
@@ -16,8 +16,8 @@ final class SeedPresetInstallerTests: XCTestCase {
         XCTAssertFalse(seeds.isEmpty,
                        "bundle should ship at least one seed JSON")
         let names = Set(seeds.map { $0.name })
-        // 既知の seed が全部読めているかを抜き打ちでチェック。新シードが
-        // 追加されてもテストは通る (subset 比較)。
+        // Check if all known seeds can be read randomly. New seeds are
+        // Added tests still pass (subset comparison).
         let expected: Set<String> = ["accessibility", "logic-pro", "midjourney"]
         XCTAssertTrue(expected.isSubset(of: names),
                       "expected seeds \(expected) missing — got \(names)")
@@ -45,9 +45,9 @@ final class SeedPresetInstallerTests: XCTestCase {
         }
     }
 
-    /// 押し間違えても被害が小さいボタン (画面ロック / スリープ / 強制終了
-    /// ダイアログ) は逆に confirm を要求しない: 視線入力ユーザーが頻繁に
-    /// 押す想定で、毎回ダイアログを介在させると操作負荷が高すぎる。
+    /// Button that causes minimal damage even if pressed by mistake (screen lock / sleep / force quit)
+    /// The dialog does not require confirmation; the user frequently requests confirm.
+    /// Assuming the user will press repeatedly, having a dialog box each time would impose too much operational burden.
     func testAccessibilitySeedHasNoConfirmOnLowImpactButtons() throws {
         let seeds = SeedPresetInstaller.bundledSeedPresets()
         guard let preset = seeds.first(where: { $0.name == "accessibility" }) else {
@@ -67,17 +67,17 @@ final class SeedPresetInstallerTests: XCTestCase {
         }
     }
 
-    /// v0.11 で追加した「MidJourney プロンプトギャラリー」 seed が、
-    /// Phase 2 の表現力拡張サンプルとして以下の条件を満たすことを保証する。
-    /// このサンプルが壊れると、card displayType + appendMode の組合せを
-    /// 新規ユーザーが目で確認する経路が消えるので、CI で守る。
+    /// The 'MidJourney Prompt Gallery' seed added in v0.11 is:
+    /// Ensures that the following conditions are satisfied as an expressive extension sample of Phase 2.
+    /// If this sample breaks, the combination of card displayType and appendMode is
+    /// New users need to verify visually, so protect it with CI.
     func testMidjourneyGallerySeedDemonstratesCardAndAppendMode() throws {
         let seeds = SeedPresetInstaller.bundledSeedPresets()
         guard let preset = seeds.first(where: { $0.name == "midjourney-gallery" }) else {
             XCTFail("midjourney-gallery seed not found")
             return
         }
-        // 画風・ポーズ・服装・背景の 4 つは必ず card で並んでいる
+        // Four: style, pose, clothing, background must be always arranged in a card.
         let cardGroupIds = ["g-mj-style", "g-mj-pose", "g-mj-outfit", "g-mj-background"]
         for id in cardGroupIds {
             guard let group = preset.groups.first(where: { $0.id == id }) else {
@@ -88,8 +88,8 @@ final class SeedPresetInstallerTests: XCTestCase {
                            "group '\(id)' must use displayType=.card")
             XCTAssertFalse(group.buttons.isEmpty,
                            "group '\(id)' should ship at least one card")
-            // 各カードの text アクションは appendMode=true でなければ
-            // ギャラリーとしての意義 (断片を積み上げる) が成立しない。
+            // Each card's text action must be appendMode=true.
+            // The significance as a gallery (accumulating fragments) cannot be established.
             for button in group.buttons {
                 guard case .text(_, _, _, let appendMode) = button.action else {
                     XCTFail("'\(button.id)' should be a text action")

@@ -1,11 +1,11 @@
 import Foundation
 
-/// Phase 5 (P5-4): Web Panel 用の静的アセットをバンドルから取り出す薄いヘルパ。
+/// Thin helper to retrieve static assets from the bundle for Web Panel.
 ///
-/// アセットは `Sources/FloatingMacroCore/Resources/webpanel/` に置かれ、
-/// `Package.swift` で `.copy("Resources/webpanel")` 宣言されている。
-/// `.copy` を使うのはディレクトリ構造を保つため (`.process` だとフラット化
-/// されて Bundle.module.url(forResource:subdirectory:) で取り出せなくなる)。
+/// The asset is placed in `Sources/FloatingMacroCore/Resources/webpanel/`.
+/// `.copy("Resources/webpanel")` declared in `Package.swift`.
+/// Use `.copy` to preserve directory structure (flattened with `.process`)
+/// Bundle.module.url(forResource:subdirectory:) is no longer available.)。
 public enum WebPanelAssets {
 
     public enum AssetKind {
@@ -30,17 +30,17 @@ public enum WebPanelAssets {
         }
     }
 
-    /// バンドルからアセットの bytes を読み出す。見つからなければ nil。
+    /// Read the bytes of an asset from a bundle. Return nil if not found.
     public static func data(_ kind: AssetKind) -> Data? {
-        // 経緯メモ:
-        // 当初 `Bundle.module.url(forResource:withExtension:subdirectory:)` を
-        // 使っていたが、AppKit アプリ実行コンテキスト (= ControlServer の
-        // ハンドラから main 経由で呼ぶ) で無応答になる現象が再現した。
-        // `bundle.bundleURL` 自体も止まる。SwiftPM 自動生成
-        // resource_bundle_accessor が遅延ロードする `.module` の初回アクセス
-        // が原因と思われる。
+        // Background notes:
+        // Initially `Bundle.module.url(forResource:withExtension:subdirectory:)` to
+        // Using the one that was running, AppKit application execution context (= ControlServer of )
+        // The phenomenon of becoming unresponsive when calling from a handler via main was reproduced.
+        // The bundle's own URL also stops. SwiftPM automatic generation
+        // The first access to the lazy-loaded `.module` by `resource_bundle_accessor`.
+        // caused by that.
         //
-        // 回避策: 候補ディレクトリを直接探す。`Bundle.module` を一切踏まない。
+        // Avoidance strategy: Directly search for candidate directories. Do not use `Bundle.module` at all.
         for url in resolveAssetURLs(fileName: kind.fileName) {
             if FileManager.default.fileExists(atPath: url.path) {
                 return try? Data(contentsOf: url)
@@ -49,21 +49,21 @@ public enum WebPanelAssets {
         return nil
     }
 
-    /// アセット候補 URL を優先順位順に返す。.app / CLI / xctest / Linux SwiftPM
-    /// などのレイアウト差異を一度に吸収する。
+    /// Return asset candidate URLs in priority order: .app, /CLI/, /xctest/, Linux SwiftPM.
+    /// Absorb layout differences all at once.
     private static func resolveAssetURLs(fileName: String) -> [URL] {
         let bundleName = "FloatingMacro_FloatingMacroCore.bundle"
         var candidateBundles: [URL] = [
-            // .app の正規配置: <App>.app/Contents/Resources/<bundle>
+            // The regular configuration of .app: <App>.app/Contents/Resources/<bundle>
             Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/\(bundleName)"),
-            // CLI / SwiftPM 既定: <main>/<bundle>
+            // Default CLI / SwiftPM: <main>/<bundle>
             Bundle.main.bundleURL.appendingPathComponent(bundleName),
-            // xctest 等、Bundle.main の親ディレクトリにあるパターン
+            // XCTest, etc., patterns in the parent directory of Bundle.main's bundle.
             Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent(bundleName),
         ]
-        // Bundle.allBundles を覗いて bundleName と同じ末尾を持つものを追加。
-        // xctest ではテストターゲットがロードしている Core モジュールの
-        // resource bundle がここに登録されている。
+        // Add bundles that have the same suffix as bundleName by looking at Bundle.allBundles.
+        // In XCTest, the test target loads the core module that contains the tests.
+        // The resource bundle is registered here.
         for b in Bundle.allBundles where b.bundleURL.lastPathComponent == bundleName {
             candidateBundles.append(b.bundleURL)
         }
@@ -73,7 +73,7 @@ public enum WebPanelAssets {
         }
     }
 
-    /// 旧シグネチャ。テストで bundle 差し替えしたいケース用に残す。
+    /// Old signature. Leave for cases where you want to replace the bundle in tests.
     static func data(_ kind: AssetKind, from bundle: Bundle) -> Data? {
         let url = bundle.bundleURL
             .appendingPathComponent("webpanel", isDirectory: true)
@@ -84,15 +84,15 @@ public enum WebPanelAssets {
         return try? Data(contentsOf: url)
     }
 
-    /// HTML を読み出して以下のプレースホルダを置換する:
-    ///   - `{{TOKEN}}`           ephemeral LAN token (JS リテラル安全化済み)
-    ///   - `{{PRESET_JSON}}`     preset 全体の JSON literal (JS から直接読める)
-    ///   - `{{PRESET_DISPLAY}}`  preset の表示名 (HTML エスケープ済み)
-    ///   - `{{SSR_HTML}}`        skeleton グループ + ボタンの初期 DOM
+    /// Replace placeholders with the following HTML content:
+    /// Ephemeral LAN token (JavaScript literal-safe)
+    /// `{{PRESET_JSON}}` preset full JSON literal (can be read directly from JS)
+    /// Display name of the preset (HTML escaped)
+    /// `skeleton group + initial button DOM`
     ///
-    /// SSR で初期 HTML を完成させることで、JS が `preset_get` を fetch しに
-    /// 行く round trip を 1 つ削れる。ヘッダーとカードレイアウトは HTML 到達
-    /// 直後に paint される。
+    /// Completing the initial HTML with SSR allows JS to fetch `preset_get`.
+    /// Can delete one round trip. Header and card layout reach HTML.
+    /// Immediately painted afterwards.
     public static func renderHTML(token: String,
                                   presetJSON: String,
                                   presetDisplay: String,
@@ -109,7 +109,7 @@ public enum WebPanelAssets {
             .data(using: .utf8)
     }
 
-    /// テスト用: 任意の bundle を指定する形。
+    /// Test for specifying any bundle.
     static func renderHTML(token: String,
                            presetJSON: String,
                            presetDisplay: String,
@@ -140,7 +140,7 @@ public enum WebPanelAssets {
             .replacingOccurrences(of: "{{SSR_HTML}}", with: ssrHTML)
     }
 
-    /// テキストを HTML body に直接埋め込むための最小エスケープ。
+    /// Minimum escaping to embed text directly into the HTML <body>.
     static func htmlEscape(_ s: String) -> String {
         var out = ""
         out.reserveCapacity(s.count)
@@ -157,9 +157,9 @@ public enum WebPanelAssets {
         return out
     }
 
-    /// JS の文字列リテラルに差し込むため、`"` `\` 改行を最低限エスケープする。
-    /// ephemeral token は hex のみなので素通しでも実害は無いが、将来別形式の
-    /// トークンに切り替えたとき安全側に倒れるよう sanitize しておく。
+    /// To insert into a JS string literal, escape only the minimum: " \ newline.
+    /// ephemeral token is only in hex, so even if bypassed there's no real damage, but future different formats may pose issues.
+    /// When switching to tokens, make sure to sanitize and ensure it falls on the safe side.
     static func sanitizeForJSON(_ s: String) -> String {
         var out = ""
         out.reserveCapacity(s.count)
@@ -170,7 +170,7 @@ public enum WebPanelAssets {
             case "\n": out.append("\\n")
             case "\r": out.append("\\r")
             case "\t": out.append("\\t")
-            case "<":  out.append("\\u003c") // </script> 対策
+            case "<":  out.append("\\u003c") // Precautions against XSS
             case ">":  out.append("\\u003e")
             case "&":  out.append("\\u0026")
             default:   out.append(ch)

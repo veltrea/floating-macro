@@ -16,8 +16,8 @@ final class ControlHandlers {
 
     let presetManager: PresetManager
     weak var panel: NSPanel?
-    /// Phase 3 で導入。複数パネル制御 (panel_* ツール) のために PanelManager を
-    /// 持つ。weak に保持して循環参照を避ける（PanelManager は AppDelegate が所有）。
+    /// Introduced in Phase 3 for multi-panel control (panel_* tools). Added PanelManager to...
+    /// Holds weakly to avoid circular references (PanelManager is owned by AppDelegate).
     weak var panelManager: PanelManager?
     let logURL: URL
 
@@ -32,10 +32,10 @@ final class ControlHandlers {
     /// Build a handler closure suitable for `ControlServer.Handler`. All AppKit
     /// / presetManager work is explicitly hopped to the main queue inside.
     ///
-    /// **Phase 5 Fast path**: Web Panel の read-only ルート (HTML/CSS/JS/icon)
-    /// は main を経由せず接続キューで直接処理する。これがないと iPhone から
-    /// の並列画像リクエストが main 1 本に直列化されて遅い。読み取り対象は
-    /// すべて thread-safe なヘルパで覆われている (WebPanelAssets,
+    /// Phase 5 Fast Path: Read-Only Route for Web Panel (HTML/CSS/JS/Icon)
+    /// Directly process in connection queue without going through main. Without this, cannot connect from iPhone.
+    /// Parallel image requests are serialized to one main thread, causing slowness. The read target is
+    /// All are covered by thread-safe helpers (WebPanelAssets,
     /// EphemeralLANTokenStore, WebPanelIconRenderer)。
     func makeHandler() -> ControlServer.Handler {
         return { [self] request in
@@ -59,8 +59,8 @@ final class ControlHandlers {
         }
     }
 
-    /// main を経由しない高速 dispatch。ここで呼ぶ非 MainActor ハンドラ
-    /// は AppKit や presetManager の可変状態に触らない。
+    /// Fast dispatch bypassing main. The non-MainActor handler being called here.
+    /// Do not touch the mutable state of AppKit and presetManager.
     private func dispatchWebPanelReadOnly(_ req: HTTPRequest) -> HTTPResponse {
         switch req.path {
         case "/webpanel":           return handleWebPanelHTML_nonMain(req)
@@ -71,10 +71,10 @@ final class ControlHandlers {
         }
     }
 
-    /// `appConfig.controlAPI.lanExposureEnabled` のスレッドセーフ読み取り。
-    /// PresetManager の `@Published var appConfig` は main で更新されるが、
-    /// プロパティ読み取りは原子的なので "ほぼ最新" を取れる。LAN トグルは
-    /// 頻繁に切り替わらないのでこの程度の整合性で十分。
+    /// Thread-safe read of `appConfig.controlAPI.lanExposureEnabled`.
+    /// The `@Published var appConfig` in PresetManager is updated in the main thread, but...
+    /// Property reading is atomic, so you can get the most recent value. The LAN toggle is
+    /// Frequent switching is sufficient for this level of consistency.
     var lanExposureEnabledSnapshot: Bool {
         return presetManager.appConfig?.controlAPI.lanExposureEnabled ?? false
     }
@@ -104,7 +104,7 @@ final class ControlHandlers {
         case (.POST, "/panel/close"):     return handlePanelClose(req)
         case (.POST, "/panel/show"):      return handlePanelShow(req)
         case (.POST, "/panel/hide"):      return handlePanelHide(req)
-        // Phase 3.6: id 指定の per-panel 操作
+        // Phase 3.6: ID-specified per-panel operation
         case (.POST, "/panel/move"):       return handlePanelMove(req)
         case (.POST, "/panel/resize"):     return handlePanelResize(req)
         case (.POST, "/panel/opacity"):          return handlePanelOpacity(req)
@@ -162,16 +162,16 @@ final class ControlHandlers {
         case (.GET,  "/icon/for-app"):    return handleIconForApp(req)
         case (.GET,  "/tools"):           return handleToolsList(req)
         case (.POST, "/tools/call"):      return handleToolsCall(req)
-        // Phase 5: Web Panel (LAN 公開モード時にスマホ/タブレットから到達)
+        // Phase 5: Web Panel (Reachable from smartphone/tablet when in LAN public mode)
         case (.GET,  "/webpanel"):           return handleWebPanelHTML(req)
         case (.GET,  "/webpanel/style.css"): return handleWebPanelAsset(.css)
         case (.GET,  "/webpanel/app.js"):    return handleWebPanelAsset(.js)
         case (.POST, "/webpanel/tools/call"):return handleWebPanelToolsCall(req)
         case (.GET,  "/webpanel/icon"):      return handleWebPanelIcon(req)
-        // Phase 5: Mac 側 (Bearer 認証経由) から ephemeral LAN token を取得する
-        // 管理用エンドポイント。Block 3 で QR 生成 UI が利用する。Web Panel
-        // 経由 (/webpanel/*) からは到達できないので外部漏洩は loopback の
-        // Bearer トークン経由のみ。
+        // Phase 5: Obtain ephemeral LAN token via Bearer authentication from Mac side
+        // Management endpoint used by the QR generation UI in Block 3 for Web Panel.
+        // Cannot be accessed via /webpanel/*, so external leakage is not possible through loopback.
+        // Only bearer token via.
         case (.GET,  "/lan-token"):     return handleLANTokenInfo()
         case (.POST, "/lan-token/rotate"): return handleLANTokenRotate()
         // ACP (Agent Communication Protocol) — stateless / sync subset.
@@ -225,8 +225,8 @@ final class ControlHandlers {
         HTTPResponse.json(["ok": true, "product": "FloatingMacro"])
     }
 
-    /// 正規キー名カタログ。`settings_set_key_combo` や `button_add` 等の `combo`
-    /// 文字列にそのまま使える名前を、AI が discoverable にするためのエンドポイント。
+    /// Regular key name catalog. combo settings_set_key_combo, button_add, etc.
+    /// A name that can be used directly, an endpoint for AI to discover.
     @MainActor
     private func handleKeyCodes() -> HTTPResponse {
         func encode(_ entries: [KeyCombo.KeyEntry]) -> [[String: String]] {
@@ -563,11 +563,11 @@ nonisolated func onMainSync<T>(_ block: @MainActor () -> T) -> T {
     }
 }
 
-/// Bearer トークン認証ミドルウェア。
+/// Bearer token authentication middleware.
 ///
-/// `token` が `nil` のときは認証なしでスルーする（testMode 用）。
-/// `/ping` と `/health` は認証除外（死活監視用）。
-/// それ以外のエンドポイントは `Authorization: Bearer <token>` が必須。
+/// When the token is nil, bypass authentication (for test mode).
+/// /ping and /health are excluded from authentication (for monitoring alive status).
+/// Other endpoints require `Authorization: Bearer <token>`.
 func wrapWithAuth(token: String?,
                   handler: @escaping ControlServer.Handler) -> ControlServer.Handler {
     return { req in
@@ -590,10 +590,10 @@ func wrapWithAuth(token: String?,
         ]
         if publicPaths.contains(req.path) { return handler(req) }
 
-        // Phase 5: Web Panel 系は ephemeral LAN token で独自に守られている
-        // (handleWebPanel* の中でクエリ / Authorization を検証する) ため、
-        // 永続 Bearer トークン認証はスキップする。これがないとスマホは
-        // 永続トークンを知らないので /webpanel に到達した時点で 401 になる。
+        // Phase 5: Web Panel category is protected by an ephemeral LAN token.
+        // To validate the query / authorization in (handleWebPanel*)
+        // Continuous bearer token authentication is skipped. Without this, the smartphone cannot
+        // Since I don't know the persistent token, it will become a 401 when reaching /webpanel.
         if req.path.hasPrefix("/webpanel") { return handler(req) }
 
         guard let authHeader = req.header("Authorization"),

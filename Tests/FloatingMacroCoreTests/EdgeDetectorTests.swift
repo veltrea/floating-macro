@@ -26,7 +26,7 @@ final class EdgeDetectorTests: XCTestCase {
     }
 
     func testCornerPicksCloserEdge() {
-        // 右上の角に近いが右辺の方がやや近い
+        // Close to the top-right corner, but slightly closer to the right side
         let center = CGPoint(x: 1910, y: 1060)
         let edge = EdgeDetector.nearestEdge(panelCenter: center, screenFrame: screen)
         XCTAssertEqual(edge, .right)

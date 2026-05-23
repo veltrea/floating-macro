@@ -27,7 +27,7 @@ final class ToolCatalogTests: XCTestCase {
     // MARK: - Phase 3 (P3-7): Panel tools
 
     func testPhase3PanelToolsAreRegistered() {
-        // 5 つの panel_* ツールが揃っており、各エンドポイントが期待通り。
+        // Five panel_* tools are available, and each endpoint works as expected.
         let expectedPaths: [String: (String, String)] = [
             "panel_list":   ("GET", "/panel/list"),
             "panel_create": ("POST", "/panel/create"),
@@ -46,8 +46,8 @@ final class ToolCatalogTests: XCTestCase {
     }
 
     func testPhase3WindowToolsMarkedDeprecated() {
-        // window_* は Phase 3 で deprecated 表示に切り替わっており、descriptions に
-        // "DEPRECATED" を含む。新規ツール (panel_*) を発見させるためのヒント。
+        // window_* are deprecated in Phase 3 and descriptions have been changed.
+        // Deprecated. Hint to discover new tools (panel_*).
         let legacyNames = [
             "window_show", "window_hide", "window_toggle",
             "window_opacity", "window_move", "window_resize",

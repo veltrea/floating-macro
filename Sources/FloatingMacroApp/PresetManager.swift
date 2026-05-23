@@ -25,11 +25,11 @@ final class PresetManager: ObservableObject {
     /// banner so the user notices the silent-failure state where logs say
     /// "Text injected" but CGEvent.post is dropped at the OS level.
     ///
-    /// 初期値は false。AccessibilityChecker.isTrusted を init 時に評価すると、
-    /// AXIsProcessTrusted() の stale TRUE キャッシュ (prompt: true 呼出後や
-    /// tccutil reset 後に短時間続く) を拾って「許可済み」と誤判定し、
-    /// 起動直後だけバナーが消える事故が起きる。3 秒の polling サイクルで
-    /// すぐ実値に追従するので、初期値 false で開始する方が安全。
+    /// The initial value is false. The AccessibilityChecker.isTrusted is evaluated during initialization, and...
+    /// AXIsProcessTrusted() returns a stale TRUE cache (true called after)
+    /// After tccutil reset, mistakenly identified a short-lived one as "approved" and
+    /// Only the banner disappears immediately after launch. A 3-second polling cycle occurs.
+    /// Start with initial value false for immediate follow-up to the actual value.
     @Published var accessibilityTrusted: Bool = false
     private var accessibilityPollTimer: Timer?
     /// Monotonic counter used to request the SF Symbol picker sheet from
@@ -82,35 +82,35 @@ final class PresetManager: ObservableObject {
     }
 
     func loadInitialConfig() {
-        // デフォルト設定がなければ作成
+        // Create if no default settings
         do {
             try writer.writeDefaultConfigIfNeeded()
         } catch {
             errorMessage = L_("config_init_failed", error.localizedDescription)
         }
 
-        // config.json 読み込み
+        // Loading config.json
         do {
             appConfig = try loader.loadAppConfig()
         } catch {
             appConfig = AppConfig()
         }
 
-        // 同梱プリセット (MidJourney 用 / note.com ハッシュタグ等) を初回限り
-        // ユーザーの presets/ にコピーする。同名ファイルが既にある場合は
-        // 個別に skip するので、再インストールで残骸が残っているケースでも
-        // ユーザーの編集を上書きしない。
+        // Bundled presets (for MidJourney / note.com hashtags, etc.) exclusive to the first release
+        // Copy to the user's presets/. If a file with the same name already exists,
+        // Skip individually, so even in cases where remnants remain after reinstallation
+        // Do not overwrite user edits.
         installSeedPresetsIfNeeded()
 
-        // v0.16: 個人プリセットの保存場所が ~/Library/Application Support/
-        // FloatingMacro/presets/ から ~/Documents/FloatingMacro/presets/ に
-        // 移った。動作上は両方マージして読まれるので即時に困ることはないが、
-        // PC 引っ越しやバックアップ時に旧フォルダ (Library 配下で隠しがち) を
-        // 見落とすとデータロスに繋がる。既存ユーザーには 1 回だけアラートで
-        // 知らせ、新規ユーザーにはデフォルトで何も出さない。
+        // v0.16: The save location for personal presets is ~/Library/Application Support/.
+        // From FloatingMacro presets to ~/Documents/FloatingMacro/presets/
+        // Moved. Although both are merged and read immediately, there is no immediate inconvenience.
+        // Moving PC and backing up: Old folders (often hidden under Library) to be transferred.
+        // Missing out can lead to data loss. Alert users only once for existing ones.
+        // Do not display anything by default for new users.
         showMigrationAlertIfNeeded()
 
-        // アクティブプリセット読み込み
+        // Loading Active Presets
         loadActivePreset()
         refreshPresetEntries()
         startDirectoryWatcher()

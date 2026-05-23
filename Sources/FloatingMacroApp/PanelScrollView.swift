@@ -2,25 +2,25 @@ import SwiftUI
 import AppKit
 import FloatingMacroCore
 
-/// `NSScrollView` を `NSViewRepresentable` でラップしたスクロールビュー。
-/// SwiftUI の標準 `ScrollView` だと macOS 13 では現在のスクロール位置を読み書き
-/// する公式 API が無く、アプリ再起動後に位置を復元することができない。
-/// このラッパーを使うと:
-///   - 初期 `initialY` で起動時にスクロール位置を復元
-///   - スクロール変化を `onScrollChange` クロージャに通知 (PresetManager 経由で
-///     panel ごとに永続化される)
-/// 内部の `NSClipView.bounds.didChange` notification で変化を拾い、
-/// `documentView` には flipped 座標系の NSView を使うので `bounds.origin.y` が
-/// 「上から何ピクセル下にスクロールしているか」になる (Cocoa の標準 bottom-up
-/// 座標と一致しない代わりに直感的な値になる)。
+/// An NSScrollView wrapped in an NSViewRepresentable to create a scroll view.
+/// The standard SwiftUI ScrollView does not allow reading and writing the current scroll position on macOS 13.
+/// There is no official API, so the position cannot be restored after app restart.
+/// Using this rapper:
+/// Restore scroll position at launch with initial `initialY`.
+/// Notify scroll change via `onScrollChange` closure (through PresetManager)
+/// Persistent across panels)
+/// In the internal `NSClipView.bounds.didChange` notification, pick up changes.
+/// The `documentView` uses a flipped coordinate system, so the `bounds.origin.y` is negative.
+/// How many pixels have been scrolled down from the top? (Standard Cocoa bottom-up)
+/// The value becomes intuitive instead of matching the coordinates (not fitting).
 struct PanelScrollView<Content: View>: NSViewRepresentable {
 
-    /// 起動時のスクロール位置 (上から下へのピクセル数、非負)。
+    /// Scroll position at launch (number of pixels from top to bottom, non-negative).
     let initialY: CGFloat
-    /// スクロール位置が変化したときに呼ばれる。引数は現在の `scrollY` (非負)。
-    /// メインキューで呼ばれる。
+    /// Called when the scroll position changes. The argument is the current `scrollY` (non-negative).
+    /// Called in the main queue.
     let onScrollChange: (CGFloat) -> Void
-    /// スクロール領域の中身。SwiftUI ビュー。
+    /// Scrollable content area. SwiftUI view.
     let content: Content
 
     init(initialY: CGFloat,
@@ -42,13 +42,13 @@ struct PanelScrollView<Content: View>: NSViewRepresentable {
         weak var documentRef: NSView?
         var clipObserver: NSObjectProtocol?
         var hostingFrameObserver: NSObjectProtocol?
-        /// 起動時に反映したい scrollY。SwiftUI のレイアウトが終わって documentView
-        /// の高さがこの値+clipView 高さに達するまで再試行し続け、反映できたら nil
-        /// にして購読解除する。
+        /// Scroll Y to Reflect at Launch SwiftUI Layout Completion Document View
+        /// Continue retrying until the height reaches this value + clipView height, and if it can be reflected, return nil.
+        /// Unsubscribe and remove.
         var pendingInitialY: CGFloat?
-        /// スクロール変化を `onScrollChange` に流すかどうか。`scroll(to:)` で
-        /// 自分が動かしたときにエコーバックを抑える (= 復元値で上書きされて
-        /// 永続化済みの値を破壊するのを防ぐ)。
+        /// Whether to pass scroll changes to `onScrollChange`. For `scroll(to:)`.
+        /// When moving myself, suppress echo back (= overwritten by restore value)
+        /// Prevent destruction of persisted values).
         var suppressNotify = false
 
         init(onScrollChange: @escaping (CGFloat) -> Void) {
@@ -67,8 +67,8 @@ struct PanelScrollView<Content: View>: NSViewRepresentable {
         }
     }
 
-    /// `NSView` に直接 hostingView を addSubview すると親の resize に追従しない
-    /// ので、autoresizing で幅追従しつつ高さは intrinsic に任せる documentView。
+    /// Adding a `NSView` directly to `hostingView` without adding it to the parent's view hierarchy will not cause the child view to follow the parent's resizing.
+    /// Therefore, use autoresizing for width following while leaving height to the intrinsic.
     private final class FlippedDocumentView: NSView {
         override var isFlipped: Bool { true }
     }
@@ -92,9 +92,9 @@ struct PanelScrollView<Content: View>: NSViewRepresentable {
         hosting.translatesAutoresizingMaskIntoConstraints = false
         document.addSubview(hosting)
 
-        // hosting を document の 4 辺にピン留め。
-        // 横方向は document 幅（= clipView 幅）に従い、
-        // 縦方向は hosting の intrinsicContentSize が document 高さを決める。
+        // Pin the hosting to all four sides of the document.
+        // Horizontal follows the document width (= clipView width).
+        // Vertical direction is determined by the intrinsicContentSize of hosting, which decides the document height.
         NSLayoutConstraint.activate([
             hosting.leadingAnchor.constraint(equalTo: document.leadingAnchor),
             hosting.trailingAnchor.constraint(equalTo: document.trailingAnchor),
@@ -103,14 +103,14 @@ struct PanelScrollView<Content: View>: NSViewRepresentable {
         ])
         scrollView.documentView = document
 
-        // documentView の幅を clipView の幅と一致させる。
+        // Match the width of documentView with clipView.
         scrollView.contentView.postsBoundsChangedNotifications = true
         let widthConstraint = document.widthAnchor.constraint(
             equalTo: scrollView.contentView.widthAnchor)
         widthConstraint.priority = .required
         widthConstraint.isActive = true
 
-        // スクロール位置の変化を監視。
+        // Monitor scroll position changes.
         context.coordinator.clipObserver = NotificationCenter.default.addObserver(
             forName: NSView.boundsDidChangeNotification,
             object: scrollView.contentView,
@@ -119,10 +119,10 @@ struct PanelScrollView<Content: View>: NSViewRepresentable {
             coord?.clipBoundsChanged(note)
         }
 
-        // NSHostingView の frame 変化を監視。Auto Layout で高さが確定した後に
-        // documentView の frame を明示的に同期する。NSScrollView は
-        // documentView.frame.size でスクロール可能範囲を決定するため、
-        // Auto Layout だけでは反映が遅れるケースを補う。
+        // Monitor the frame change of NSHostingView. After height is determined by Auto Layout.
+        // explicitly synchronizes the frame of documentView. NSScrollView is
+        // To determine the scrollable range using documentView.frame.size,
+        // Complements cases where Auto Layout alone is slow to reflect changes.
         hosting.postsFrameChangedNotifications = true
         context.coordinator.pendingInitialY = initialY
         context.coordinator.hostingFrameObserver = NotificationCenter.default.addObserver(
@@ -133,14 +133,14 @@ struct PanelScrollView<Content: View>: NSViewRepresentable {
             guard let coord, let scrollView, let document, let hosting else { return }
             let intrinsicH = hosting.intrinsicContentSize.height
             let frameH = hosting.frame.height
-            // intrinsic と frame の大きい方を採用 (intrinsic=0 を返すケースのフォールバック)
-            // さらに余白を上下それぞれ 200 加算する。
+            // Adopt the larger of intrinsic and frame (fallback for cases where intrinsic returns 0).
+            // Add 200 to the top and bottom margins respectively.
             let baseH = max(intrinsicH, frameH)
             let targetH = baseH > 0 ? baseH : 0
             if targetH > 0, abs(document.frame.height - targetH) > 1 {
                 document.setFrameSize(NSSize(width: document.frame.width, height: targetH))
             }
-            // 初期スクロール位置の復元。
+            // Restoration of initial scroll position.
             tryApplyPendingInitialOffset(coord: coord, scrollView: scrollView,
                                          docHeight: targetH)
         }

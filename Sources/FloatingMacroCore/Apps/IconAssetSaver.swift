@@ -12,11 +12,11 @@ import Foundation
 /// real user directory is never touched.
 public enum IconAssetSaver {
 
-    /// preset 配下の管理ディレクトリ種別。`copyImage` で保存先を指定するときに使う。
+    /// Preset category of management directory. Used when specifying the save destination with `copyImage`.
     public enum AssetSubdirectory: String {
-        /// `presets/<name>/icons/` — ボタン / グループのアイコン
+        /// `presets/<name>/icons/` - button/icon for group
         case icons
-        /// `presets/<name>/images/` — card 表示タイプのサムネイル
+        /// `presets/<name>/images/` - thumbnail type for card representation
         case images
     }
 
@@ -129,24 +129,24 @@ public enum IconAssetSaver {
         )
     }
 
-    /// ユーザーが Finder のファイルピッカーで選んだ画像ファイルを preset 配下の
-    /// 管理ディレクトリにそのままコピーし、保存先の絶対パスを返す。
+    /// The user selects an image file in the Finder's file picker under the preset category.
+    /// Returns the absolute path to save, copying directly into the management directory.
     ///
-    /// 設計意図:
-    /// 元ファイルの絶対パスを `ButtonDefinition.icon` / `.thumbnail` にそのまま
-    /// 保存する旧挙動だと、ユーザーが元ファイルを移動・削除・改名した瞬間に
-    /// ボタンのアイコンが消える。preset 配下に複製しておけば preset 単体での
-    /// 移植性も保たれ、preset.json + icons/ + images/ をまとめてエクスポートして
-    /// 別マシンで動かすこともできる。
+    /// Design Intent:
+    /// The absolute path of the original file to `ButtonDefinition.icon` / `.thumbnail` as-is
+    /// If the previous behavior is saved, when the user moves, deletes, or renames the original file at that moment,
+    /// The button icon disappears. If you duplicate it under the preset, it can be used individually without preset.
+    /// Portability is maintained, and preset.json, icons/, and images/ are exported together.
+    /// Can be run on a different machine.
     ///
-    /// 拡張子は元ファイルから引き継ぐ (PNG は PNG のまま、JPEG は JPEG のまま)。
-    /// 同一 `assetId` で過去にコピーしたファイル (別拡張子含む) は事前に削除して
-    /// から新規コピーするので、orphan が増えない。
+    /// The extension is inherited from the original file (PNG remains PNG, JPEG remains JPEG).
+    /// Remove files with the same `assetId` that were previously copied (including different extensions).
+    /// Because a new copy is created, orphan will not increase.
     ///
-    /// - Note: SF Symbol (`sf:foo`) や bundle id (`com.apple.Safari`) はファイル
-    ///   コピーの対象外。これらの参照は `IconLoader` 側で動的に解決されるので
-    ///   path として保存する必要がない。本メソッドはローカルの実ファイルを選んだ
-    ///   ケースだけを扱う。
+    /// Note: SF Symbol (`sf:foo`) and bundle id (`com.apple.Safari`) are files
+    /// Copy target excluded. These references are dynamically resolved by the `IconLoader` side.
+    /// Does not need to be saved as a path. This method selects the local file.
+    /// Handle only cases.
     @discardableResult
     public static func copyImage(
         from sourceURL: URL,
@@ -165,7 +165,7 @@ public enum IconAssetSaver {
         let ext = rawExt.isEmpty ? "png" : rawExt
         let dest = dir.appendingPathComponent("\(assetId).\(ext)")
 
-        // 既に管理ディレクトリ内のファイルを再選択した場合は no-op。
+        // If the file has already been reselected within the management directory, it is a no-op.
         if sourceURL.standardizedFileURL == dest.standardizedFileURL {
             return dest.path
         }
@@ -176,9 +176,9 @@ public enum IconAssetSaver {
         do {
             try FileManager.default.createDirectory(
                 at: dir, withIntermediateDirectories: true)
-            // 同じ assetId で過去にコピーしたファイル (拡張子違い含む) を一掃。
-            // たとえば旧 PNG → 新 JPEG に差し替えるとき、PNG が orphan として
-            // 残らないようにする。
+            // Delete files with the same assetId, including different extensions.
+            // For example, when replacing old PNG with new JPEG, if the PNG is an orphan
+            // Remove duplicates.
             if let existing = try? FileManager.default.contentsOfDirectory(
                 at: dir, includingPropertiesForKeys: nil
             ) {
@@ -194,19 +194,19 @@ public enum IconAssetSaver {
         }
     }
 
-    /// 既存ボタン / グループに格納された外部の絶対画像パスを preset 配下に
-    /// コピーし、新しい絶対パスを返す。一括移行 / commit 時の自動修復で使う。
+    /// Existing button/group storing external absolute image path under preset
+    /// Copy and return a new absolute path. Used for automatic repair during bulk migration / commit time.
     ///
-    /// 何もしないケース (元の `path` をそのまま返す):
-    /// - `nil` / 空文字列
-    /// - `sf:foo` / `lucide:foo` / bundle id (`com.apple.Safari`) のような参照系
-    /// - `.app` バンドル
-    /// - 元ファイルがディスク上に存在しない (リンク切れ)
-    /// - 既に管理ディレクトリ内 (`presets/<name>/icons|images/`) に置かれている
-    /// - コピーが何らかの理由で失敗した
+    /// No-operation case (returns the original `path` as-is):
+    /// - `nil` / empty string
+    /// Reference category like `sf:foo`, `lucide:foo`, or bundle ID (e.g., `com.apple.Safari`).
+    /// .app bundle
+    /// Element file does not exist on disk (broken link)
+    /// Already placed in the management directory (`presets/<name>/icons|images/`).
+    /// Copy failed for some reason.
     ///
-    /// 移行が成功したときだけ新しいパスが返る。fail-safe な実装で、ユーザーの
-    /// 設定を勝手に壊さないことを優先している。
+    /// Only a new path is returned when the migration succeeds. A fail-safe implementation for the user's
+    /// Prioritize not breaking settings on its own.
     public static func migrateExternalImagePath(
         _ path: String?,
         into subdirectory: AssetSubdirectory,
@@ -218,8 +218,8 @@ public enum IconAssetSaver {
               !path.trimmingCharacters(in: .whitespaces).isEmpty
         else { return path }
 
-        // IconResolver で実ファイル参照かどうかを分類する。SF Symbol や
-        // bundle id は素通り。.app バンドルは画像ファイルではないので素通り。
+        // Classify whether a file reference is real using IconResolver. SF Symbol and
+        // Bundle ID is skipped. The .app bundle is not an image file, so it's skipped.
         let resolved = IconResolver.resolve(path)
         let sourceURL: URL
         switch resolved {
@@ -229,7 +229,7 @@ public enum IconAssetSaver {
             return path
         }
 
-        // 既に管理ディレクトリ配下のファイルなら何もしない (二重コピー回避)。
+        // Do nothing if the file is already in a managed directory (avoiding duplicate copies).
         let managedDir = presetSubdirectory(
             presetName: presetName,
             subdirectory: subdirectory.rawValue,

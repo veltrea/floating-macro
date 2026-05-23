@@ -6,7 +6,7 @@ extension AppDelegate {
     func buildContextMenu() -> NSMenu {
         let menu = NSMenu()
 
-        // ── 最頻操作ブロック ──
+        // Most Frequent Operation Block
         menu.addItem(NSMenuItem(title: L("表示_非表示_bbfc3d"), action: #selector(togglePanel), keyEquivalent: ""))
 
         let presetsMenu = NSMenu()
@@ -54,7 +54,7 @@ extension AppDelegate {
             item.state = isVisible ? .on : .off
             panelsMenu.addItem(item)
 
-            // サブメニュー: ドック中 → 展開 + 別の辺に移動、通常 → 縁にドック
+            // Submenu: Docked → Expand + Move to another edge, Normal → Edge with Dock
             if isDocked {
                 let expandItem = NSMenuItem(
                     title: L("展開_5d14be"),
@@ -123,7 +123,7 @@ extension AppDelegate {
 
         menu.addItem(NSMenuItem.separator())
 
-        // ── 設定ブロック ──
+        // Setting Block
         menu.addItem(NSMenuItem(title: L("編集_ac1264"), action: #selector(openSettings), keyEquivalent: ","))
 
         let opacityMenu = NSMenu()
@@ -147,7 +147,7 @@ extension AppDelegate {
 
         menu.addItem(NSMenuItem.separator())
 
-        // ── AI ブロック ──
+        // AI block ---
         let agentModeMenu = NSMenu()
         let currentMode = presetManager.appConfig?.controlAPI.agentMode ?? .normal
         let agentModeChoices: [(String, AgentMode)] = [
@@ -180,19 +180,19 @@ extension AppDelegate {
 
         menu.addItem(NSMenuItem(title: L("AI_に接続_784c81"), action: #selector(openAIIntegration), keyEquivalent: ""))
 
-        // Phase 5: スマホ / タブレットへの送信モーダル
+        // Phase 5: Modal for Sending to Smartphone/Tablet
         let sendItem = NSMenuItem(title: L("デバイスに送信_f9ed8b"),
                                   action: #selector(openDeviceSendFromMenu),
                                   keyEquivalent: "")
-        // ControlAPI が OFF だと意味がないので disabled にする (auto enable は
-        // 後述: openDeviceSend 内で OS のお願いに沿った形にする方針もあるが、
-        // 今は素直に「先に AI 接続を ON にしてください」)。
+        // ControlAPI is meaningless when OFF, so it should be disabled (auto enable is not supported).
+        // There may be a plan to align with the OS's request within openDeviceSend.
+        // Please turn on the AI connection first.)
         sendItem.isEnabled = (presetManager.appConfig?.controlAPI.enabled ?? false)
         menu.addItem(sendItem)
 
         menu.addItem(NSMenuItem.separator())
 
-        // ── システムブロック ──
+        // System Block ---
         menu.addItem(NSMenuItem(title: L("設定フォルダを開く_be7046"), action: #selector(openConfigFolder), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: L("再読み込み_54db7f"), action: #selector(reloadConfig), keyEquivalent: "r"))
         menu.addItem(NSMenuItem(title: L("FloatingMacro_について_about_menu"), action: #selector(showAbout), keyEquivalent: ""))

@@ -1,6 +1,6 @@
 import AppKit
 
-/// フォーカスを奪わないフローティングパネル
+/// Floating panel that does not steal focus
 final class FloatingPanel: NSPanel {
     init(contentRect: NSRect) {
         super.init(
@@ -10,7 +10,7 @@ final class FloatingPanel: NSPanel {
             defer: false
         )
 
-        // フローティング設定
+        // floating settings
         level = .floating
         collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         isFloatingPanel = true
@@ -18,14 +18,14 @@ final class FloatingPanel: NSPanel {
         titleVisibility = .hidden
         titlebarAppearsTransparent = true
 
-        // フォーカスを奪わない
+        // non-intrusive focus
         becomesKeyOnlyIfNeeded = true
 
-        // 背景
+        // background
         isOpaque = false
         backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.95)
 
-        // ドラッグ移動
+        // drag move
         isMovableByWindowBackground = true
 
         // Position/size are owned by config.json — the app loads them on
@@ -38,20 +38,20 @@ final class FloatingPanel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
-    /// `#RRGGBB` hex → NSColor。nil や不正な文字列ならシステムデフォルトに戻す。
+    /// Convert `#RRGGBB` hex to NSColor. Return nil or default if string is invalid or nil.
     ///
-    /// カスタム背景色が設定されている場合、背景の明度に応じて
-    /// ウィンドウの appearance を `.aqua`（ライト）/ `.darkAqua`（ダーク）に
-    /// 強制し、SwiftUI の `Color.primary` / `.secondary` がテキスト色として
-    /// 読める状態を保つ。カスタム背景色なし（= システムデフォルト）のときは
-    /// appearance を nil に戻してシステム追従する。
+    /// If a custom background color is set, adjust the brightness of the background accordingly.
+    /// Set the window's appearance to `.aqua` (light) / `.darkAqua` (dark).
+    /// Forcedly, SwiftUI's `Color.primary` and `.secondary` as text color
+    /// Maintain the readable state. No custom background color (equals system default) when.
+    /// Set appearance to nil and follow the system.
     func applyBackgroundColor(hex: String?) {
         guard let hex, hex.count >= 7, hex.hasPrefix("#"),
               let r = UInt8(hex.dropFirst().prefix(2), radix: 16),
               let g = UInt8(hex.dropFirst(3).prefix(2), radix: 16),
               let b = UInt8(hex.dropFirst(5).prefix(2), radix: 16) else {
             backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.95)
-            appearance = nil   // システム追従に戻す
+            appearance = nil   // Return to system follow-up
             return
         }
         let rf = CGFloat(r) / 255
@@ -64,13 +64,13 @@ final class FloatingPanel: NSPanel {
             alpha:   0.95
         )
 
-        // sRGB 相対輝度 (ITU-R BT.709) で明暗を判定
+        // Determine brightness using sRGB relative luminance (ITU-R BT.709).
         let luminance = 0.2126 * rf + 0.7152 * gf + 0.0722 * bf
         appearance = NSAppearance(named: luminance > 0.5 ? .aqua : .darkAqua)
     }
 
-    /// ×ボタン / ⌘W → ミニアイコンに折りたたむ。
-    /// canBecomeKey == false な NSPanel では close() が直接呼ばれるため両方オーバーライド。
+    /// Close button / ⌘W → Minimize to icon.
+    /// In an NSPanel where canBecomeKey is false, both override close().
     override func performClose(_ sender: Any?) {
         NotificationCenter.default.post(
             name: .floatingPanelWantsHide,
@@ -85,7 +85,7 @@ final class FloatingPanel: NSPanel {
         )
     }
 
-    /// 黄色ボタン（ミニマイズ）→ 画面端にドックする。
+    /// Minimize button (yellow) → Dock to screen edge.
     override func performMiniaturize(_ sender: Any?) {
         NotificationCenter.default.post(
             name: .floatingPanelWantsCollapse,

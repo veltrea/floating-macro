@@ -59,7 +59,7 @@ final class AppIconCacheTests: XCTestCase {
         let firstGet = await cache.get(for: stub)
         XCTAssertNotNil(firstGet)
 
-        // アプリの mtime を 1 時間進める = アプリ更新を simulate
+        // Increase the app's mtime by 1 hour to simulate an app update
         let future = Date().addingTimeInterval(3600)
         try FileManager.default.setAttributes(
             [.modificationDate: future], ofItemAtPath: stub.path)
@@ -79,7 +79,7 @@ final class AppIconCacheTests: XCTestCase {
             let cache = AppIconCache(cacheDirectory: cacheDir)
             await cache.put(for: stub, data: payload)
         }
-        // 別インスタンス (メモリは空) でも、ディスクから読めて昇格する
+        // Upgradeable even with an empty memory instance from disk
         let cache2 = AppIconCache(cacheDirectory: cacheDir)
         let countBefore = await cache2.memoryCount()
         XCTAssertEqual(countBefore, 0)
@@ -130,8 +130,8 @@ final class AppIconCacheTests: XCTestCase {
         return url
     }
 
-    /// PNG の magic + 1 バイトのマーカー (テスト用)。実 PNG ではないが
-    /// キャッシュは bytes をそのまま透過するので bytes 等価比較に十分。
+    /// Magic byte + 1-byte marker for testing (not a real PNG).
+    /// The cache passes through bytes directly, so it is sufficient for byte-equivalent comparison.
     private func makePngBytes(marker: UInt8) -> Data {
         Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, marker])
     }

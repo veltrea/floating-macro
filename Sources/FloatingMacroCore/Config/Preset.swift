@@ -1,10 +1,10 @@
 import Foundation
 
-/// グループ内のボタンをどう描画するか。
-/// - `.icon`: 既存の小型アイコン+ラベル（横並び・コンパクト）
-/// - `.wide`: 横長セル（アイコン左寄せ、ラベル中心、長いタイトル可）
-/// - `.card`: 大カード（サムネイル上 + タイトル下、プロンプトギャラリー向け）
-/// - `.grid`: アイコングリッド（アイコン上 + ラベル下、ランチャー風）
+/// How to draw buttons in a group.
+/// .icon: Existing small icon + label (horizontal layout, compact)
+/// .wide: Wide cell (icon left-aligned, label centered, long title allowed)
+/// .card: Large card (thumbnail above + title below, for prompt gallery)
+/// .grid: Icon grid (icon on top + label below, launcher style)
 public enum GroupDisplayType: String, Codable, Equatable, CaseIterable {
     case icon
     case wide
@@ -12,17 +12,17 @@ public enum GroupDisplayType: String, Codable, Equatable, CaseIterable {
     case grid
 }
 
-/// card レイアウトでサムネイルをどう正方形セルに収めるか。
-/// - `.fill`: 外接 + クロップ（既定。セル全面を画像で埋める）
-/// - `.fit`:  内接 + 余白（画像全体を見せる。長辺がセル辺に合う）
+/// How to fit thumbnails into square cells in a card layout.
+/// .fill: fill + crop (default. fills the entire cell with an image)
+/// .fit: Fit with padding (shows the entire image. Long side matches cell size).
 public enum CardThumbnailMode: String, Codable, Equatable, CaseIterable {
     case fill
     case fit
 }
 
-/// card レイアウトの列数指定。
-/// - `auto`: 最小セル幅ベースのレスポンシブ（CSS Grid の minmax() 相当）
-/// - `fixed(1)` / `fixed(2)` / `fixed(3)`: 固定列数
+/// Specify column count for card layout.
+/// - `auto`: Minimum cell width based responsive (equivalent to CSS Grid's minmax())
+/// Fixed column count
 public enum GroupColumns: Equatable, Hashable {
     case auto
     case fixed(Int)
@@ -52,8 +52,8 @@ extension GroupColumns: Codable {
     }
 }
 
-/// icon / wide レイアウトのアイコン表示サイズ。
-/// card レイアウトのアプリアイコンキャップにも使われる。
+/// Icon display size for wide layout icons.
+/// The card layout is also used for app icon caps.
 public enum IconSize: String, Codable, Equatable, CaseIterable, Hashable {
     case small  // 16pt
     case medium // 32pt
@@ -85,16 +85,16 @@ public struct ButtonGroup: Codable, Equatable {
     /// Tooltip shown on mouse hover over the group header.
     public var tooltip: String?
     public var collapsed: Bool
-    /// グループ内ボタンのレイアウトタイプ。デフォルト `.icon` で既存挙動。
-    /// 旧プリセットファイル（このフィールドが無いもの）は `.icon` でロードされる。
+    /// Layout type of group button. Default `.icon` retains existing behavior.
+    /// Old preset files (those without this field) are loaded with `.icon`.
     public var displayType: GroupDisplayType
-    /// card レイアウトの列数。nil = auto（最小 120pt ベースのレスポンシブ）。
-    /// 1/2/3 で固定列数。icon/wide レイアウトでは無視される。
+    /// Number of columns in the card layout. nil = auto (minimum 120pt based).
+    /// Fixed column count in 1/2/3. Ignored in icon/wide layout.
     public var columns: GroupColumns
-    /// アイコンの表示サイズ。icon/wide レイアウトのアイコン描画サイズ、
-    /// card レイアウトのアプリアイコンキャップに使われる。
+    /// Icon display size. Icon drawing size for wide layout icons,
+    /// Used for the app icon cap in card layout applications.
     public var iconSize: IconSize
-    /// grid レイアウトでラベルを表示するか。false ならアイコンのみ。
+    /// Display label in grid layout? False: only icon.
     public var showLabels: Bool
     public var buttons: [ButtonDefinition]
 
@@ -145,9 +145,9 @@ public struct ButtonGroup: Codable, Equatable {
         self.buttons         = try c.decode([ButtonDefinition].self, forKey: .buttons)
     }
 
-    /// `.icon` のときはエンコード結果から `displayType` キーを省く。既存プリセット
-    /// ファイル（v0.10 以前で書き出されたもの）が再保存時に意図せず差分扱いに
-    /// ならないようにするための後方互換配慮。`columns` も `.auto` なら省く。
+    /// When `.icon`, omit the `displayType` key from the encoded result. Existing preset
+    /// File (saved before v0.10) unintentionally treated as diff when resaved
+    /// Consider backward compatibility to avoid it. Also omit `columns` if `.auto`.
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id, forKey: .id)
@@ -170,10 +170,10 @@ public struct Preset: Codable, Equatable {
     public let version: Int
     public let name: String
     public var displayName: String
-    /// プリセット全体に対する自由記述メモ。「使う前提」「F1〜F12 を OS で
-    /// ファンクションキーに設定する必要がある」「対象アプリを前面にしてから
-    /// 押す」などの運用上の注意を残す欄。複数行可、Markdown 装飾は未対応。
-    /// nil または空文字列ならパネル側で折りたたみブロックを描画しない。
+    /// Free-form memo for the entire preset. "Assumption before use", "F1-F12 are used by the OS"
+    /// Function key needs to be set. Make the target app frontmost before...
+    /// A column for leaving operational notes such as "tap" or other precautions. Multiple lines allowed, Markdown decoration not supported.
+    /// Draw the collapsible block on the panel side only if nil or empty string.
     public var memo: String?
     public var groups: [ButtonGroup]
 
@@ -374,30 +374,37 @@ public struct ControlAPIConfig: Codable, Equatable {
     /// `requireAuth`. Intended for smoke tests and CI environments where
     /// interactive Keychain dialogs are not acceptable.
     public var testMode: Bool
-    /// Phase 5 (v0.13) で導入。true のとき HTTP リスナーを loopback だけで
-    /// なく全インターフェース (0.0.0.0) にもバインドし、同一 LAN の他端末
-    /// (スマホ・タブレット等) からの接続を受け付ける。デフォルト false。
-    /// LAN 公開中はメニューバーアイコンを赤色に変えて視覚警告する。
-    /// 既存の Bearer トークンに加え、再起動失効の `ephemeralLanToken`
-    /// (PanelManager 等とは別系統、メモリ常駐) で QR 経由の認証を行う。
+    /// Introduced in Phase 5 (v0.13). When true, only use loopback for the HTTP listener.
+    /// Bind to all interfaces (0.0.0.0) and other terminals on the same local network
+    /// Accept connections from (smartphones, tablets, etc.). Default is false.
+    /// When publicly available, change the menu bar icon to red color and visually warn.
+    /// Existing Bearer token, plus ephemeral LAN token for restart invalidation.
+    /// Separate from PanelManager, perform authentication via QR code.
     public var lanExposureEnabled: Bool
+    /// LAN remote control port. ACP (loopback) is used with a separate listener.
+    /// The default is `port + 1` (= 17431). If not existing in the existing JSON,
+    /// Fallback to `port + 1` (backward compatibility).
+    public var lanPort: Int
 
     public init(enabled: Bool = false,
                 port: Int = 17430,
                 agentMode: AgentMode = .normal,
                 requireAuth: Bool = true,
                 testMode: Bool = false,
-                lanExposureEnabled: Bool = false) {
+                lanExposureEnabled: Bool = false,
+                lanPort: Int? = nil) {
         self.enabled            = enabled
         self.port               = port
         self.agentMode          = agentMode
         self.requireAuth        = requireAuth
         self.testMode           = testMode
         self.lanExposureEnabled = lanExposureEnabled
+        let lp = lanPort ?? (port + 1)
+        self.lanPort            = lp == port ? port + 1 : lp
     }
 
     private enum CodingKeys: String, CodingKey {
-        case enabled, port, agentMode, requireAuth, testMode, lanExposureEnabled
+        case enabled, port, agentMode, requireAuth, testMode, lanExposureEnabled, lanPort
     }
 
     public init(from decoder: Decoder) throws {
@@ -408,26 +415,28 @@ public struct ControlAPIConfig: Codable, Equatable {
         self.requireAuth        = try c.decodeIfPresent(Bool.self,      forKey: .requireAuth)        ?? true
         self.testMode           = try c.decodeIfPresent(Bool.self,      forKey: .testMode)           ?? false
         self.lanExposureEnabled = try c.decodeIfPresent(Bool.self,      forKey: .lanExposureEnabled) ?? false
+        let lp = try c.decodeIfPresent(Int.self, forKey: .lanPort) ?? (self.port + 1)
+        self.lanPort            = lp == self.port ? self.port + 1 : lp
     }
 }
 
-/// パネルがドックされている画面の辺。
+/// The edge of the screen on which the panel is docked.
 public enum DockEdge: String, Codable, Sendable {
     case left, right, top, bottom
 }
 
-/// Phase 3 (v0.12) で導入。1 つのフローティングウィンドウ = 1 つの Panel。
-/// 旧 `AppConfig.activePreset` + `AppConfig.window` の組み合わせを panel 配列
-/// で多重化したもの。`id` は永続的な識別子（UUID 文字列）で、PanelManager は
-/// この id で NSWindow を管理する。
+/// Introduced in Phase 3 (v0.12). One floating window = one Panel.
+/// Combination of old `AppConfig.activePreset` and `AppConfig.window` to form a panel array
+/// persistent identifier (UUID string), PanelManager is
+/// Manage an NSWindow with this ID.
 public struct PanelConfig: Codable, Equatable {
     public let id: String
     public var presetName: String
     public var window: WindowConfig
-    /// nil = 通常表示（展開中）。辺が設定されている場合は画面端にドックされた状態。
-    /// Phase 3.5 で旧 `minimizedToEdge: Bool` から型変更。
+    /// nil = Normal display (expanding). If edges are set, docked to screen edge.
+    /// Phase 3.5 type change from old minimizedToEdge: Bool to new type.
     public var dockedEdge: DockEdge?
-    /// ドックバーをドラッグで移動した場合のカスタム位置。nil なら自動レイアウト。
+    /// Custom position when dragging the dock bar. nil means automatic layout.
     public var dockBarPosition: DockBarPosition?
     public var visible: Bool
     public var scrollY: Double
@@ -457,7 +466,7 @@ public struct PanelConfig: Codable, Equatable {
         self.id              = try c.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
         self.presetName      = try c.decode(String.self, forKey: .presetName)
         self.window          = try c.decodeIfPresent(WindowConfig.self, forKey: .window) ?? WindowConfig()
-        // Phase 3.5: dockedEdge が存在すればそれを使い、旧 minimizedToEdge: true は .right に移行
+        // Phase 3.5: If dockedEdge exists, use it; otherwise, migrate the old minimizedToEdge: true to .right.
         if let edge = try c.decodeIfPresent(DockEdge.self, forKey: .dockedEdge) {
             self.dockedEdge = edge
         } else if let legacy = try c.decodeIfPresent(Bool.self, forKey: .minimizedToEdge),
@@ -496,11 +505,11 @@ public struct DockBarPosition: Codable, Equatable {
 
 public struct AppConfig: Codable, Equatable {
     public let version: Int
-    /// 旧 v1 互換フィールド。Phase 3 移行期は `panels[0].presetName` と同期して
-    /// 書き出される。新コードは `panels` を真実の源として扱う。
+    /// Legacy v1 compatibility field. Phase 3 migration period synchronized with `panels[0].presetName`.
+    /// Written out. New code treats `panels` as the true source.
     public var activePreset: String
-    /// 旧 v1 互換フィールド。Phase 3 移行期は `panels[0].window` と同期して
-    /// 書き出される。新コードは各 `PanelConfig.window` を真実の源として扱う。
+    /// Legacy v1 compatibility fields. Synchronize with panels[0].window during Phase 3 migration period.
+    /// Written out. New code treats each PanelConfig.window as the true source.
     public var window: WindowConfig
     public var controlAPI: ControlAPIConfig
     public var commandBlacklist: CommandBlacklist
@@ -527,9 +536,9 @@ public struct AppConfig: Codable, Equatable {
     /// back to alphabetical order entirely" — that is also the default for
     /// configs written by older versions.
     public var presetOrder: [String]
-    /// Phase 3 (v0.12) で導入。複数フローティングパネル定義。
-    /// 旧設定ファイル（このフィールドが無い / 空のもの）は decoder が
-    /// `activePreset` + `window` から 1 件の Panel に自動移行する。
+    /// Introduced in Phase 3 (v0.12). Multiple floating panel definitions introduced.
+    /// Old configuration file (this field is missing / empty) the decoder will
+    /// Automatically migrate one panel from `activePreset` and `window`.
     public var panels: [PanelConfig]
 
     public init(version: Int = 1,
@@ -549,7 +558,7 @@ public struct AppConfig: Codable, Equatable {
         self.seedInstalled       = seedInstalled
         self.migrationAlertShown = migrationAlertShown
         self.presetOrder         = presetOrder
-        // panels が空なら activePreset + window から 1 件自動生成（旧 v1 → v2 移行）。
+        // If panels is empty, automatically generate one from the active preset and window (migration from old v1 to v2).
         if panels.isEmpty {
             self.panels = [PanelConfig(presetName: activePreset, window: window)]
         } else {
@@ -572,7 +581,7 @@ public struct AppConfig: Codable, Equatable {
         self.migrationAlertShown = try c.decodeIfPresent(Bool.self,              forKey: .migrationAlertShown) ?? false
         self.presetOrder         = try c.decodeIfPresent([String].self,          forKey: .presetOrder)         ?? []
         let decodedPanels     = try c.decodeIfPresent([PanelConfig].self,     forKey: .panels)           ?? []
-        // v1 形式（panels 欠落 / 空）は activePreset + window から 1 件生成して移行。
+        // Form (missing panels / empty) is generated once from activePreset + window and migrated.
         if decodedPanels.isEmpty {
             self.panels = [PanelConfig(presetName: self.activePreset, window: self.window)]
         } else {

@@ -1,29 +1,29 @@
 import Foundation
 
-/// Phase 5 (P5-12 / P5-13): Web Panel から呼び出し可能なツールのホワイトリスト。
+/// White list of tools callable from Web Panel (P5-12 / P5-13).
 ///
-/// ## なぜホワイトリスト方式か
-/// Web Panel はスマホ/タブレットの Safari から LAN 経由でアクセスされる。
-/// `/tools/call` はファイル上書きや preset 削除など破壊的操作も含むため、
-/// 通常の Bearer トークンが何かの拍子に漏れるシナリオを考えると、
-/// 「LAN 公開モード × ephemeral トークン」の経路では破壊的操作を**そもそも
-/// 呼べないようにする**のが安全。
+/// Why a White List Approach?
+/// The Web Panel can be accessed via LAN from Safari on smartphones/tablets.
+/// The `/tools/call` is for destructive operations including file overwriting and removal of presets, etc., so it should be used with caution.
+/// When considering scenarios where a normal Bearer token leaks in some way,
+/// In the route of "**LAN public mode × ephemeral token**", destructive operations are **from the very beginning**.
+/// Make sure you can't call it safely.
 ///
-/// ## 含めた tool / 含めなかった tool
-/// - 含める: 読み取り (`ping` / `get_state` / `panel_list` / `preset_list` /
-///   `preset_current`) と、ユーザーが画面で押したいボタンの実行 (`button_press`)、
-///   プリセット切替 (`preset_switch`)。
-/// - 含めない: `*_add` / `*_update` / `*_delete` のような config 変更系、
-///   `run_action` (任意のキーストローク/コマンド実行)、`settings_*` (Mac 側
-///   ウィンドウ操作)、AI 連携、ログ参照など。
+/// Included tools / Excluded tools
+/// include: read (ping / get_state / panel_list / preset_list /
+/// and the execution of the button to be pressed by the user (button_press) and,
+/// Preset switch (`preset_switch`).
+/// exclude: `*_add` / `*_update` / `*_delete` type config changes,
+/// `run_action` (any keystroke/command execution), `settings_*` (Mac side)
+/// Window operations, AI integration, log references, etc.
 ///
-/// ## ロードマップ的な位置づけ
-/// 「とりあえず動く」段階のホワイトリストで、必要に応じて拡張する。たとえば
-/// パネル位置を遠隔調整したい等の要望が出たら `panel_move` / `panel_resize` を
-/// 追加する判断はあり得る。
+/// Load map-like positioning
+/// At the initial stage where it just works, expand the whitelist as needed. For example:
+/// If there are requests to remotely adjust the panel position, use `panel_move` or `panel_resize`.
+/// Adding a judgment may be possible.
 public enum WebPanelToolWhitelist {
 
-    /// Web Panel から呼び出し可能な tool 名の集合。
+    /// Collection of names of tools callable from Web Panel.
     public static let allowed: Set<String> = [
         // Discovery & state
         "ping",
@@ -31,20 +31,20 @@ public enum WebPanelToolWhitelist {
         "manifest",
         "get_state",
 
-        // Panel discovery (write 系の panel_create / panel_close は含めない)
+        // Panel discovery (exclude write-system panel_create / panel_close)
         "panel_list",
 
-        // Preset 切替系 (mutate 系の preset_create / rename / delete は含めない)
+        // Exclude mutate-series preset_create, rename, and delete from Preset switching category/type.
         "preset_list",
         "preset_current",
-        "preset_get",     // Phase 5: パネルごとの Web Panel が指定 preset を読む
+        "preset_get",     // Phase 5: Read presets for each Web Panel
         "preset_switch",
 
-        // ボタン押下 — Web Panel の主目的
+        // Button Press - Main Purpose of Web Panel
         "button_press",
     ]
 
-    /// 名前が allowed に含まれているか判定する。
+    /// Determines whether the name is included in allowed.
     public static func isAllowed(_ name: String) -> Bool {
         return allowed.contains(name)
     }

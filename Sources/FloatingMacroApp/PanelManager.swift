@@ -1,32 +1,32 @@
 import AppKit
 import FloatingMacroCore
 
-/// Phase 3 (P3-3) で導入。複数のフローティングパネル（とそれぞれのミニアイコン）を
-/// 永続 id で管理する。AppDelegate はこれを通じて全パネルを操作する。
+/// Introduced in Phase 3 (P3-3). Multiple floating panels (and their respective mini-icons) are introduced.
+/// Manage with persistent ID. The AppDelegate operates on all panels through this.
 ///
-/// **設計ポリシー:**
-/// - パネルの内容（NSView / SwiftUI）は AppDelegate が `contentBuilder` クロージャで
-///   供給する。PanelManager 自身は SwiftUI / PresetManager に依存しない（AppKit のみ）。
-/// - panel id は `PanelConfig.id`（UUID）と一致。`PresetManager.appConfig.panels`
-///   が真実の源で、PanelManager は描画中の id を保持するだけ。
-/// - ミニアイコンは現状ペアで作成するが、複数パネル時の `MiniIconPanel.savedOrigin`
-///   競合は将来課題（panels.count >= 2 の UI を有効化する Phase 3 の後段で対応）。
+/// Design Policy:
+/// The content of the panel (NSView / SwiftUI) is set by the AppDelegate in a `contentBuilder` closure.
+/// Supplying. PanelManager itself does not depend on SwiftUI / PresetManager (only AppKit).
+/// panel ID matches `PanelConfig.id` (UUID) and `PresetManager.appConfig.panels`.
+/// It is the source of truth, and PanelManager only holds the id being drawn.
+/// The mini-icon is created in pairs by default, but for multiple panels, the `MiniIconPanel.savedOrigin`.
+/// Competitors will be addressed in a future task (post-Phase 3, when panels.count >= 2 and the UI is enabled).
 final class PanelManager {
 
-    /// id → 1 セット（フローティングパネル + ミニアイコン）。
+    /// Set (floating panel + mini-icon).
     private var entries: [String: Entry] = [:]
 
-    /// パネル id → コンテンツビュー生成関数。AppDelegate から差し込まれる。
+    /// Panel ID -> Content View Generation Function. Injected from AppDelegate.
     private let contentBuilder: (PanelConfig) -> NSView
-    /// ドック要求（黄色ボタン経由）が来たとき呼ばれる。引数は対象 panel id。
+    /// Called when a dock request (via yellow button) comes in. The argument is the target panel ID.
     private let onCollapseRequested: (String) -> Void
-    /// 非表示要求（× ボタン経由）が来たとき呼ばれる。引数は対象 panel id。
+    /// Called when a hidden request (button bypass) comes. The argument is the target panel ID.
     private let onHideRequested: (String) -> Void
-    /// ミニアイコンのダブルクリックで呼ばれる。引数は対象 panel id。
+    /// Called by double-clicking the mini-icon. The argument is the target panel ID.
     private let onExpandRequested: (String) -> Void
-    /// ミニアイコンの右クリックで呼ばれる。
+    /// Called when right-clicked on the mini-icon.
     private let onMiniMenuRequested: (String, NSEvent) -> Void
-    /// ドックバーがドラッグで移動された。引数は (panel id, origin)。
+    /// The dock bar was moved by dragging. The arguments are (panel ID, origin).
     var onDockBarDragged: ((String, NSPoint, DockEdge) -> Void)?
 
     private var collapseObserver: NSObjectProtocol?
@@ -73,7 +73,7 @@ final class PanelManager {
 
     // MARK: - Lookup
 
-    /// 与えられた NSWindow に対応する panel id を返す。
+    /// Returns the panel ID corresponding to the given NSWindow.
     func panelID(forWindow window: NSWindow) -> String? {
         for (id, entry) in entries where entry.panel === window {
             return id
@@ -81,19 +81,19 @@ final class PanelManager {
         return nil
     }
 
-    /// 現在開いている全パネルの id 配列。
+    /// Array of IDs for all currently open panels.
     var allPanelIDs: [String] { Array(entries.keys) }
 
-    /// 指定 id のフローティングパネル本体を返す（無ければ nil）。
+    /// Returns the floating panel body for the specified ID (returns nil if none).
     func panel(id: String) -> FloatingPanel? { entries[id]?.panel }
 
-    /// 指定 id のミニアイコンパネルを返す（無ければ nil）。
+    /// Returns the mini-icon panel for the specified ID (nil if none).
     func miniIcon(id: String) -> MiniIconPanel? { entries[id]?.mini }
 
     // MARK: - Lifecycle
 
-    /// 設定の panels 配列を読んで visible なものを生成・表示する。
-    /// 生成順は配列順。既に同じ id で生成済みの場合はスキップ。
+    /// Generate and display visible panels from the panel array setting.
+    /// The order is the array order. If an item with the same id has already been generated, skip it.
     func openInitial(from configPanels: [PanelConfig],
                      dockLabelProvider: ((PanelConfig) -> (label: String, iconName: String?))? = nil) {
         for config in configPanels {
@@ -117,8 +117,8 @@ final class PanelManager {
         }
     }
 
-    /// 新規パネル定義を反映して NSWindow を生成・表示。
-    /// `PresetManager.addPanel` で追加された後に呼び出す想定。
+    /// Create new panel definition and generate/display NSWindow.
+    /// Assumed to be called after being added via `PresetManager.addPanel`.
     func openNew(config: PanelConfig) {
         guard entries[config.id] == nil else { return }
         let entry = makeEntry(for: config)
@@ -126,8 +126,8 @@ final class PanelManager {
         entry.panel.orderFront(nil)
     }
 
-    /// 指定 id のパネルとそのミニアイコンを破棄。
-    /// `PresetManager.removePanel` 成功後に呼ぶ。
+    /// Destroy the panel with the specified ID and its mini-icon.
+    /// Call after `PresetManager.removePanel` succeeds.
     func close(id: String) {
         guard let entry = entries.removeValue(forKey: id) else { return }
         entry.panel.orderOut(nil)
@@ -137,9 +137,9 @@ final class PanelManager {
 
     // MARK: - Visibility / collapse
 
-    /// フローティングパネル → ミニアイコン折りたたみ。
-    /// ミニアイコンは全エントリで共有的に 1 個だけ表示する。
-    /// 既にどれかのミニアイコンが見えていれば、パネルだけ隠す。
+    /// Floating panel → Mini icon folding.
+    /// The mini-icon is displayed only once for all entries collectively.
+    /// Hide only the panel if one of the mini-icons is already visible.
     func collapseToMini(id: String) {
         guard let entry = entries[id] else { return }
         entry.panel.orderOut(nil)
@@ -157,8 +157,8 @@ final class PanelManager {
         }
     }
 
-    /// ミニアイコンから指定パネルだけを復帰させる。
-    /// まだ隠れているパネルがあればミニアイコンを維持する。
+    /// Return only the specified panel from the mini-icon.
+    /// Maintain the mini-icon if there are still hidden panels.
     func expandFromMini(id: String) {
         guard let entry = entries[id] else { return }
         for e in entries.values { e.mini.orderOut(nil) }
@@ -175,7 +175,7 @@ final class PanelManager {
         }
     }
 
-    /// パネル / ミニアイコン / ドックバーの状態に応じてトグル。
+    /// Toggle based on the state of the panel, mini-icon, and dock bar.
     func toggle(id: String) {
         guard let entry = entries[id] else { return }
         if entry.panel.isVisible {
@@ -191,9 +191,9 @@ final class PanelManager {
 
     // MARK: - Edge dock
 
-    /// パネルを画面端にドックする。
-    /// `customPosition` が指定されていれば、ドックバーをその位置に固定し、
-    /// ジニーアニメーションの吸い込み先もそこになる。
+    /// Dock panel to screen edge.
+    /// If `customPosition` is specified, the dock bar will be fixed at that position.
+    /// The absorption destination of Jinianime also becomes there.
     func collapseToDock(id: String, edge: DockEdge, label: String, iconName: String?, customPosition: NSPoint? = nil) {
         guard let entry = entries[id] else { return }
         let sourceFrame = entry.panel.frame
@@ -229,7 +229,7 @@ final class PanelManager {
         }
     }
 
-    /// ドックからパネルを展開する。
+    /// Expand panel from dock.
     func expandFromDock(id: String) {
         guard let entry = entries[id] else { return }
         let dockFrame = entry.dockBar?.frame ?? .zero
@@ -253,10 +253,10 @@ final class PanelManager {
         }
     }
 
-    /// 指定 id のドックバーを返す。
+    /// Returns the dock bar for the specified ID.
     func dockBar(id: String) -> EdgeDockBar? { entries[id]?.dockBar }
 
-    /// すべての EdgeDockBar の位置を再計算する。カスタム位置のバーはスキップ。
+    /// Recalculate the positions of all EdgeDockBars. Skip bars with custom positions.
     func relayoutDockBars() {
         guard let screen = NSScreen.main?.visibleFrame else { return }
 
@@ -283,35 +283,35 @@ final class PanelManager {
 
     // MARK: - Frame / opacity
 
-    /// 指定 id のフローティングパネルの現在 frame を返す（無ければ nil）。
+    /// Returns the current frame of the floating panel with the specified ID (nil if none).
     func currentFrame(id: String) -> NSRect? {
         return entries[id]?.panel.frame
     }
 
-    /// 全パネルの現在 frame を `(id, NSRect)` のタプル配列で返す。
-    /// 呼び出し元はこれを PresetManager.updatePanelFrame に渡して永続化する。
+    /// Return an array of tuples (id, NSRect) representing the current frame for all panels.
+    /// The caller passes this to PresetManager.updatePanelFrame for persistence.
     func currentFrames() -> [(id: String, frame: NSRect)] {
         return entries.map { ($0.key, $0.value.panel.frame) }
     }
 
-    /// 指定パネルの透明度を反映（永続化は呼び出し元で）。
+    /// Reflect the transparency of the specified panel (persistence is handled by the caller).
     func setOpacity(id: String, opacity: Double) {
         entries[id]?.panel.alphaValue = CGFloat(opacity)
     }
 
-    /// 指定パネルの背景色を反映（永続化は呼び出し元で）。
+    /// Reflect the background color of the specified panel (persistence is handled by the caller).
     func setBackgroundColor(id: String, hex: String?) {
         entries[id]?.panel.applyBackgroundColor(hex: hex)
     }
 
-    /// ドックバーのカスタム位置をクリアし、自動レイアウトに戻す。
+    /// Clear the custom position of the Dock bar and return to automatic layout.
     func resetDockBarPosition(id: String) {
         guard let bar = entries[id]?.dockBar else { return }
         bar.hasCustomPosition = false
         relayoutDockBars()
     }
 
-    /// 全ドックバーのカスタム位置をクリアし、自動レイアウトに戻す。
+    /// Clear custom dock bar position and return to automatic layout.
     func resetAllDockBarPositions() {
         for entry in entries.values {
             entry.dockBar?.hasCustomPosition = false
@@ -340,8 +340,8 @@ final class PanelManager {
         panel.applyBackgroundColor(hex: config.window.backgroundColor)
 
         let mini = MiniIconPanel(near: frame)
-        // クロージャは self を弱参照しないと Mini→Manager のレファサイクル化を
-        // 避けられない。`weak self` 経由で id-base のディスパッチに乗せ替え。
+        // The closure does not weakly reference self, preventing the leak of Mini→Manager references.
+        // Cannot avoid. Switch to id-base dispatch via `weak self`.
         let id = config.id
         mini.onRestore = { [weak self] in self?.onExpandRequested(id) }
         mini.onShowMenu = { [weak self] event in
@@ -351,8 +351,8 @@ final class PanelManager {
     }
 }
 
-/// `contentBuilder` が `NSView` を返す形式に揃えるための薄いヘルパー。
-/// SwiftUI 側では `NSHostingView(rootView:)` を使うので素通しで良いが、
-/// 仮の AppKit-only View を渡すケースも将来想定して関数化しておく。
+/// Thin helper to align the format of `contentBuilder` returning an `NSView`.
+/// On the SwiftUI side, it's fine to use `NSHostingView(rootView:)` directly.
+/// Consider future cases where an AppKit-only view is passed, and encapsulate the functionality.
 @inline(__always)
 private func NSHostingViewIfNeeded(_ view: NSView) -> NSView { view }

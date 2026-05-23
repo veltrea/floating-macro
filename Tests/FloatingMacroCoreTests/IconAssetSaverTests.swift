@@ -87,8 +87,8 @@ final class IconAssetSaverTests: XCTestCase {
         }
     }
 
-    /// Phase 2 で追加された card タブ用サムネイル保存。
-    /// `presets/<name>/images/<buttonId>.<ext>` に書き、絶対パスを返す。
+    /// Thumbnail saving for added card tabs in Phase 2.
+    /// Returns the absolute path to `<name>/<buttonId>.<ext>` in `presets/`.
     func testSaveThumbnailWritesToImagesDirectory() throws {
         let support = try makeTempSupportDir()
         defer { try? FileManager.default.removeItem(at: support) }
@@ -109,7 +109,7 @@ final class IconAssetSaverTests: XCTestCase {
         XCTAssertEqual(readBack, payload)
     }
 
-    /// `imagesDirectory(presetName:)` の純粋関数。`icons/` と並列のパス。
+    /// Pure function `imagesDirectory(presetName:)`. Parallel path to `icons/`.
     func testImagesDirectoryPath() throws {
         let support = URL(fileURLWithPath: "/tmp/fm-saver-fake")
         let dir = IconAssetSaver.imagesDirectory(
@@ -122,8 +122,8 @@ final class IconAssetSaverTests: XCTestCase {
         )
     }
 
-    /// ファイルピッカー経由の取り込み: 元ファイルを管理ディレクトリに「コピー」
-    /// して preset 配下に保存し、絶対パスを返す。元ファイルは保持される。
+    /// File picker import: Copy original file to management directory
+    /// Save under the preset folder and return the absolute path. The original file is preserved.
     func testCopyImageDuplicatesIntoPresetDirectory() throws {
         let support = try makeTempSupportDir()
         defer { try? FileManager.default.removeItem(at: support) }
@@ -142,14 +142,14 @@ final class IconAssetSaverTests: XCTestCase {
         let expected = support
             .appendingPathComponent("FloatingMacro/presets/gallery/images/btn-card-1.png")
         XCTAssertEqual(savedPath, expected.path)
-        // 元ファイルは消えていない (コピーであって移動ではない)
+        // The original file is not deleted (it's a copy, not moved).
         XCTAssertTrue(FileManager.default.fileExists(atPath: source.path))
-        // コピー先のバイト列が完全一致
+        // The byte sequence of the destination matches exactly
         let copied = try Data(contentsOf: URL(fileURLWithPath: savedPath))
         XCTAssertEqual(copied, payload)
     }
 
-    /// 拡張子は元ファイルから引き継ぐ。PNG → PNG、JPEG → JPEG で再エンコードしない。
+    /// Extension is inherited from the original file. Do not re-encode PNG to PNG, JPEG to JPEG.
     func testCopyImagePreservesSourceExtension() throws {
         let support = try makeTempSupportDir()
         defer { try? FileManager.default.removeItem(at: support) }
@@ -164,13 +164,13 @@ final class IconAssetSaverTests: XCTestCase {
             presetName: "p",
             applicationSupportDirectory: support
         )
-        // 大文字拡張子は小文字に正規化される
+        // The uppercase extension is normalized to lowercase.
         XCTAssertTrue(saved.hasSuffix("/icons/btn-photo.jpg"),
                       "expected .jpg suffix, got \(saved)")
     }
 
-    /// 同じ assetId で再選択すると、旧拡張子の orphan ファイルは削除される。
-    /// PNG → JPEG に差し替えるユースケース。
+    /// If the same assetId is selected again, orphan files with the old extension will be deleted.
+    /// Use case to replace PNG with JPEG.
     func testCopyImageRemovesPreviousAssetWithDifferentExtension() throws {
         let support = try makeTempSupportDir()
         defer { try? FileManager.default.removeItem(at: support) }
@@ -192,18 +192,18 @@ final class IconAssetSaverTests: XCTestCase {
             applicationSupportDirectory: support
         )
         XCTAssertTrue(secondPath.hasSuffix("btn-X.jpg"))
-        // 旧 PNG は orphan として残らず削除されている
+        // Old PNGs are no longer left as orphans and are removed.
         XCTAssertFalse(FileManager.default.fileExists(atPath: firstPath),
                        "previous PNG should be removed when replaced by JPEG")
     }
 
-    /// 既に管理ディレクトリ内のファイルを再選択した場合は no-op
-    /// (自分自身を自分自身にコピーしようとして失敗するのを避ける)。
+    /// If the file has already been re-selected within the management directory, it is a no-op.
+    /// To avoid failing to copy oneself onto oneself.
     func testCopyImageIsNoOpWhenSourceAlreadyInDestination() throws {
         let support = try makeTempSupportDir()
         defer { try? FileManager.default.removeItem(at: support) }
 
-        // 1 回目のコピーで管理ディレクトリ内にファイルを作る
+        // Create a file in the management directory for the first copy.
         let original = support.appendingPathComponent("orig.png")
         try makePngHeader().write(to: original)
         let saved = try IconAssetSaver.copyImage(
@@ -211,7 +211,7 @@ final class IconAssetSaverTests: XCTestCase {
             assetId: "btn-loop", presetName: "p",
             applicationSupportDirectory: support
         )
-        // 2 回目: 管理ディレクトリ内のコピーをソースとして再選択
+        // Second time: Re-select copy as source in management directory
         let savedURL = URL(fileURLWithPath: saved)
         let again = try IconAssetSaver.copyImage(
             from: savedURL, into: .icons,
@@ -223,17 +223,17 @@ final class IconAssetSaverTests: XCTestCase {
                       "no-op should not delete the file")
     }
 
-    /// 外部絶対パス → preset 配下へ自動移行。SF Symbol / bundle id /
-    /// 既に管理ディレクトリ内のパス / 存在しないパス・空はそのまま返る。
+    /// External absolute path → automatic migration to preset under SF Symbol / bundle id /.
+    /// Already returns the path as-is if it exists in the management directory, does not exist, or is empty.
     func testMigrateExternalImagePathCopiesExternalAndKeepsManaged() throws {
         let support = try makeTempSupportDir()
         defer { try? FileManager.default.removeItem(at: support) }
 
-        // 外部にある画像ファイル
+        // Image file outside
         let external = support.appendingPathComponent("external.png")
         try makePngHeader().write(to: external)
 
-        // 1. 外部パス → コピーされて新パスが返る
+        // External path → New path is returned after copying
         let migrated = IconAssetSaver.migrateExternalImagePath(
             external.path,
             into: .icons, assetId: "btn-1", presetName: "p",
@@ -244,7 +244,7 @@ final class IconAssetSaverTests: XCTestCase {
                           "external path should have been migrated")
         XCTAssertTrue(migrated?.contains("/icons/btn-1") ?? false)
 
-        // 2. 既に管理ディレクトリ内のパスは素通り
+        // 2. Paths already in the management directory pass through unchanged.
         let again = IconAssetSaver.migrateExternalImagePath(
             migrated,
             into: .icons, assetId: "btn-1", presetName: "p",
@@ -252,7 +252,7 @@ final class IconAssetSaverTests: XCTestCase {
         )
         XCTAssertEqual(again, migrated, "managed paths must be a no-op")
 
-        // 3. SF Symbol は素通り
+        // 3. SF Symbol bypasses
         let sf = IconAssetSaver.migrateExternalImagePath(
             "sf:star.fill",
             into: .icons, assetId: "btn-2", presetName: "p",
@@ -260,7 +260,7 @@ final class IconAssetSaverTests: XCTestCase {
         )
         XCTAssertEqual(sf, "sf:star.fill")
 
-        // 4. bundle id は素通り
+        // 4. bundle id is skipped
         let bid = IconAssetSaver.migrateExternalImagePath(
             "com.apple.Safari",
             into: .icons, assetId: "btn-3", presetName: "p",
@@ -268,7 +268,7 @@ final class IconAssetSaverTests: XCTestCase {
         )
         XCTAssertEqual(bid, "com.apple.Safari")
 
-        // 5. 存在しないパスは素通り (リンク切れを勝手に操作しない)
+        // 5. Non-existent paths are skipped (without tampering with broken links)
         let missing = IconAssetSaver.migrateExternalImagePath(
             "/tmp/does-not-exist-fm.png",
             into: .icons, assetId: "btn-4", presetName: "p",
@@ -276,7 +276,7 @@ final class IconAssetSaverTests: XCTestCase {
         )
         XCTAssertEqual(missing, "/tmp/does-not-exist-fm.png")
 
-        // 6. nil / 空文字列はそのまま
+        // 6. nil / empty string as-is
         XCTAssertNil(IconAssetSaver.migrateExternalImagePath(
             nil, into: .icons, assetId: "btn-5", presetName: "p",
             applicationSupportDirectory: support))

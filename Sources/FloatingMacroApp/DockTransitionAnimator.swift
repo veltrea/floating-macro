@@ -1,7 +1,7 @@
 import AppKit
 import QuartzCore
 
-/// パネル ↔ Edge Dock 移動時のスライドトランジション。
+/// Panel ↔ Edge Dock Slide Transition During Movement.
 final class DockTransitionAnimator {
 
     static func animateSlide(from sourceFrame: NSRect,

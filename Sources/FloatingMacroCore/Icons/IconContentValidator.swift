@@ -2,35 +2,35 @@ import Foundation
 import ImageIO
 import CoreGraphics
 
-/// アイコン PNG の中身が「空プレースホルダ」かどうかを判定する。
+/// Determines if the contents of an icon PNG are a "blank placeholder".
 ///
-/// なぜ必要か:
-///   Books.app の `Contents/Resources/AppIcon.icns` のように、見かけは正常な
-///   icns だが全 representation が完全に透明 (`alpha=0` かつ `rgb=0`) のケースが
-///   存在する。Apple が Catalyst 化や Assets.car 化のときに「ファイル形式は
-///   残しつつ中身を空にした」プレースホルダ。ImageIO は素直にそれを decode
-///   して 460 バイトの「成功 PNG」を返してしまうので、PNG のバイトサイズだけで
-///   失敗判定してもすり抜ける。実画像の **ピクセル内容** を見れば確実に検出できる。
+/// Why Necessary:
+/// As seen in Books.app's `Contents/Resources/AppIcon.icns`, it appears to be normal.
+/// icns but fully transparent case (alpha=0 and rgb=0)
+/// Exists. When Apple converted to Catalyst and Assets.car, they said "the file format is"
+/// Leave it empty while preserving its content. ImageIO decodes it directly as-is.
+/// Return a "successful PNG" of only the PNG byte size, so it returns 460 bytes.
+/// Even if the failure judgment passes through. The actual pixel content of the real image can be reliably detected.
 ///
-/// 検査内容:
-///   PNG bytes を `CGImageSource` で decode し、RGBA 8bit の bitmap context に
-///   描画してピクセル配列を読む。1 ピクセルでも `alpha > threshold` または
-///   `max(R,G,B) > threshold` に当たれば「中身がある」と判定 (early-return)。
-///   全ピクセル空なら false を返す。
+/// Inspection content:
+/// Decode PNG bytes using a `CGImageSource`, then place it in an RGBA 8-bit bitmap context.
+/// Draw and read pixel array. If any pixel's alpha is greater than the threshold,
+/// If max(R, G, B) > threshold, determine that it has content (early-return).
+/// Returns false if all pixels are empty.
 ///
-/// 設計判断:
-///   - Foundation + ImageIO + CoreGraphics のみ (AppKit 非依存)
-///   - 1 つでも色を見つけたら true で抜けるので、通常アプリは 1〜数 px の
-///     decode で済む。空アイコン (Books 等) のときだけ全ピクセル走査になるが、
-///     128x128 = 16384 pixels の loop で sub-millisecond
+/// Design judgment:
+/// Foundation + ImageIO + CoreGraphics only (AppKit-independent)
+/// If even one color is found, return true and exit. Normal apps usually have 1 to a few pixels.
+/// decode can be used. Only full pixel scanning occurs for empty icons (Books and others), however,
+/// 128x128 = 16,384 pixel loop in sub-millisecond
 public enum IconContentValidator {
 
-    /// 1 ピクセルでもこの値を超える alpha / RGB が見つかれば「中身あり」と判定。
-    /// 8 にしているのは antialias 由来の 1〜3 程度の値を「実質空」と扱うため。
+    /// If even one pixel exceeds this value, an "contains content" determination is made.
+    /// The reason for setting the value to a level of about 1-3, which is derived from antialias, is to treat it as "essentially empty".
     public static let defaultThreshold: UInt8 = 8
 
-    /// PNG bytes を見て、有効な絵が描かれているかどうかを返す。
-    /// PNG として decode できない・サイズ 0 等は false (= 空扱い)。
+    /// Returns true if a valid image is drawn from the PNG bytes.
+    /// Cannot be decoded as PNG; size zero, etc., are treated as empty (false).
     public static func hasMeaningfulContent(
         pngData: Data,
         threshold: UInt8 = defaultThreshold
@@ -44,8 +44,8 @@ public enum IconContentValidator {
         return hasMeaningfulContent(cgImage: cgImage, threshold: threshold)
     }
 
-    /// `CGImage` を直接受け取る版。`ImageIOIconExtractor` の中から呼べるように
-    /// 公開してある。
+    /// Directly accepts `CGImage` version. To be callable from within `ImageIOIconExtractor`.
+    /// Published
     public static func hasMeaningfulContent(
         cgImage: CGImage,
         threshold: UInt8 = defaultThreshold
@@ -59,7 +59,7 @@ public enum IconContentValidator {
         var pixelData = [UInt8](repeating: 0, count: totalBytes)
 
         guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) else {
-            return true  // colorSpace 取得失敗時は誤検出回避で通す
+            return true  // Pass through when color space acquisition fails for false positive avoidance
         }
         guard let context = CGContext(
             data: &pixelData,
@@ -70,11 +70,11 @@ public enum IconContentValidator {
             space: colorSpace,
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else {
-            return true  // context 作成失敗時も同様
+            return true  // Context creation failure also similar
         }
         context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
 
-        // 早期 return ループ — 通常アイコンは数ピクセルで抜ける
+        // Early loop exit - The normal icon usually exits in a few pixels.
         let total = width * height
         for i in 0..<total {
             let base = i * 4

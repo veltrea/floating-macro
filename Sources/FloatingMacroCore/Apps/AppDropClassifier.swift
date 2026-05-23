@@ -42,7 +42,7 @@ public enum AppDropClassifier {
     public static func classify(_ url: URL) -> Candidate? {
         let path = url.path
 
-        // .app バンドル — AppEntryResolver で displayName / bundleId を解決
+        // App Bundle - Resolve displayName and bundleId in AppEntryResolver
         if url.pathExtension.lowercased() == "app" {
             if let entry = AppEntryResolver.resolve(at: url) {
                 let target = entry.bundleIdentifier ?? path
@@ -60,10 +60,10 @@ public enum AppDropClassifier {
                     iconSourcePath: path
                 )
             }
-            // .app だが resolve 失敗（存在しない、Info.plist 不正等）→ 下のファイル扱いへ
+            // The .app fails to resolve (non-existent, incorrect Info.plist, etc.) → switch to handling files instead.
         }
 
-        // 通常のファイル / フォルダ
+        // Normal file / folder
         var isDir: ObjCBool = false
         let exists = FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
         guard exists else { return nil }

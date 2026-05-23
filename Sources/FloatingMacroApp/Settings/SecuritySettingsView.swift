@@ -5,11 +5,11 @@ import FloatingMacroCore
 
 // MARK: - SecuritySettingsView
 
-/// コマンドブラックリストとオートパイロット設定の編集画面。
+/// Command blacklist and auto-pilot settings edit screen.
 struct SecuritySettingsView: View {
     @ObservedObject var presetManager: PresetManager
 
-    // ローカル編集用の状態
+    // Local editing state
     @State private var enabled: Bool = true
     @State private var autopilotEnabled: Bool = false
     @State private var hasPassword: Bool = false
@@ -18,7 +18,7 @@ struct SecuritySettingsView: View {
     @State private var editingIndex: Int? = nil
     @State private var editingText: String = ""
 
-    // パスワード設定シート
+    // Password Setting Sheet
     @State private var showingSetPasswordSheet: Bool = false
     @State private var newPassword1: String = ""
     @State private var newPassword2: String = ""
@@ -32,7 +32,7 @@ struct SecuritySettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
 
-                // ヘッダー説明
+                // Header description
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L("コマンドセーフガード_c5f232"))
                         .font(.title3)
@@ -43,7 +43,7 @@ struct SecuritySettingsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                // 有効/無効トグル
+                // Enabled / Disabled Toggle
                 Toggle(L("確認ダイアログを有効にする_27222d"), isOn: $enabled)
                     .toggleStyle(.switch)
                     .onChange(of: enabled) { newValue in
@@ -52,7 +52,7 @@ struct SecuritySettingsView: View {
 
                 Divider()
 
-                // ─── オートパイロットセクション ───────────────────────
+                // Autopilot Section --------------------------------------------
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 6) {
                         Image(systemName: "airplane")
@@ -119,7 +119,7 @@ struct SecuritySettingsView: View {
                 if enabled {
                     Divider()
 
-                    // パターン一覧
+                    // pattern list
                     VStack(alignment: .leading, spacing: 8) {
                         Text(L("確認対象パターン一覧_e4b5f1"))
                             .font(.headline)
@@ -178,7 +178,7 @@ struct SecuritySettingsView: View {
                         }
                     }
 
-                    // 新規パターン追加
+                    // Add new pattern
                     VStack(alignment: .leading, spacing: 6) {
                         Text(L("パターンを追加_bf7d0b"))
                             .font(.headline)
@@ -212,7 +212,7 @@ struct SecuritySettingsView: View {
         .onChange(of: presetManager.appConfig?.commandBlacklist) { _ in
             loadFromConfig()
         }
-        // ─── パスワード設定シート ─────────────────────────────────
+        // Password Setting Sheet
         .sheet(isPresented: $showingSetPasswordSheet) {
             VStack(alignment: .leading, spacing: 16) {
                 Text(hasPassword ? L("パスワードを変更_fb3e11") : L("オートパイロット用パスワードを設定_55fc32"))
@@ -292,7 +292,7 @@ struct SecuritySettingsView: View {
 
     private func commitPassword() {
         if hasPassword {
-            // 変更: newPassword1 = 現在、newPassword2 = 新しい
+            // Changed: newPassword1 = Currently, newPassword2 = New
             if newPassword2.count < 4 {
                 passwordError = L("4文字以上のパスワードを設定してください_85efe5")
                 return
@@ -304,7 +304,7 @@ struct SecuritySettingsView: View {
                 passwordError = L("現在のパスワードが違います_2309b8")
             }
         } else {
-            // 新規設定: newPassword1 = password、newPassword2 = confirm
+            // New setting: newPassword1 = password, newPassword2 = confirm
             guard newPassword1 == newPassword2 else {
                 passwordError = L("パスワードが一致しません_0fa3b3")
                 return

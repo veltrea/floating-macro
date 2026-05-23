@@ -57,11 +57,11 @@ public enum AccessibilityChecker {
         let log = LoggerContext.shared
         let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
 
-        // NSWorkspace.shared.open(url) は System Settings が未起動だと
-        // Sequoia 上で silent fail することがある (URL イベントを受ける
-        // プロセスが居ないとイベントがドロップされる挙動が観測されている)。
-        // /usr/bin/open は LaunchServices 経由で確実に起動 + URL 配送を
-        // 行うため、こちらを使う。
+        // If NSWorkspace.shared.open(url) is called and System Settings is not running,
+        // There may be silent failures on Sequoia when handling URL events.
+        // The process is not present, so events are dropped.
+        // Open via LaunchServices for guaranteed launch and URL dispatch
+        // Use this to perform.
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
         task.arguments = [url.absoluteString]
@@ -73,7 +73,7 @@ public enum AccessibilityChecker {
                 "url": url.absoluteString,
                 "error": String(describing: error),
             ])
-            // 最終手段として NSWorkspace 経由
+            // As a last resort via NSWorkspace
             NSWorkspace.shared.open(url)
         }
     }

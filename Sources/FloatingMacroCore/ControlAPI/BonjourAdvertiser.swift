@@ -1,31 +1,31 @@
 import Foundation
 
-/// Phase 5 (P5-11): mDNS / Bonjour で `_floatingmacro._tcp.` を広報する。
+/// Phase 5 (P5-11): Broadcasting `_floatingmacro._tcp.` via mDNS/Bonjour.
 ///
-/// 目的: LAN 内のスマホ Safari が `floatingmacro.local:17430/webpanel?...`
-/// にアクセスできるようにすること。Bonjour 広報により Mac のローカルホスト名
-/// (例: `MacBook-Pro.local`) が同 LAN セグメントの mDNS responder で解決でき、
-/// IP アドレスを直打ちしなくて済む。
+/// Purpose: LAN-based smartphone Safari accessing `floatingmacro.local:17430/webpanel?...`
+/// Accessing it so that you can. Bonjour reporting allows the local hostname of Mac.
+/// (Example: `MacBook-Pro.local`) can be resolved by the mDNS responder on the same LAN segment,
+/// Can be done without typing the IP address directly.
 ///
-/// 実装は `NetService.publish` を `.includesPeerToPeer` なしで使う薄いラッパ。
-/// 起動・停止・状態取得を提供。
+/// Implementation is a thin wrapper using `NetService.publish` without `.includesPeerToPeer`.
+/// Provide launch/stop/status retrieval.
 ///
-/// **スレッディング**: NetService はメインスレッドのランループに依存する API
-/// 設計だが、`publish(options: [.listenForConnections])` を使わず
-/// `publish()` だけ呼ぶケースなら、専用の DispatchQueue 上のランループに
-/// schedule して動かしても問題ない。とはいえ Phase 5 のスコープでは初期化
-/// 頻度が低いので、main で動かすのが最も素直。呼び出し側で main から
-/// `start` してもらう。
+/// **Threading:** The NetService depends on the main thread's run loop.
+/// Design but without using `publish(options: [.listenForConnections])`.
+/// Only call `publish()`, then run on a dedicated DispatchQueue.
+/// Schedule moving it around is fine. That said, in the scope of Phase 5, initialization
+/// Since the frequency is low, it's most straightforward to run it in main. Call from the caller side in main.
+/// Please start.
 public final class BonjourAdvertiser: NSObject, NetServiceDelegate {
 
-    /// 広報する service type。`_floatingmacro._tcp.` 末尾のドットは
-    /// NetService が内部的に付与するので渡し方は `_floatingmacro._tcp.`。
-    /// 標準サービスではないので Apple 推奨の `_appname._tcp.` 形式に従う。
+    /// service type to broadcast. The trailing dot in `_floatingmacro._tcp.`
+    /// The NetService internally assigned way to pass is "_floatingmacro._tcp.".
+    /// Do not follow the Apple-recommended _appname._tcp. format since it is not a standard service.
     public static let serviceType = "_floatingmacro._tcp."
 
-    /// 広報名のデフォルト。NetService は実際にはホスト名を流用するが、
-    /// ユーザーが「このホスト名で公開している」と認識しやすいよう、
-    /// 名前を明示的に渡せるようにしている。
+    /// Default name for broadcast. NetService actually uses host names, but...
+    /// The user recognizes easily that they are publishing under this host name.
+    /// Explicitly passing names is allowed.
     public static let defaultName = "FloatingMacro"
 
     public enum State: Equatable {
@@ -39,14 +39,14 @@ public final class BonjourAdvertiser: NSObject, NetServiceDelegate {
     private var service: NetService?
     private let queue = DispatchQueue(label: "fm.bonjour", qos: .utility)
 
-    /// 状態変化のコールバック。state の変化のたびに main で呼ばれる (UI 更新用)。
+    /// State change callback. Called in main for each state change (for UI update).
     public var onStateChange: ((State) -> Void)?
 
-    /// 広報を開始する。すでに広報中なら no-op。
+    /// Start the announcement. If already in an announcement, do nothing.
     /// - Parameters:
-    ///   - port: 広報するポート (= ControlServer.boundPort)。0 は不可。
-    ///   - name: 広報名。同 LAN セグメントで衝突した場合 NetService が自動で
-    ///           "(2)" などを末尾に付加してリトライしてくれる。
+    /// port: Port to announce on (= ControlServer.boundPort). 0 is not allowed.
+    /// name: Publicize. If there is a collision on the same LAN segment, NetService will automatically
+    /// Append "(2)" and similar to the end for retries.
     public func start(port: Int, name: String = BonjourAdvertiser.defaultName) {
         guard service == nil else { return }
         guard port > 0, port <= 65535 else { return }
@@ -55,16 +55,16 @@ public final class BonjourAdvertiser: NSObject, NetServiceDelegate {
                              name: name,
                              port: Int32(port))
         svc.delegate = self
-        // RunLoop は main を使う。NetService は RunLoop ベースの古い API。
-        // バックグラウンドで RunLoop を回すと CFRunLoopRun が必要になり面倒
-        // なので main RunLoop に共通モードで schedule する。
+        // The RunLoop uses the main loop. NetService is a legacy API based on RunLoop.
+        // Running the RunLoop in the background requires CFRunLoopRun, which is cumbersome.
+        // Therefore, schedule in a common mode for the main RunLoop.
         svc.schedule(in: .main, forMode: .common)
         service = svc
         updateState(.publishing)
         svc.publish()
     }
 
-    /// 広報を停止する。
+    /// Stop broadcasting.
     public func stop() {
         service?.stop()
         service?.remove(from: .main, forMode: .common)
@@ -88,7 +88,7 @@ public final class BonjourAdvertiser: NSObject, NetServiceDelegate {
 
     private func updateState(_ new: State) {
         state = new
-        // UI 側コールバックは必ず main で呼ぶ。
+        // The UI side callback must always be called in the main thread.
         if Thread.isMainThread {
             onStateChange?(new)
         } else {

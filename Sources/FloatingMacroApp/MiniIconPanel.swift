@@ -1,15 +1,15 @@
 import AppKit
 
-/// パネルを折りたたんだ時に表示する小さなフローティングアイコン。
-/// ダブルクリックで `onRestore` を呼び出し、元のパネルに復帰させる。
+/// Floating icon displayed when folding the panel.
+/// Call `onRestore` with a double-click, returning to the original panel.
 final class MiniIconPanel: NSPanel {
     var onRestore: (() -> Void)?
     var onShowMenu: ((NSEvent) -> Void)?
 
-    /// ユーザーがドラッグで動かした最終位置を覚えるための UserDefaults キー
+    /// finalUserLocationUserDefaultsKey
     static let savedOriginKey = "MiniIconPanel.savedOrigin"
 
-    /// 保存済み位置 (前回ユーザーが置いた場所)。無ければ nil
+    /// Saved position (last place user placed). Nil if none.
     static var savedOrigin: NSPoint? {
         get {
             guard let str = UserDefaults.standard.string(forKey: savedOriginKey) else { return nil }
@@ -26,7 +26,7 @@ final class MiniIconPanel: NSPanel {
 
     init(near anchor: NSRect) {
         let size: CGFloat = 48
-        // 保存位置があればそれを優先、無ければアンカー (元パネル) の左上付近
+        // If there is a saved position, prioritize that; otherwise, near the top-left of the anchor (original panel).
         let origin: NSPoint
         if let saved = MiniIconPanel.savedOrigin {
             origin = saved
@@ -66,7 +66,7 @@ final class MiniIconPanel: NSPanel {
         }
         contentView = iconView
 
-        // ドラッグで移動した時に位置を保存
+        // Save position when moved by drag-and-drop
         NotificationCenter.default.addObserver(
             forName: NSWindow.didMoveNotification,
             object: self,
@@ -101,8 +101,8 @@ private final class MiniIconView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         let inner = bounds.insetBy(dx: 2, dy: 2)
 
-        // 縦方向グラデ背景: v1 アイコンの dark purple frame と揃える
-        // 上: やや明るい紫、下: 深い紫
+        // Vertical gradient background: Align with dark purple frame of v1 icon.
+        // Upper: Slightly brighter purple, lower: Deep purple
         if let ctx = NSGraphicsContext.current?.cgContext {
             let colors = [
                 NSColor(srgbRed: 0.27, green: 0.18, blue: 0.42, alpha: 0.95).cgColor,
@@ -122,13 +122,13 @@ private final class MiniIconView: NSView {
             }
         }
 
-        // 縁: 薄い紫の outline
+        // Outline: Thin purple
         let stroke = NSBezierPath(ovalIn: inner.insetBy(dx: 0.5, dy: 0.5))
         NSColor(srgbRed: 0.87, green: 0.72, blue: 1.0, alpha: 0.45).setStroke()
         stroke.lineWidth = 1
         stroke.stroke()
 
-        // SF Symbol を AI accent (#ddb7ff) で描画
+        // Draw SF Symbol with AI accent (#ddb7ff).
         if let sym = NSImage(systemSymbolName: "command",
                              accessibilityDescription: nil) {
             let cfg = NSImage.SymbolConfiguration(pointSize: 22, weight: .semibold)

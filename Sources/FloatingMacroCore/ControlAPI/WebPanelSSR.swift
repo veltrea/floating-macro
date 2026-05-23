@@ -1,19 +1,19 @@
 import Foundation
 
-/// Phase 5: Web Panel の初期 HTML を**サーバー側で完成形まで描画**する。
+/// Render initial HTML for Web Panel on the server side.
 ///
-/// なぜ SSR か:
-/// - JS が `preset_get` を fetch するまで何も画面に出ないと「30 秒間真っ白」
-///   問題が起きる。
-/// - 初期 HTML に preset 構造を埋め込めば、ブラウザは HTML 到達と同時に
-///   ヘッダー・グループラベル・skeleton カードを paint できる。
-/// - その後 JS が読み込まれて、画像 URL を skeleton に差し込みつつ
-///   shimmer から本物に置換する。
+/// Why SSR?
+/// JS fetches preset_get before anything appears on the screen, resulting in a "30 seconds of pure white".
+/// An issue occurs.
+/// Embedding the preset structure in initial HTML allows the browser to reach HTML at the same time as loading.
+/// Can paint header group label skeleton card.
+/// After that, JS is loaded and image URLs are inserted into the skeleton.
+/// Replace shimmer with real.
 public enum WebPanelSSR {
 
-    /// `<section id="panels">` 内に展開する HTML 文字列を組み立てる。
-    /// preset が nil のときは generic な 6 個の skeleton カードを返す
-    /// (= 「読み込み中」感を出すための fallback)。
+    /// Construct an HTML string to be assembled within the `<section id="panels">`.
+    /// Return six generic skeleton cards when preset is nil.
+    /// (fallback to convey a "loading" feel).
     public static func renderInnerHTML(preset: Preset?) -> String {
         guard let preset = preset else {
             return repeatString(generic: 6)
@@ -25,9 +25,9 @@ public enum WebPanelSSR {
         return out
     }
 
-    /// 1 グループの HTML。skeleton + ボタンラベルを含む。
-    /// 画像 src は **ここでは入れない** (JS が token / size 算出後に注入)。
-    /// ラベルとレイアウトだけは入れることで初期 paint で見える。
+    /// Group's HTML. Skeleton with button label included.
+    /// The image src is not inserted here (JS injects after calculating token/size).
+    /// Label and layout are enough to make it visible in initial paint.
     private static func renderGroup(_ group: ButtonGroup) -> String {
         let dt = group.displayType
         let dtClass: String
@@ -50,9 +50,9 @@ public enum WebPanelSSR {
         return html
     }
 
-    /// 1 ボタンの HTML。画像 src は data-src 属性に入れず、ボタン id だけ
-    /// 持たせる。JS が button.id ベースで window.__FM_PRESET__ から元データを
-    /// 引いて画像 URL / クリックハンドラを差し込む。
+    /// HTML for a button. The image src is not placed in the data-src attribute, only the button id.
+    /// Allow. JS that button.id based on window.__FM_PRESET__ from original data
+    /// Insert image URL / insert click handler.
     private static func renderButton(_ b: ButtonDefinition,
                                      displayType: GroupDisplayType) -> String {
         let id = WebPanelAssets.htmlEscape(b.id)
@@ -76,9 +76,9 @@ public enum WebPanelSSR {
             </button>
             """
         case .wide, .icon:
-            // 画像があるとき: skeleton icon 領域 (32x32) を確保
-            // iconText のとき: そのまま絵文字を出す (即 paint されるしカワイイ)
-            // どちらも無いとき: text-only クラスでラベルだけ
+            // When there is an image: reserve area for skeleton icon (32x32)
+            // For iconText: Just output the emoji directly (instantly painted and cute)
+            // Only label in text-only class when neither is present
             if hasImage {
                 return """
                 <button class="btn" data-id="\(id)">\
@@ -104,7 +104,7 @@ public enum WebPanelSSR {
         }
     }
 
-    /// preset が無いときの fallback skeleton。N 個のボタンを並べる。
+    /// Fallback skeleton when no preset is available. Arrange N buttons in a row.
     private static func repeatString(generic n: Int) -> String {
         let card = """
         <div class="group icon"><div class="buttons">\

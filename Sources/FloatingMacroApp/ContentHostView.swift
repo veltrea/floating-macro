@@ -5,47 +5,47 @@ import FloatingMacroCore
 
 struct ContentHostView: View {
     @ObservedObject var presetManager: PresetManager
-    /// このパネルの永続 id (`PanelConfig.id`)。Phase 3 で導入。
-    /// プリセットの参照・編集ターゲットの切替・各種 UI ルックアップに使う。
+    /// This panel's persistent ID (`PanelConfig.id`). Introduced in Phase 3.
+    /// Use for switching preset reference and edit targets, various UI lookups.
     let panelID: String
-    /// Phase 5: パネル右上の QR アイコンが押されたとき、AppDelegate 側の
-    /// `openDeviceSend(panelID:)` を呼び出してもらうコールバック。
-    /// SwiftUI 内から直接 AppDelegate を参照しないことで Preview の壊れにくさを保つ。
-    /// 引数の panelID で、QR にどのパネル / プリセットを埋め込むかを指示する。
+    /// Phase 5: When the QR icon in the upper right corner of the panel is tapped, the AppDelegate side...
+    /// Callback to call `openDeviceSend(panelID:)`.
+    /// Maintain preview stability by not directly referencing AppDelegate from SwiftUI.
+    /// Specifies which panel/preset to embed in the QR using the panelID argument.
     var onDeviceSendRequested: (String) -> Void = { _ in }
     @State private var confirmingPresetDelete = false
     @State private var showingPresetReorderSheet = false
-    /// プリセットメモの折りたたみ展開状態。プリセット切替時はリセット
-    /// （新しいプリセットのメモは「畳まれた状態で気付ける」のが望ましい）。
+    /// Preset memo folding/expanding state. Reset when switching presets.
+    /// New preset notes should be "noticed in a compact state."
     @State private var memoExpanded: Bool = false
-    /// アプリ/ファイルがパネル上にドラッグされている間 true。
-    /// 視覚フィードバック（青枠ハイライト）の駆動に使う。
+    /// While the app/file is being dragged over the panel, true.
+    /// Use for driving visual feedback (blue frame highlight).
     @State private var isDropTargeted: Bool = false
 
-    /// このパネルが現在表示しているプリセット。Phase 3 では panelID に紐づく
-    /// `PanelConfig.presetName` を経由してキャッシュ (`PresetManager.loadedPresets`)
-    /// から取得する。`@ObservedObject` 経由で `presetManager.appConfig` /
-    /// `loadedPresets` の変化を観測しているので preset 切替 / 編集が即座に反映される。
+    /// This is the preset currently displayed by this panel. In Phase 3, it is associated with panelID.
+    /// Via `PanelConfig.presetName`, cache (PresetManager.loadedPresets)
+    /// from obtaining. `@ObservedObject` via the `presetManager.appConfig` /
+    /// Observing changes in `loadedPresets`, preset switching/editing is reflected immediately.
     private var panelPreset: Preset? {
         presetManager.panelPreset(forPanelID: panelID)
     }
 
-    /// このパネルが指している preset 名。`appConfig.panels` から逆引き。
+    /// The preset name this panel points to. Reverse lookup from `appConfig.panels`.
     private var panelPresetName: String? {
         presetManager.appConfig?.panels.first(where: { $0.id == panelID })?.presetName
     }
 
-    /// このパネルの保存済みスクロール位置 (アプリ再起動時の復元用)。
-    /// `PanelScrollView.initialY` の供給源。`appConfig` が変わっても view が
-    /// 再生成されないように `let initialY` でキャプチャしてから使う想定。
+    /// Saved scroll position of this panel (for restoration on app restart).
+    /// Supply source for `PanelScrollView.initialY`. Even if `appConfig` changes, the view remains unchanged.
+    /// Assuming capture and use before regeneration with `let initialY`.
     private var panelScrollY: Double {
         presetManager.appConfig?.panels.first(where: { $0.id == panelID })?.scrollY ?? 0
     }
 
-    /// SettingsWindowController を開く前に編集ターゲット (`currentPreset`) を
-    /// このパネルのプリセットに切り替えるショートカット。複数パネルが別々の
-    /// プリセットを表示しているとき、編集アクションが「このパネルのプリセット」
-    /// に対して行われるようにする。
+    /// Before opening SettingsWindowController, set the edit target (currentPreset) to
+    /// This is the shortcut to switch to a preset of this panel. Multiple panels are separate.
+    /// When displaying presets, if the edit action is "Preset of this panel",
+    /// To be done as per the request.
     private func openSettings(selectButtonId: String? = nil,
                               selectGroupId: String? = nil) {
         presetManager.setEditTarget(panelID: panelID)
@@ -58,9 +58,9 @@ struct ContentHostView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 上端ヘッダー: 左にプリセット切替、右に AI 連携ウィンドウへの導線。
-            // プリセット picker をここに常時出すことで、複数プリセットの
-            // 切替を発見しやすくする (設定画面の picker と同期)。
+            // Header bar on top: Left for preset switching, right for connection to AI collaboration window.
+            // By constantly displaying the preset picker here, you can manage multiple presets.
+            // Make switch discovery easier (synchronize with settings screen picker).
             HStack(spacing: 4) {
                 Menu {
                     ForEach(presetManager.presetEntries) { entry in
@@ -90,8 +90,8 @@ struct ContentHostView: View {
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
-                // 縦は固定 (高さがゼロにならないように)、横は柔軟にして
-                // 長いプリセット名のときに右側のアイコン群を押し出さない。
+                // Vertical is fixed (height does not become zero), horizontal is flexible.
+                // Do not push out the icon group on the right when there is a long preset name.
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutPriority(0)
                 .help(L("プリセットを切り替え_右クリックで編集_並べ替え_削除_2a0d21"))
@@ -161,7 +161,7 @@ struct ContentHostView: View {
                 .buttonStyle(.plain)
                 .help(L("編集ウィンドウを開く_99e3e1"))
 
-                // Phase 5: QR / デバイスに送信。このパネル単独の QR を出す。
+                // Phase 5: Send to device. Display this single QR panel.
                 Button {
                     onDeviceSendRequested(panelID)
                 } label: {
@@ -193,18 +193,18 @@ struct ContentHostView: View {
             .padding(.horizontal, 4)
             .padding(.top, 2)
 
-            // プリセットメモ（折りたたみ）。memo が空のプリセットでは描画しない。
+            // Draw only if memo is not empty (collapsed preset). Memo is empty, do not draw.
             if let memo = panelPreset?.memo,
                !memo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 presetMemoBlock(memo)
             }
 
-            // ボタン一覧
+            // Button List
             if let preset = panelPreset {
-                // PanelScrollView (NSScrollView ラッパー) を使うことで
-                // アプリ再起動後にスクロール位置を復元できる。
-                // 復元値はこのパネルの `PanelConfig.scrollY`。スクロール変化は
-                // PresetManager が debounce 付きで永続化する。
+                // Using PanelScrollView (NSScrollView wrapper) allows you to...
+                // Scroll position can be restored after app restart.
+                // The restored value is this panel's `PanelConfig.scrollY`. Scroll changes are
+                // PresetManager persists with debounce.
                 let initialY = CGFloat(panelScrollY)
                 PanelScrollView(
                     initialY: initialY,
@@ -279,7 +279,7 @@ struct ContentHostView: View {
                 }
             }
 
-            // エラーバナー
+            // Error banner
             if let error = presetManager.errorMessage {
                 Text(error)
                     .font(.system(size: 10))
@@ -291,11 +291,12 @@ struct ContentHostView: View {
                     .padding(4)
             }
 
-            // Accessibility 権限喪失バッジ。CGEvent.post は権限がなくても
-            // void で成功扱いを返してしまうため、ログだけ見ても気づけない
-            // (= ユーザーが「テキストボタンが効かない」と感じる主因)。
-            // ここに常時バッジを出すことで、リビルド後に権限が剥がれた
-            // 状態を視覚的に必ず気づけるようにする。
+            // Accessibility permission loss badge. CGEvent.post can be used without permissions.
+            // Returning success treatment with void makes it impossible to notice even by just looking at the log.
+            // (= Users feel that text buttons are ineffective.)
+            // Here is the translation:
+This places badges continuously, allowing them to be stripped after a rebuild.
+            // Make sure the state can be visually recognized at all times.
             if !presetManager.accessibilityTrusted {
                 // Self-restart recovery flow:
                 //   1. tccutil reset → drop the (possibly stale) TCC entry
@@ -307,25 +308,25 @@ struct ContentHostView: View {
                 //      adds a fresh entry to the Accessibility list. The
                 //      user just flips the switch.
                 //
-                // Same-process prompt: true は AXIsProcessTrusted() が stale
-                // TRUE を返してバナーが誤って消える問題があるため、self-restart
-                // でクリーン状態にしてから prompt: true を呼ぶ。
+                // Same-process prompt: true is AXIsProcessTrusted() stale
+                // Return TRUE because there is a problem that the banner may disappear accidentally, so self-restart.
+                // Call prompt: true after setting it to a clean state.
                 let recover: () -> Void = {
                     // Self-restart recovery:
-                    //   1. tccutil reset で stale TCC エントリを削除
-                    //   2. NSWorkspace.openApplication で自身を
-                    //      --prompt-accessibility 引数付きで再起動
-                    //   3. completion ハンドラで現プロセスを terminate
+                    // Remove stale TCC entries with tccutil reset
+                    // 2. Open Application in NSWorkspace
+                    // Restart with arguments for accessibility
+                    // Terminate current process in completion handler
                     //
-                    // 同プロセスで prompt: true を呼ぶ「シンプル版」と違い、
-                    // 新プロセスで AX キャッシュがクリーンな状態から
-                    // prompt: true を呼ぶので、古いエントリ + stale TRUE
-                    // で一覧追加が阻害される状況を回避できる。
+                    // In contrast to the simpler version that calls prompt: true in the same process,
+                    // Clean AX cache from a new process
+                    // Calling true invokes old entries + stale TRUE
+                    // Can avoid situations where adding to the list is hindered.
                     //
-                    // OpenConfiguration.arguments で argv に確実に
-                    // --prompt-accessibility を渡す (Process + open --args
-                    // 経由だと Launch Services が argv を落とすケースが
-                    // あるため、現代的な API を使う)。
+                    // Ensure argv in OpenConfiguration.arguments
+                    // Passing `--prompt-accessibility` (Process + open --args)
+                    // If via the Launch Services, there are cases where argv is lost.
+                    // For this reason, use modern APIs).
                     let logger = LoggerContext.shared
                     let bundleId = Bundle.main.bundleIdentifier ?? "com.veltrea.FloatingMacro"
                     logger.info("Accessibility", "recover requested", ["bundleId": bundleId])
@@ -356,7 +357,7 @@ struct ContentHostView: View {
                             logger.error("Accessibility", "relaunch failed", [
                                 "error": String(describing: error),
                             ])
-                            // フォールバック: 設定画面だけでも開く
+                            // Fallback: Open only the settings screen
                             DispatchQueue.main.async {
                                 AccessibilityChecker.openSystemPreferences()
                             }
@@ -403,23 +404,23 @@ struct ContentHostView: View {
                 .padding(4)
             }
         }
-        // 最大サイズに上限を設けない。これまで maxWidth: 300, maxHeight: 600
-        // でハードキャップしていたため、ユーザーが NSPanel をドラッグして
-        // 広げてもコンテントが追従せず「縮小はできるが拡大できない」現象が
-        // 起きていた。SwiftUI 側を .infinity にして NSPanel のリサイズに
-        // フルで追従するようにする。
+        // Set no upper limit on maximum size. Previously maxWidth: 300, maxHeight: 600
+        // Due to the hard cap, users were unable to drag an NSPanel.
+        // Expanding but content not following, phenomenon that can shrink but cannot expand
+        // Woke up. Set SwiftUI side to .infinity and NSPanel resize.
+        // Follow all in full.
         .frame(minWidth: 180, maxWidth: .infinity,
                minHeight: 100, maxHeight: .infinity)
-        // パネル全面でファイル/アプリのドロップを受け付け、ボタン化する。
-        // .app は bundle id ベースの launch action、その他のファイルは
-        // 絶対パスの launch action として登録される。
+        // Accept file/app drop across the panel and convert it to a button.
+        // The `.app` is a launch action based on the bundle ID, while other files are...
+        // Registered as a launch action for absolute paths.
         .onDrop(of: [UTType.fileURL], isTargeted: $isDropTargeted) { providers in
             handleDroppedProviders(providers)
             return true
         }
         .overlay(
-            // ドラッグ中の視覚フィードバック。Stream Deck と同じく「ここに
-            // 落とせる」のが分かるようにアクセントカラーで縁を強調する。
+            // Drag feedback during dragging. Similar to Stream Deck, here is the visual feedback while dragging.
+            // Highlight the edge with an accent color so that it's clear which can be dropped.
             RoundedRectangle(cornerRadius: 6)
                 .stroke(isDropTargeted ? Color.accentColor : Color.clear,
                         lineWidth: 3)
@@ -427,9 +428,9 @@ struct ContentHostView: View {
         )
     }
 
-    /// `.onDrop` のプロバイダから fileURL を取り出し、PanelDropHandler に渡す。
-    /// NSItemProvider の loadItem はコールバックベースなので非同期で集めて
-    /// 全件揃ったタイミングでメインスレッドからハンドラを呼ぶ。
+    /// Pass the fileURL obtained from the `.onDrop` provider to the PanelDropHandler.
+    /// loadItem of NSItemProvider is callback-based, so gather asynchronously.
+    /// Call the handler from the main thread when all pieces are available.
     private func handleDroppedProviders(_ providers: [NSItemProvider]) {
         let group = DispatchGroup()
         var collected: [URL] = []
@@ -649,7 +650,7 @@ struct ContentHostView: View {
             iconText: "✨",
             action: .text(content: "", pasteDelayMs: 120, restoreClipboard: true, appendMode: false)
         )
-        // このパネルのプリセットを編集ターゲットに切り替えてから add → settings で選択。
+        // Switch to edit target preset of this panel, then select from add → settings.
         presetManager.setEditTarget(panelID: panelID)
         _ = presetManager.addButton(button, toGroupId: groupId)
         openSettings(selectButtonId: id)
@@ -681,9 +682,9 @@ struct ContentHostView: View {
 
     // MARK: - Preset memo block
 
-    /// プリセット単位メモの折りたたみブロック。タイトル行は常時表示し、
-    /// クリックで本文を展開／格納する。展開状態はプリセット切替で false に
-    /// 戻すことで「新しいプリセットでも気付ける」設計にしている。
+    /// Preset unit memo folding block. The title line is always displayed,
+    /// Expand/Store text with a click. The expansion state is set to false by default for preset switching.
+    /// By removing, we have designed it to be able to notice even with a new preset.
     @ViewBuilder
     private func presetMemoBlock(_ memo: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -730,7 +731,7 @@ struct ContentHostView: View {
         )
         .padding(.horizontal, 4)
         .onChange(of: panelPresetName) { _ in
-            // このパネルのプリセットが切り替わったらメモ展開状態をリセット。
+            // Reset the memo expansion state when the panel's preset switches.
             memoExpanded = false
         }
     }

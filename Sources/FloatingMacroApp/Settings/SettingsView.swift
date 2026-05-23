@@ -27,7 +27,7 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // タブバー
+            // Tab bar
             HStack(spacing: 0) {
                 ForEach([SettingsTab.buttons, .panels, .security], id: \.self) { tab in
                     Button(action: { activeTab = tab }) {
@@ -51,7 +51,7 @@ struct SettingsView: View {
 
             Divider()
 
-            // タブコンテンツ
+            // tab content
             switch activeTab {
             case .buttons:
                 HSplitView {

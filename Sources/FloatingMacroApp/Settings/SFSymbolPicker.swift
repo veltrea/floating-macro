@@ -122,7 +122,7 @@ struct SFSymbolPicker: View {
         if filter.trimmingCharacters(in: .whitespaces).isEmpty {
             base = SFSymbolCatalog.category(id: categoryId)?.symbols ?? []
         } else {
-            // 検索時は全カテゴリから横断検索
+            // Search across all categories in cross-search
             let q = filter.lowercased()
             base = SFSymbolCatalog.all.filter { $0.contains(q) }
         }

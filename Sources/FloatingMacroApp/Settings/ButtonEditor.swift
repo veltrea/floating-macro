@@ -35,14 +35,14 @@ struct ButtonEditor: View {
     @State private var confirmMessageText: String = ""
     @State private var confirmDestructive: Bool = false
     @State private var cardThumbnailMode: CardThumbnailMode = .fill
-    @State private var actionType: String = "text"   // 保存される有効アクション
-    @State private var viewingType: String = "text"  // セグメントで閲覧中の種類（保存には使わない）
-    // アクション種類ごとに独立した状態 —— 種類を切り替えても互いを上書きしない
+    @State private var actionType: String = "text"   // Valid actions to save
+    @State private var viewingType: String = "text"  // Type used for viewing segments (not used for saving)
+    // Independent state for each action type — Switching types without overwriting each other
     @State private var previewDropTargeted: Bool = false
     @State private var actionText: String = ""
-    /// text アクションの「追記モード」。ON の場合、ボタンを押すとペーストせず
-    /// 既存のクリップボードに content が連結される。プロンプト断片を組み立てる
-    /// ためのモード。
+    /// The action's "append mode". When ON, pressing the button does not paste.
+    /// Existing content is concatenated to the clipboard. Assemble prompt fragments.
+    /// mode for
     @State private var actionAppendMode: Bool = false
     @State private var keyModCmd: Bool = false
     @State private var keyModShift: Bool = false
@@ -63,7 +63,7 @@ struct ButtonEditor: View {
                         Spacer()
                     }
 
-                    // エディター内プレビュー + グループレイアウト設定
+                    // Editor preview + group layout settings
                     VStack(alignment: .leading, spacing: 4) {
                         Text(L("プレビュー_21b7d4")).font(.caption).foregroundColor(.secondary)
                         HStack {
@@ -315,9 +315,9 @@ struct ButtonEditor: View {
                                 .textFieldStyle(.roundedBorder)
                         }
 
-                        // 実行前の確認ダイアログ。視線入力ユーザーや、再起動・
-                        // シャットダウン等の取り返しのつかない操作を 1 タップで
-                        // 発火させたくないボタン向け。
+                        // Pre-execution confirmation dialog. Visual input user, restart and...
+                        // Shutdown-related irreversible operations with one tap
+                        // Button for which you don't want to trigger.
                         labeled(L("実行前の確認_a9e65b")) {
                             VStack(alignment: .leading, spacing: 6) {
                                 Toggle(L("実行前に確認ダイアログを出す_3a4d8d"), isOn: $confirmEnabled)
@@ -410,9 +410,9 @@ struct ButtonEditor: View {
             presetManager.externalKeyComboRequest = nil
         }
         .onChange(of: keyBaseKey) { newValue in
-            // key セグメントで特殊キー / キー記録 / 手入力により baseKey が
-            // 入った瞬間に「key アクション」として確定する。明示的な「有効にする」
-            // ボタンを押し忘れて actionType が text のまま保存される事故を防ぐ。
+            // special key segment / key recording / manual entry baseKey is
+            // Confirmed as a "key action" at the moment of entry. Explicitly "enable".
+            // To prevent the accident where an actionType remains as text even if a button is forgotten to be pressed.
             if !newValue.isEmpty && viewingType == "key" {
                 actionType = "key"
             }
@@ -530,9 +530,9 @@ struct ButtonEditor: View {
             newAction = button.action
         }
 
-        // confirm が無効のときは関連フィールドを規定値に正規化して保存する。
-        // (UI で confirmEnabled を OFF にした瞬間に「メッセージ」「危険操作」が
-        // ファイルに残らないようにする — 再 ON 時に意図せず復活するのを防ぐ。)
+        // When confirm is invalid, normalize related fields to default values and save.
+        // At the moment when "confirmEnabled" is turned off in UI, "message" and "dangerous operation" appear.
+        // Prevent from persisting so that it does not unexpectedly revive on re-ON. )
         let normalizedConfirmMessage: String? = {
             guard confirmEnabled else { return nil }
             let trimmed = confirmMessageText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -540,16 +540,16 @@ struct ButtonEditor: View {
         }()
         let normalizedConfirmDestructive = confirmEnabled ? confirmDestructive : false
 
-        // 旧データ移行: 外部の絶対パス (ユーザーの ~/Pictures など) が残っている
-        // ボタンを保存するときは、preset 配下にコピーしてリンク切れを未然に防ぐ。
-        // SF Symbol / bundle id / lucide / 既に管理ディレクトリ内のパスは素通り。
+        // Old data migration: External absolute path (e.g., user's ~/Pictures) remains
+        // When saving a button, copy it under the preset folder to prevent link breakage.
+        // SF Symbol / bundle id / lucide / already passed path in management directory.
         let migratedIcon = Self.migrateIfNeeded(
             path: iconPath.isEmpty ? nil : iconPath,
             into: .icons,
             assetId: button.id,
             presetManager: presetManager
         )
-        // 移行が走った場合は @State にも反映してプレビューを最新パスに揃える。
+        // If the transition runs, reflect @State to align preview with latest path.
         if let m = migratedIcon, m != iconPath { iconPath = m }
 
         let updated = ButtonDefinition(
@@ -575,7 +575,7 @@ struct ButtonEditor: View {
         onCommit(updated)
     }
 
-    /// commit 時に呼ぶラッパ。preset 名が解決できなければ何もせずパスを返す。
+    /// Returns nothing and passes if preset name cannot be resolved when called.
     static func migrateIfNeeded(
         path: String?,
         into subdirectory: IconAssetSaver.AssetSubdirectory,
@@ -593,7 +593,7 @@ struct ButtonEditor: View {
         )
     }
 
-    /// ドロップゾーンのフォールバッククリック (NSOpenPanel 経由) でファイルを選択。
+    /// Select a file via NSOpenPanel drop zone fallback click.
     private func pickIconFile() {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.image, .png, .jpeg]
@@ -621,9 +621,9 @@ struct ButtonEditor: View {
         return false
     }
 
-    /// ドラッグ&ドロップ / ファイル選択で受け取った画像をアイコンとして取り込む。
-    /// preset 配下の `icons/<button-id>.<ext>` にコピーしてから絶対パスを `iconPath`
-    /// に格納する。失敗時はトーストで通知し、状態は変更しない。
+    /// Drag & Drop / Image selection to incorporate image as icon.
+    /// Copy to `icons/<button-id>.<ext>` under preset and then set absolute path to `iconPath`.
+    /// Store in the queue. If failed, notify with a toast and do not change the state.
     fileprivate func importIconFile(from url: URL) {
         guard let newPath = Self.importImage(
             from: url, into: .icons,
@@ -635,8 +635,8 @@ struct ButtonEditor: View {
         iconGeneration += 1
     }
 
-    /// ファイルピッカー / DnD で渡されたファイルを preset 配下にコピーする
-    /// 共通処理。コピー失敗時は `nil` を返してトーストでエラー通知。
+    /// Copy the file passed via DnD to the preset directory.
+    /// Common processing. Returns nil on copy failure and notifies with an error toast.
     static func importImage(
         from source: URL,
         into subdirectory: IconAssetSaver.AssetSubdirectory,
@@ -699,8 +699,8 @@ struct ButtonEditor: View {
 
     // MARK: - Group Layout Controls
 
-    /// プレビューで使うレイアウト。override が設定されていればそちら、
-    /// なければ親グループの実設定を返す。
+    /// layout to be used in preview. If override is set, use that instead.
+    /// Return the parent group's actual setting if not found.
     private var effectiveDisplayType: GroupDisplayType {
         previewLayoutOverride ?? parentDisplayType
     }
@@ -756,7 +756,7 @@ struct ButtonEditor: View {
         }
     }
 
-    /// 現在のエディター状態を ButtonDefinition として合成する（保存前プレビュー用）
+    /// Synthesize the current editor state as a ButtonDefinition (for preview before saving)
     private var previewButton: ButtonDefinition {
         ButtonDefinition(
             id: button.id,

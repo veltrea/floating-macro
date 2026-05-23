@@ -105,30 +105,30 @@ final class FileSystemAppListProviderTests: XCTestCase {
         XCTAssertEqual(apps.first?.displayName, "Visible")
     }
 
-    /// `/Applications/Utilities/` のようなサブフォルダ内のアプリも漏れなく
-    /// 列挙される。`.skipsPackageDescendants` で `.app` バンドルの中の
-    /// 入れ子 `.app` (Frameworks 配下の helper など) は除外される。
+    /// Also include apps in subfolders like `/Applications/Utilities/`.
+    /// Enumerated. Skips package descendants with `.skipsPackageDescendants` for `.app` bundles.
+    /// Sub-apps (.app under Frameworks, such as helpers) are excluded.
     func testListsAppsInsideSubdirectories() throws {
         let root = try makeTempRoot()
         defer { try? FileManager.default.removeItem(at: root) }
 
-        // 直下のアプリ
+        // Directly below the app
         try makeStubApp(in: root, name: "Top.app",
                         bundleId: "com.example.top", displayName: "Top")
-        // Utilities サブフォルダ内のアプリ
+        // Utilities Subfolder Inside the App
         let utilities = root.appendingPathComponent("Utilities")
         try FileManager.default.createDirectory(at: utilities, withIntermediateDirectories: true)
         try makeStubApp(in: utilities, name: "Disk Doctor.app",
                         bundleId: "com.example.disk", displayName: "Disk Doctor")
         try makeStubApp(in: utilities, name: "Activity Watcher.app",
                         bundleId: "com.example.activity", displayName: "Activity Watcher")
-        // 2 段ネストのベンダーフォルダ
+        // Two-level nested vendor folders
         let vendor = root.appendingPathComponent("Vendor/Suite")
         try FileManager.default.createDirectory(at: vendor, withIntermediateDirectories: true)
         try makeStubApp(in: vendor, name: "Mega Editor.app",
                         bundleId: "com.example.mega", displayName: "Mega Editor")
 
-        // .app バンドル内に nested .app があっても拾わない (helper 等の誤拾い防止)
+        // Do not pick up nested .apps within the app bundle (to prevent false positives for helpers, etc.)
         let outer = root.appendingPathComponent("Top.app/Contents/Helpers")
         try FileManager.default.createDirectory(at: outer, withIntermediateDirectories: true)
         try makeStubApp(in: outer, name: "Helper.app",

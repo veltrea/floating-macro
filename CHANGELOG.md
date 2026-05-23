@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.16.6 (2026-05-21)
+
+### バグ修正 — ACP / LAN サーバーのポート競合とゾンビリスナー
+
+- ACP（ローカル AI エージェント用）と LAN リモコン（タブレット用）が同一ポート・同一サーバーで兼務していたのを、独立したポート・独立したインスタンスに分離
+- ACP は常に 127.0.0.1:17430（loopback 固定）、LAN は 0.0.0.0:17431（anyInterface）で起動
+- LAN 公開の ON/OFF で ACP 接続が道連れになるバグを解消
+- `stop()` が非同期で完了を待てず、旧リスナーがポートを握ったまま新リスナーが別ポートにフォールバックしてゾンビ化する競合を修正（completion handler を追加）
+
+### 改善 — サーバー安全性の強化
+
+- `start()` に多重起動ガードを追加（`isRunning` チェック）
+- 30 秒間隔のヘルスチェックタイマーを追加し、リスナー死亡時に自動で再起動（最大 3 回リトライ）
+- Combine パイプラインを ACP 用と LAN 用に分割し、関係ない設定変更で不要な再起動が走らないように改善
+- `ControlAPIConfig` に `lanPort` フィールドを追加（デフォルト port+1 = 17431、Settings UI で変更可能）
+
+### 解消 — 長時間稼働後にテキスト入力ボタンが無反応になる問題
+
+- 時間が経過するとテキスト入力系ボタン（`CGEvent.post` によるキー送出）が無反応になる症状を報告
+- 調査の結果、ゾンビリスナーがリソースを保持し続けることが間接的な原因と判断
+- 上記の ACP / LAN 分離と `stop()` 競合修正の適用後、一晩放置テストで再発しないことを確認
+
 ## v0.16.5 (2026-05-17)
 
 ### バグ修正 — カスタム背景色とダークモードのテキスト可読性
@@ -13,6 +35,24 @@
 - `GET /panel/snapshot?id=<panelId>` — パネルの現在の表示内容を PNG 画像として返す（Screen Recording 権限不要、`NSView.cacheDisplay` で自プロセス内完結）
 - `GET /settings/snapshot` — 設定ウィンドウの表示内容を PNG で返す
 - AI がパネルの見た目を確認しながら操作できるようになった
+
+### 追加 — AI 連携マニュアル（応用編）
+
+- `manual/manual-ai-examples.md` を追加。Claude Code・Cursor・Gemini CLI から FloatingMacro を操作する手順をスクリーンショット入りで解説
+
+### 改善 — 公開ドキュメントを `docs/` から `manual/` に移行
+
+- 内部文書（`docs/`）と公開ユーザーマニュアル（`manual/`）を分離
+- `publish-public.sh` のホワイトリストを `docs` → `manual` に変更
+
+### 改善 — DMG 形式での配布
+
+- `release.sh` で `.app` を DMG に梱包して GitHub Releases に添付する仕組みを追加
+- DMG 内に `CLAUDE.md`（AI 連携の手順書）を同梱
+
+### バグ修正 — バージョン表記の不整合
+
+- Info.plist・`SystemPrompt.version`・README.md が 0.16.3 のまま更新されていなかったのを 0.16.5 に修正
 
 ### リファクタ — 接続プロンプトと quickStart を外部化
 

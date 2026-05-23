@@ -43,7 +43,7 @@ func printUsage() {
 /// Also returns the resolved log file URL.
 @discardableResult
 func configureLogging(args: inout [String]) -> URL {
-    // --log-level OPTION の抽出と args からの除去
+    // Extraction and removal from args
     var level: LogLevel = .info
     if let env = ProcessInfo.processInfo.environment["FLOATINGMACRO_LOG_LEVEL"],
        let parsed = LogLevel.parse(env) {
@@ -63,9 +63,9 @@ func configureLogging(args: inout [String]) -> URL {
     }
     args = filtered
 
-    // ログファイルパスを決定
-    // デバッグモード時はワークスペース (カレントディレクトリ) に書く。
-    // AI が直接参照できるようにするため。通常モードは Library に書く。
+    // Determine log file path
+    // Write to the workspace (current directory) in debug mode.
+    // To allow direct reference, it is written in the Library for normal mode.
     let logsDir: URL
     if level == .debug {
         logsDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
@@ -75,12 +75,12 @@ func configureLogging(args: inout [String]) -> URL {
     }
     let logURL = logsDir.appendingPathComponent("floatingmacro.log")
 
-    // File + Console のコンポジット
+    // Composite of File and Console
     let file: FMLogger
     do {
         file = try FileLogWriter(url: logURL, minimumLevel: level)
     } catch {
-        // ファイルが開けないときはコンソールだけに退行
+        // When a file cannot be opened, only output to the console.
         FileHandle.standardError.write(
             Data("fmcli: log file init failed: \(error)\n".utf8))
         file = NullLogger()
@@ -187,8 +187,8 @@ func handleLogTail(args: [String], logURL: URL) -> Int32 {
         return 0
     }
 
-    // ファイル全体を行単位で読む。巨大な場合は SPEC の 10MB ローテーションに
-    // 守られているため現実的な上限は数千〜数万行程度。
+    // Read the entire file line by line. For very large files, use the SPEC 10MB rotation.
+    // Practical upper limit is several thousand to tens of thousands lines due to being protected.
     guard let raw = try? String(contentsOf: logURL, encoding: .utf8) else {
         print("エラー: ログファイルが読めません: \(logURL.path)")
         return 1
@@ -228,7 +228,7 @@ func handleLogTail(args: [String], logURL: URL) -> Int32 {
 
 var cliArgs = Array(CommandLine.arguments.dropFirst())
 
-// 1. ログレベル/ロガー先に確定(これ以降のあらゆる呼び出しで LoggerContext.shared が有効になる)
+// Log level / logger destination to confirm (LoggerContext.shared will be enabled for all subsequent calls thereafter).
 let resolvedLogURL = configureLogging(args: &cliArgs)
 
 guard !cliArgs.isEmpty else {

@@ -2,18 +2,18 @@ import SwiftUI
 import AppKit
 import FloatingMacroCore
 
-/// Launchpad 風のアイコン格子セル 1 個。`AppLauncherPickerSheet` と
-/// `AppIconPicker` で共有して使う。
+/// One icon grid cell in Launchpad style. `AppLauncherPickerSheet` and
+/// Use shared with `AppIconPicker`.
 ///
-/// `.task { await loadIcon() }` で表示されたタイミングで非同期にアイコンを読む。
-/// `LazyVGrid` はスクロールで見えてないセルを作らないので、大量アプリでも
-/// 実際のアイコン抽出は visible 範囲のみ。
+/// Display the icon asynchronously at the timing shown by `.task { await loadIcon() }`.
+/// LazyVGrid does not create invisible cells due to scrolling, so it works well even in large applications.
+/// Actual icon extraction is only in the visible range.
 ///
-/// アイコン抽出はカスケード:
-/// 1. 共有 `AppIconCache` (起動時 prewarm でほぼヒット想定)
-/// 2. `ImageIOIconExtractor` の async API
-/// 3. `NSWorkspaceIconFallback` (UTM や Books のような Assets.car-only / 空 .icns 用)
-/// 各段で `IconContentValidator` を通して空 PNG を次段に降ろす。
+/// Icon extraction cascade:
+/// Shared AppIconCache (expected to hit almost all the time on launch)
+/// 2. Async API for `ImageIOIconExtractor`
+/// 3. `NSWorkspaceIconFallback` (for UTM and Books, assets-only / empty .icns)
+/// Drop empty PNGs to the next stage through `IconContentValidator`.
 struct AppGridCell: View {
     let entry: AppEntry
     let isSelected: Bool
@@ -55,11 +55,11 @@ struct AppGridCell: View {
         )
         .contentShape(Rectangle())
         .gesture(
-            // ダブルクリック → activate (追加 / 決定)
+            // double-click → activate (addition / decision)
             TapGesture(count: 2).onEnded { onActivate() }
         )
         .simultaneousGesture(
-            // シングルクリック → 選択のみ
+            // Single-click → Only selection
             TapGesture(count: 1).onEnded { onSelect() }
         )
         .help(entry.bundleIdentifier ?? entry.url.path)

@@ -1,12 +1,12 @@
 import XCTest
 @testable import FloatingMacroCore
 
-/// Phase 5 (P5-12 / P5-13): Web Panel ツールホワイトリストの検証。
-/// 「読み取り + button_press のみ」のセキュリティ境界が崩れていないこと、
-/// 破壊的 tool が誤って混入していないことを CI で固定する。
+/// Verification of the web panel tool whitelist.
+/// The security boundary of only reading and pressing the button should not be compromised.
+/// Fix that a destructive tool is not accidentally mixed in using CI.
 final class WebPanelToolWhitelistTests: XCTestCase {
 
-    // MARK: - 含まれるべき tool
+    // MARK: - Included tool
 
     func testCoreReadOnlyToolsAllowed() {
         XCTAssertTrue(WebPanelToolWhitelist.isAllowed("ping"))
@@ -15,7 +15,7 @@ final class WebPanelToolWhitelistTests: XCTestCase {
     }
 
     func testButtonPressIsAllowed() {
-        // Web Panel のメイン用途。これが落ちたら UI が成立しない。
+        // Main purpose of Web Panel. If this fails, the UI cannot be established.
         XCTAssertTrue(WebPanelToolWhitelist.isAllowed("button_press"))
     }
 
@@ -26,7 +26,7 @@ final class WebPanelToolWhitelistTests: XCTestCase {
         XCTAssertTrue(WebPanelToolWhitelist.isAllowed("preset_switch"))
     }
 
-    // MARK: - 含まれてはいけない tool (破壊的 / 構成変更系)
+    // MARK: - Tool to be excluded (destructive / configuration change type)
 
     func testMutationToolsAreBlocked() {
         let mutating = [
@@ -43,8 +43,8 @@ final class WebPanelToolWhitelistTests: XCTestCase {
     }
 
     func testRunActionIsBlocked() {
-        // run_action は任意のキー / コマンドを実行できる強力な tool。
-        // Web Panel から呼ばせない。
+        // run_action is a powerful tool that can execute any key/command.
+        // Do not allow calling from Web Panel.
         XCTAssertFalse(WebPanelToolWhitelist.isAllowed("run_action"))
     }
 
@@ -68,7 +68,7 @@ final class WebPanelToolWhitelistTests: XCTestCase {
                        "ケース感度を保つ (大文字を許可しない)")
     }
 
-    // MARK: - 全 tool が ToolCatalog に存在する
+    // MARK: - All tools exist in the ToolCatalog
 
     func testAllWhitelistedToolsExistInCatalog() {
         for name in WebPanelToolWhitelist.allowed {

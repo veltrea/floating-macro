@@ -16,8 +16,8 @@ struct MacroStepDraft: Identifiable {
     func toAction() -> Action? {
         switch type {
         case "text":
-            // マクロ内の text ステップは現状 appendMode をサポートしない。
-            // 必要になったら MacroStepDraft に appendMode を足して UI を増やす。
+            // The macro's text step does not currently support appendMode.
+            // If needed, add appendMode to MacroStepDraft to increase the UI.
             return .text(content: text, pasteDelayMs: 120, restoreClipboard: true, appendMode: false)
         case "key":
             guard !keyCombo.isEmpty else { return nil }

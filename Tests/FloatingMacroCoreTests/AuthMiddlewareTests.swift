@@ -1,20 +1,23 @@
 import XCTest
 @testable import FloatingMacroCore
 
-// wrapWithAuth は FloatingMacroApp ターゲットにあるため、ここでは同等のロジックを
-// 直接テストするのではなく、HTTPRequest / HTTPResponse の型を使った結合テストとして
-// 認証ミドルウェアの挙動を検証する。
+// wrapWithAuth is in the FloatingMacroApp target, so here we have an equivalent logic.
+// Directly testing is not used; instead, it is used as a combination test using the types of HTTPRequest and HTTPResponse.
+// Verify the behavior of authentication middleware.
 //
-// ControlHandlers.swift（FloatingMacroApp）の wrapWithAuth を呼ぶには
-// FloatingMacroApp への依存が必要になるため、FloatingMacroCore 側で同じロジックを
-// 持つヘルパーを定義してテストする。
+// To call wrapWithAuth in ControlHandlers.swift (FloatingMacroApp), you need to: 
+1. Import the necessary modules.
+2. Ensure that the function is accessible within your scope.
+3. Call the function with appropriate parameters as required by its definition.
+// Because dependency on FloatingMacroApp is required, the same logic needs to be implemented on the FloatingMacroCore side.
+// Define and test helper functions.
 //
-// このテストで確認する契約:
-//   - token == nil のとき全リクエストが通る
-//   - /ping はトークンなしで通る
-//   - 正しい Bearer トークンで通る
-//   - 間違いトークンで 401
-//   - Authorization ヘッダーなしで 401
+// This contract to be confirmed in the test:
+// When `token` is `nil`, all requests succeed.
+// /ping passes without a token
+// Passes with correct Bearer token
+// Error token for 401
+// Unauthorized without authorization header
 
 private func makeAuthMiddleware(
     token: String?,

@@ -19,8 +19,8 @@ extension ControlHandlers {
         return HTTPResponse.internalError("failed to encode preset")
     }
 
-    /// 指定名のプリセットを読み取る (read-only)。Phase 5 で Web Panel が
-    /// パネルごとの URL から preset を選んで開くために使う。
+    /// Read-only preset to read. Phase 5, the Web Panel is
+    /// Opens a preset for each panel's URL.
     @MainActor
     func handlePresetGet(_ req: HTTPRequest) -> HTTPResponse {
         guard let name = req.query["name"], !name.isEmpty else {

@@ -86,20 +86,20 @@ extension PresetManager {
         return "preset-\(n)"
     }
 
-    /// Phase 3 で導入。複数パネルが別々のプリセットを表示するためのオンデマンドキャッシュ。
-    /// 1 つのプリセットは複数パネルから共有される可能性があり、編集 (`editActivePreset`)
-    /// で更新されたら全パネルの ContentHostView が即座に再描画されるよう @Published。
+    /// Introduced in Phase 3. On-demand cache for displaying multiple panels with separate presets.
+    /// One preset may be shared among multiple panels, and editing (editActivePreset)
+    /// When updated, all ContentHostViews in all panels will be immediately redrawn via @Published.
 
-    /// Reload preset content from disk. Phase 3 (v0.12) では複数パネルが
-    /// 別々のプリセットを表示するため、`activePreset` だけでなく `loadedPresets`
-    /// の全エントリを再読込する。`currentPreset` (編集ターゲット) は自身の
-    /// 名前を維持し、その名前で再読込されたインスタンスに差し替える。これに
-    /// より、panels[0] 以外のプリセットを編集 → 保存 → directory watcher が
-    /// fire したとき、currentPreset が panels[0] のプリセットに勝手に
-    /// 上書きされて編集中ボタンが見失われる Phase 3 バグを防ぐ。
+    /// Reload preset content from disk. Phase 3 (v0.12) multiple panels are
+    /// To display separate presets, not only `activePreset` but also `loadedPresets`
+    /// Reload all entries. `currentPreset` (edit target) is its own
+    /// Replace with an instance reloaded under the same name. This is
+    /// more, edit presets other than panels[0], save, directory watcher is
+    /// When fire is called, currentPreset automatically switches to the preset of panels[0].
+    /// To prevent the edit button from being lost in overwritten phase 3 bug.
     func loadActivePreset() {
         guard let config = appConfig else { return }
-        // 再読込対象 = (現在キャッシュ中の名前) ∪ (panels[*].presetName) ∪ (activePreset)。
+        // reloadTarget = (current cache name) ∪ (panels[*].presetName) ∪ (activePreset)。
         var names: Set<String> = Set(loadedPresets.keys)
         names.insert(config.activePreset)
         for panel in config.panels { names.insert(panel.presetName) }
@@ -116,8 +116,8 @@ extension PresetManager {
         }
         loadedPresets = newCache
 
-        // 編集ターゲット (`currentPreset`) はその名前のまま、新しい disk 内容に差し替える。
-        // 名前自体が消えていたら `activePreset` にフォールバック。
+        // The edit target (currentPreset) is replaced with its name in the new disk content.
+        // If the name itself has disappeared, fall back to `activePreset`.
         if let curName = currentPreset?.name, let reloaded = newCache[curName] {
             currentPreset = reloaded
         } else if let p = newCache[config.activePreset] {
@@ -126,16 +126,16 @@ extension PresetManager {
             currentPreset = nil
         }
 
-        // 失敗があれば一過性エラーとして残す (currentPreset が nil なら永続バナー)。
+        // If there is a failure, leave it as a transient error and show a persistent banner if currentPreset is nil.
         if !loadFailures.isEmpty && currentPreset == nil {
             errorMessage = L_("preset_load_failed", loadFailures.joined(separator: ", "))
         }
     }
 
-    /// 指定名のプリセットをキャッシュから返し、無ければディスクから読み込んで
-    /// キャッシュに格納する。読み込みに失敗したら nil を返す（エラーは
-    /// `errorMessage` に出さない — 複数パネル描画中の頻繁なルックアップで
-    /// バナーが点滅するのを避けるため）。
+    /// Return the preset with the specified name from the cache, otherwise load it from disk.
+    /// Store in cache. Return nil if loading fails (errors are not handled).
+    /// Do not display the error message - for frequent lookups during multi-panel drawing
+    /// To avoid the banner flashing (to prevent this).
     func preset(named name: String) -> Preset? {
         if let cached = loadedPresets[name] { return cached }
         do {
@@ -147,7 +147,7 @@ extension PresetManager {
         }
     }
 
-    /// 指定パネルが現在表示すべきプリセットを返す。複数パネル描画用。
+    /// Returns the preset currently displayed by the specified panel. Used for drawing multiple panels.
     func panelPreset(forPanelID id: String) -> Preset? {
         guard let cfg = appConfig,
               let panel = cfg.panels.first(where: { $0.id == id }) else { return nil }
@@ -158,35 +158,35 @@ extension PresetManager {
         (try? loader.listPresets()) ?? []
     }
 
-    /// 旧 API: プライマリパネル (panels[0]) のプリセットを切り替える。
-    /// Phase 3 移行期は内部で `switchPanelPreset(primary)` に転送し、`currentPreset`
-    /// (編集ターゲット) も同期更新する。新コードは `switchPanelPreset` 直接利用推奨。
+    /// Switch preset of primary panel (panels[0]).
+    /// Phase 3 migration period is transferred internally to `switchPanelPreset(primary)`, and `currentPreset`
+    /// Edit target should also be synchronized. New code recommended to directly use `switchPanelPreset`.
     func switchPreset(to name: String) {
         guard let primaryID = appConfig?.panels.first?.id else { return }
         switchPanelPreset(panelID: primaryID, to: name)
     }
 
-    /// 指定パネルが表示するプリセットを切り替えて永続化。プライマリパネル
-    /// (panels[0]) を切り替えた場合は legacy `activePreset` と `currentPreset`
-    /// (編集ターゲット) も同期する。
+    /// Switch to persistently save the preset displayed by the specified panel. Primary panel.
+    /// Switching to (panels[0]) will result in legacy activePreset and currentPreset.
+    /// The editing target synchronizes.
     func switchPanelPreset(panelID: String, to name: String) {
         guard let cfg = appConfig else { return }
         let next = cfg.settingPanelPreset(id: panelID, presetName: name)
         appConfig = next
         try? writer.saveAppConfig(next)
-        // プリセット内容をキャッシュに読み込む。パネル描画・編集どちらでも使われる。
+        // Load preset content into cache. Used for both panel drawing and editing.
         if let preset = preset(named: name) {
             loadedPresets[name] = preset
-            // プライマリパネルを切り替えた場合は `currentPreset` (編集ターゲット) も追従。
+            // When switching to the primary panel, `currentPreset` (edit target) also follows.
             if panelID == next.panels.first?.id {
                 currentPreset = preset
             }
         }
     }
 
-    /// 編集ターゲット (`currentPreset` / SettingsWindow) を指定パネルのプリセットに
-    /// 切り替える。Phase 3 で「複数パネルが違うプリセットを表示している状態で
-    /// 特定パネルの編集ボタンを押す」フローを成立させるためのフック。
+    /// Edit target (currentPreset / SettingsWindow) to preset of specified panel
+    /// Switch. In Phase 3, display multiple panels with different presets simultaneously.
+    /// Hook to establish the flow for pressing the edit button of a specific panel.
     func setEditTarget(panelID: String) {
         guard let preset = panelPreset(forPanelID: panelID) else { return }
         currentPreset = preset

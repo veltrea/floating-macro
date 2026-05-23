@@ -2,14 +2,14 @@ import AppKit
 import SwiftUI
 import FloatingMacroCore
 
-/// "AI 連携" ウィンドウのライフタイム管理。.accessory アプリは標準の
-/// Window メニューを持たないため、ウィンドウは自前で保持して再利用する。
-/// 設計は SettingsWindowController と同じパターン。
+/// Window lifetime management for AI-assisted windows. The accessory app is standard.
+/// Since the window menu is not provided, windows are self-managed and reused.
+/// The design follows the same pattern as SettingsWindowController.
 ///
-/// なぜ Settings と分けたか：
-/// Settings は「ボタン編集」というオブジェクト単位の操作。一方、AI 連携は
-/// アプリ全体に対する初期セットアップ。UI の粒度が違うものを同じウィンドウの
-/// タブで並べるとメンタルモデルが分裂する（per-button vs app-wide の混在）。
+/// Why separate Settings:
+/// Settings operates on object-level operations with the term "button editing." On the other hand, AI collaboration is...
+/// Initial setup for the entire application. Different granularity of UI elements within the same window.
+/// Tabbing causes mental models to split (mixing per-button vs. app-wide).
 final class AIIntegrationWindowController: NSWindowController {
 
     static let shared = AIIntegrationWindowController()
@@ -19,9 +19,9 @@ final class AIIntegrationWindowController: NSWindowController {
             let hosting = NSHostingView(
                 rootView: AIIntegrationView(presetManager: presetManager)
             )
-            // Settings と同じ SettingsWindow サブクラスを再利用する。
-            // × ボタンや ⌘W が performClose() に流れて、ウィンドウは閉じずに
-            // 隠す挙動になる（.accessory アプリで close = release はまずい）。
+            // Reuse the same SettingsWindow subclass as Settings.
+            // Button and ⌘W flow to performClose(), window does not close
+            // The behavior will be hidden (close = release is dangerous in .accessory apps).
             let w = SettingsWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 720, height: 800),
                 styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -39,8 +39,8 @@ final class AIIntegrationWindowController: NSWindowController {
             self.window = w
         }
 
-        // 一度 runloop を譲ってから activate する。コンテキストメニューや
-        // 他のシートが完全に dismiss された後でないと activate が無視される。
+        // Run the loop once and then activate it. Context menus, etc.
+        // The activation is ignored unless the other sheets are completely dismissed.
         let win = window
         DispatchQueue.main.async {
             if #available(macOS 14.0, *) {

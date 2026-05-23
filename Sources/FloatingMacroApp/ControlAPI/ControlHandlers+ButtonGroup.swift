@@ -53,8 +53,8 @@ extension ControlHandlers {
         let tip: String?? = dict.keys.contains("tooltip")
             ? .some(dict["tooltip"] as? String) : nil
         let collapsed = dict["collapsed"] as? Bool
-        // displayType: 文字列 ("icon" | "wide" | "card") を enum に解決。
-        // 不正値は無視 (nil = 変更なし) して既存挙動を保つ。
+        // Resolve displayType: string ("icon" | "wide" | "card") to enum.
+        // Ignore invalid values, ignoring nil as no change, preserving existing behavior.
         let displayType: GroupDisplayType? = {
             guard let raw = dict["displayType"] as? String else { return nil }
             return GroupDisplayType(rawValue: raw)
@@ -224,9 +224,9 @@ extension ControlHandlers {
             return HTTPResponse.badRequest("body must contain {id: String}")
         }
 
-        // Phase 5: Web Panel から開かれたパネル (active preset とは違う preset
-        // を表示している iPhone) の button_press を受けるため、active preset
-        // 限定ではなく **全プリセット** から id を探す。
+        // Phase 5: Web Panel from which the panel was opened (different from active preset)
+        // to receive the button_press for displaying the currently active preset on the iPhone)
+        // Search for IDs from all presets, not just the limited ones.
         let activePresetName = presetManager.currentPreset?.name
         var foundButton: ButtonDefinition? = nil
         var foundInPreset: String? = nil
@@ -235,7 +235,7 @@ extension ControlHandlers {
             if let btn = preset.groups.flatMap({ $0.buttons }).first(where: { $0.id == id }) {
                 foundButton = btn
                 foundInPreset = preset.name
-                if preset.name == activePresetName { break } // active を優先
+                if preset.name == activePresetName { break } // prioritize active
             }
         }
         guard let button = foundButton, let presetName = foundInPreset else {
@@ -245,10 +245,10 @@ extension ControlHandlers {
             ], status: 404)
         }
 
-        // Active preset のボタンは AX クリック (実際にカーソルが動いて押される
-        // ので一連の OS event chain が検証される)。違うプリセットのボタンは
-        // 直接 action を実行する (Web Panel の主用途で、AX クリック先のパネル
-        // が画面上に無いケースを救う)。
+        // The Active preset button is an AX click (the cursor actually moves and is pressed)
+        // Because a series of OS event chains are verified). Different preset buttons...
+        // Directly execute actions (main purpose for Web Panels, AX click target panel)
+        // Rescue cases that are not on the screen).
         if presetName == activePresetName {
             panel?.orderFront(nil)
             Task.detached {

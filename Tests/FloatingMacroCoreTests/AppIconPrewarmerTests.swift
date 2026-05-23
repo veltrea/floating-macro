@@ -5,9 +5,9 @@ import CoreGraphics
 
 final class AppIconPrewarmerTests: XCTestCase {
 
-    /// 自作 stub `.app` を 3 つ用意し、AppListProvider 経由で
-    /// AppIconPrewarmer を回す。ImageIO は icns 不在で失敗するので、
-    /// 注入した NSWorkspace fallback closure が呼ばれてキャッシュに入ることを検証。
+    /// Prepare three custom stub `.app`s via AppListProvider.
+    /// Run AppIconPrewarmer. ImageIO fails without an icns, so
+    /// Verify that the injected NSWorkspace fallback closure is called and cached.
     func testPrewarmFillsCacheViaFallback() async throws {
         let cacheDir = try makeTempCacheDir()
         defer { try? FileManager.default.removeItem(at: cacheDir) }
@@ -24,7 +24,7 @@ final class AppIconPrewarmerTests: XCTestCase {
         let provider = FileSystemAppListProvider(searchRoots: [root])
         let prewarmer = AppIconPrewarmer()
 
-        // fallback closure: アプリごとにマーカー違いの実 PNG (validator 通過用) を返す
+        // Fallback closure: Return different marker PNGs for each app (for validator pass).
         let fallback: @Sendable (URL, Int) -> Data? = { url, _ in
             let marker = UInt8(url.path.count % 250 + 5)  // > validator threshold (8)
             return Self.makeOpaquePNG(width: 8, height: 8, gray: marker)
@@ -38,7 +38,7 @@ final class AppIconPrewarmerTests: XCTestCase {
             cache: cache
         )
 
-        // 全 app がキャッシュに入っているはず
+        // All apps should be cached
         let entries = try provider.availableApplications()
         for entry in entries {
             let cached = await cache.contains(entry.url)
@@ -59,13 +59,13 @@ final class AppIconPrewarmerTests: XCTestCase {
 
         try makeStubApp(in: root, name: "Cached.app", bundleId: "com.example.pre.cached")
 
-        // 事前に手動でキャッシュに入れる (validator が通る本物 PNG)
+        // Manually cache in validator (real PNG that passes)
         let entries = try FileSystemAppListProvider(searchRoots: [root]).availableApplications()
         let firstURL = entries.first!.url
         let preexisting = Self.makeOpaquePNG(width: 8, height: 8, gray: 0xAA)!
         await cache.put(for: firstURL, data: preexisting)
 
-        // fallback が呼ばれたかカウント
+        // Count when fallback is called
         let counter = FallbackCounter()
         let fallback: @Sendable (URL, Int) -> Data? = { _, _ in
             Task { await counter.increment() }
@@ -116,8 +116,8 @@ final class AppIconPrewarmerTests: XCTestCase {
         return url
     }
 
-    /// 不透明グレー単色の本物 PNG bytes を作る (`IconContentValidator` 通過用)。
-    /// `marker` は 1 バイトのグレー値で、テストごとに違う中身にしたい時に使う。
+    /// Create opaque gray single-color authentic PNG bytes (for `IconContentValidator` pass).
+    /// `marker` is a one-byte grayscale value used for different contents per test.
     static func makeOpaquePNG(width: Int, height: Int, gray: UInt8) -> Data? {
         let bytesPerRow = width * 4
         var pixels = [UInt8](repeating: 0, count: bytesPerRow * height)
@@ -157,7 +157,7 @@ final class AppIconPrewarmerTests: XCTestCase {
     }
 }
 
-/// テスト用のスレッドセーフカウンタ
+/// Thread-safe counter for testing
 private actor FallbackCounter {
     private(set) var count: Int = 0
     func increment() { count += 1 }

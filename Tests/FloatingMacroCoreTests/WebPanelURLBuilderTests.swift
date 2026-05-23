@@ -61,8 +61,8 @@ final class WebPanelURLBuilderTests: XCTestCase {
     }
 
     func testTokenWithSpecialCharsIsPercentEncoded() {
-        // ephemeral token は hex 限定だが、将来別形式に切り替えたとき
-        // 安全側に倒すため。
+        // Ephemeral token is limited to hex, but when switching to a different format in the future
+        // To defeat on the safe side.
         let url = WebPanelURLBuilder.make(host: "127.0.0.1",
                                           port: 80,
                                           token: "a/b c")

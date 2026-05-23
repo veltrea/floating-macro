@@ -44,8 +44,8 @@ public final class ConfigWriter {
 
     // MARK: - Default preset factory
 
-    // settings.json を安全にマージ更新する Python ワンライナーの雛形。
-    // キーと値を渡すと既存設定を壊さずに追記・上書きする。
+    // Python one-liner template for safely merging updates to settings.json.
+    // Passing key and value appends or overwrites existing settings without breaking them.
     private static func settingsPython(
         _ assignments: String,
         message: String
@@ -65,14 +65,14 @@ public final class ConfigWriter {
         """
     }
 
-    // ── AI 接続プロンプトをクリップボードにコピーするシェル ──
-    // Keychain からトークンを取り、整形済みプロンプトを pbcopy へ流す。
-    // /bin/sh -c の単一引数として渡される前提で複数行を許容する。
+    // Shell for copying AI connection prompt to clipboard
+    // Copy token from Keychain to formatted prompt via pbcopy.
+    // Assuming multiple lines are passed as a single argument to /bin/sh -c.
     //
-    // 注: LC_CTYPE=UTF-8 を先頭で必ず export すること。GUI 起動された macOS
-    // アプリの子プロセスには LANG="" / LC_CTYPE="C" が継承されており、その
-    // 状態で pbcopy にマルチバイト文字を流すとクリップボードに化けたバイトが
-    // 入る（pbpaste 経由だと無音で破損し、検出が極めて困難）。
+    // Note: Always export LC_CTYPE=UTF-8 at the beginning for GUI-launched macOS.
+    // The child processes of the app inherit LANG="" and LC_CTYPE="C", and that
+    // When you flow multibyte characters to pbcopy in the state, garbled bytes appear on the clipboard.
+    // Enter (becomes silent and corrupted when accessed via pbpaste, detection is extremely difficult).
     private static let aiConnectPromptShell: String = #"""
     export LC_CTYPE=UTF-8
     T=$(security find-generic-password -s FloatingMacro -a ControlAPIToken -w 2>/dev/null)
@@ -86,7 +86,7 @@ public final class ConfigWriter {
     接続先: http://127.0.0.1:17430
     認証トークン: $T
 
-    最初に curl -s http://127.0.0.1:17430/manifest | jq を実行してアプリの自己紹介と全ツール定義を取得してください（このエンドポイントは認証不要）。manifest の中の systemPrompt と tools 配列がこの API の真の説明書です。
+    最初に curl -s http:// 127.0.0.1:17430/manifest | Execute jq to obtain the app's self-introduction and all tool definitions (this endpoint does not require authentication). The systemPrompt and tools array in manifest are the true explanation of this API.
 
     操作の原則:
     - すべてのツール呼び出しは POST /tools/call 経由で行う
@@ -102,8 +102,8 @@ public final class ConfigWriter {
     osascript -e 'display notification "AI に貼り付けるプロンプトをコピーしました" with title "FloatingMacro"'
     """#
 
-    // ── Claude Code (~/.claude.json) に MCP エントリを登録するシェル ──
-    // 既存 mcpServers を壊さず追記する。Bearer トークンを headers に埋め込む。
+    // Shell to register an MCP entry in the ~/.claude.json file for Claude Code.
+    // Append to existing mcpServers without breaking them. Embed Bearer token in headers.
     private static let claudeCodeMCPRegisterShell: String = #"""
     export LC_CTYPE=UTF-8
     T=$(security find-generic-password -s FloatingMacro -a ControlAPIToken -w 2>/dev/null)
@@ -135,16 +135,16 @@ public final class ConfigWriter {
     """#
 
     static func makeDefaultPreset() -> Preset {
-        // ── テキスト貼り付けアクション (Claude Code のプロンプトに投入) ──
+        // Paste Text Action (Insert into Claude Code Prompt) -
         func txt(_ content: String) -> Action {
             .text(content: content, pasteDelayMs: 120, restoreClipboard: true, appendMode: false)
         }
-        // ── ターミナル実行アクション ──
+        // Terminal Execution Action ---
         func term(_ command: String) -> Action {
             .terminal(app: "Terminal", command: command,
                       newWindow: false, execute: true, profile: nil)
         }
-        // ── サイレントなシェル実行（Terminal を開かない） ──
+        // Silent shell execution (without opening Terminal)
         func sh(_ command: String) -> Action {
             .launch(target: "shell:" + command)
         }
@@ -153,7 +153,7 @@ public final class ConfigWriter {
             name: "default",
             displayName: "Claude Code",
             groups: [
-                // ━━━ AI に FloatingMacro を接続させる ━━━
+                // Connect FloatingMacro to AI
                 ButtonGroup(
                     id: "group-ai-connect",
                     label: "AI に接続",
@@ -178,7 +178,7 @@ public final class ConfigWriter {
                     ]
                 ),
 
-                // ━━━ セッション中に使うコマンド ━━━
+                // Command to be used during the session
                 ButtonGroup(
                     id: "group-session",
                     label: "Claude Code",
@@ -215,7 +215,7 @@ public final class ConfigWriter {
                     ]
                 ),
 
-                // ━━━ /effort 切り替え ━━━
+                // Switch Effort ────────────────
                 ButtonGroup(
                     id: "group-effort",
                     label: "Effort",
@@ -256,7 +256,7 @@ public final class ConfigWriter {
                     ]
                 ),
 
-                // ━━━ settings.json の恒久設定 (ターミナルで実行) ━━━
+                // Permanent Settings (Terminal Execution)
                 ButtonGroup(
                     id: "group-settings",
                     label: "設定",
@@ -320,7 +320,7 @@ public final class ConfigWriter {
                     ]
                 ),
 
-                // ━━━ バージョン管理 ━━━
+                // Version management
                 ButtonGroup(
                     id: "group-version",
                     label: "バージョン",

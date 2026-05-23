@@ -28,10 +28,10 @@ public final class ControlServer {
 
     /// Which network interfaces the listener binds to.
     public enum BindScope: Equatable {
-        /// 127.0.0.1 のみ。同一マシン内のプロセスだけが到達可能 (デフォルト)。
+        /// Only 127.0.0.1; only processes on the same machine are reachable by default.
         case loopback
-        /// 全インターフェース (0.0.0.0) にバインド。LAN 内の他端末からも到達可能。
-        /// Phase 5 のマルチデバイスモード用。
+        /// Bind to the full interface (0.0.0.0). Accessible from other terminals within the LAN.
+        /// Multi-device mode for Phase 5.
         case anyInterface
     }
 
@@ -42,13 +42,13 @@ public final class ControlServer {
     private let category = "ControlServer"
 
     private var listener: NWListener?
-    /// listener の accept 用キュー。connection ごとには別 queue を割り当てる
+    /// Listener's accept queue. Assign a separate queue for each connection.
     /// (Phase 5)。
     private let listenerQueue = DispatchQueue(label: "fm.controlserver.listener",
                                               qos: .userInitiated)
-    /// 各接続が独立して並列に処理されるように、connection ごとに新しい
-    /// serial queue を作る。これで iPhone から並列に飛んでくる画像
-    /// リクエストが本当に並列に捌かれる (= 体感の遅さの主因)。
+    /// Each connection is processed in parallel as independent units.
+    /// Create a serial queue to handle images coming in parallel from an iPhone.
+    /// The request is really processed in parallel (= main cause of perceived slowness).
     private let perConnectionQueueLabel = "fm.controlserver.conn"
     private var connections: [ObjectIdentifier: NWConnection] = [:]
     private let connLock = NSLock()
@@ -56,8 +56,18 @@ public final class ControlServer {
     /// Resolved port once the listener is ready. 0 if not yet started.
     public private(set) var boundPort: UInt16 = 0
     public private(set) var isRunning = false
-    /// 起動時に決まったバインドスコープ。ログ・診断用。
+    /// Bind scope determined at launch. For logging and diagnostics.
     public var currentBindScope: BindScope { bindScope }
+
+    // MARK: - Health check
+
+    private var healthTimer: DispatchSourceTimer?
+    private var lastListenerState: NWListener.State = .setup
+    private var healthRetryCount = 0
+    private let maxHealthRetries = 3
+
+    /// Callback called when the listener dies (used for app layer restart decision).
+    public var healthFailureHandler: (() -> Void)?
 
     public init(preferredPort: UInt16 = 17430,
                 maxPortProbes: Int = 10,
@@ -74,6 +84,10 @@ public final class ControlServer {
     /// the fast-boot budget required by external tool integrations.
     @discardableResult
     public func start(timeout: TimeInterval = 2.0) -> Result<UInt16, Error> {
+        guard !isRunning else {
+            return .failure(ControlServerError.alreadyRunning)
+        }
+
         let sem = DispatchSemaphore(value: 0)
         var outcome: Result<UInt16, Error> = .failure(ControlServerError.timeout)
 
@@ -92,8 +106,10 @@ public final class ControlServer {
         return outcome
     }
 
-    public func stop() {
+    public func stop(completion: (() -> Void)? = nil) {
         listenerQueue.async { [weak self] in
+            self?.healthTimer?.cancel()
+            self?.healthTimer = nil
             self?.listener?.cancel()
             self?.listener = nil
             self?.connLock.lock()
@@ -104,6 +120,9 @@ public final class ControlServer {
                 conn.cancel()
             }
             self?.isRunning = false
+            self?.boundPort = 0
+            self?.healthRetryCount = 0
+            completion?()
         }
     }
 
@@ -133,9 +152,9 @@ public final class ControlServer {
 
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
-        // .loopback: 127.0.0.1 のみ受信。外部ホストから到達不可。
-        // .anyInterface: requiredInterfaceType を指定しない = 全 IF (0.0.0.0)。
-        // Phase 5 LAN 公開モードで使う。視覚警告と短期トークンと併せて防御する。
+        // .listen on 127.0.0.1 only. Accessible from external hosts not possible.
+        // Any interface: unspecified required type = all IF (0.0.0.0).
+        // Use in public mode of Phase 5 LAN. Defend with visual warning and short token together.
         switch bindScope {
         case .loopback:
             params.requiredInterfaceType = .loopback
@@ -147,14 +166,17 @@ public final class ControlServer {
             let listener = try NWListener(using: params, on: nwPort)
             listener.stateUpdateHandler = { [weak self] state in
                 guard let self else { return }
+                self.lastListenerState = state
                 switch state {
                 case .ready:
                     self.boundPort = port
                     self.isRunning = true
+                    self.healthRetryCount = 0
                     LoggerContext.shared.info(self.category, "Server listening", [
                         "port":  String(port),
                         "scope": self.bindScope == .loopback ? "loopback" : "any",
                     ])
+                    self.startHealthTimer()
                     completion(.success(port))
                 case .failed(let err):
                     listener.cancel()
@@ -185,9 +207,9 @@ public final class ControlServer {
         connections[id] = connection
         connLock.unlock()
 
-        // 接続ごとに専用 serial queue を割り当てる。これで複数接続が
-        // 並列に進行できる (= iPhone からの並列画像リクエストが本当に並列に
-        // さばかれる)。
+        // Assign a dedicated serial queue for each connection. This allows multiple connections to...
+        // Concurrent progress possible (iPhone from parallel image requests are truly concurrent)
+        // be deceived).
         let connQueue = DispatchQueue(label: perConnectionQueueLabel,
                                       qos: .userInitiated)
         connection.start(queue: connQueue)
@@ -246,8 +268,50 @@ public final class ControlServer {
     }
 }
 
+// MARK: - Health timer
+
+extension ControlServer {
+    func startHealthTimer() {
+        healthTimer?.cancel()
+        let timer = DispatchSource.makeTimerSource(queue: listenerQueue)
+        timer.schedule(deadline: .now() + 30, repeating: 30, leeway: .seconds(5))
+        timer.setEventHandler { [weak self] in
+            self?.checkHealth()
+        }
+        timer.resume()
+        healthTimer = timer
+    }
+
+    private func checkHealth() {
+        guard isRunning else { return }
+        switch lastListenerState {
+        case .failed, .cancelled:
+            LoggerContext.shared.error(category, "Health check: listener dead", [
+                "state":      String(describing: lastListenerState),
+                "retryCount": String(healthRetryCount),
+            ])
+            guard healthRetryCount < maxHealthRetries else {
+                LoggerContext.shared.error(category,
+                    "Health check: max retries reached, giving up until next config change")
+                healthTimer?.cancel()
+                healthTimer = nil
+                return
+            }
+            healthRetryCount += 1
+            healthFailureHandler?()
+        case .ready:
+            break
+        default:
+            LoggerContext.shared.warn(category, "Health check: unexpected state", [
+                "state": String(describing: lastListenerState),
+            ])
+        }
+    }
+}
+
 public enum ControlServerError: Error, Equatable {
     case timeout
     case noPortAvailable
     case badPort(UInt16)
+    case alreadyRunning
 }

@@ -5,15 +5,15 @@ import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
 
-/// Phase 5 (P5-8): 文字列を QR コード PNG に変換する純粋関数群。
+/// Pure functions to convert strings to QR code PNGs.
 ///
-/// 配布物に AI を内蔵しない方針 (`feedback_no_inproduct_ai`) と同じ思想で、
-/// `CIFilter.qrCodeGenerator` という基盤系 API のみを使う。AppKit や
-/// SwiftUI には依存せず、Core でテスト可能。
+/// Distribution policy without in-product AI, same philosophy as.
+/// Use only the `CIFilter.qrCodeGenerator` foundation API. AppKit and
+/// Testable with Core without depending on SwiftUI.
 public enum QRCodeGenerator {
 
-    /// QR の誤り訂正レベル。L → 約 7%、M → 15%、Q → 25%、H → 30% 復元可能。
-    /// LAN URL は短く、近距離で読まれる前提なので M で十分。
+    /// Error correction level of QR codes. L ≈ 7%, M ≈ 15%, Q ≈ 25%, H ≈ 30%. Restorable.
+    /// The LAN URL should be short and readable within close proximity, so M is sufficient.
     public enum CorrectionLevel: String {
         case L, M, Q, H
     }
@@ -25,11 +25,11 @@ public enum QRCodeGenerator {
         case pngEncodeFailed
     }
 
-    /// 文字列をエンコードして PNG bytes を返す。
+    /// Returns PNG bytes after encoding the string.
     /// - Parameters:
-    ///   - content: 埋め込む文字列 (URL 想定)。UTF-8 でエンコードする。
-    ///   - sizeInPixels: 出力 PNG の 1 辺 (px)。最小 64、推奨 320 以上。
-    ///   - correction: 誤り訂正レベル。
+    /// Embed string (URL assumed). Encode in UTF-8.
+    /// sizeInPixels: Output the side length of the PNG in pixels. Minimum 64, recommended above 320.
+    /// correction: error level.
     public static func pngData(content: String,
                                sizeInPixels: Int = 480,
                                correction: CorrectionLevel = .M) throws -> Data {
@@ -41,10 +41,10 @@ public enum QRCodeGenerator {
         filter.correctionLevel = correction.rawValue
         guard let raw = filter.outputImage else { throw Error.filterUnavailable }
 
-        // CIFilter は小さい (大体 23×23 ピクセル程度) 画像を返すので、目的
-        // サイズに整数倍率でスケーリングする。整数倍率にしておくと QR の
-        // モジュール境界がぼやけずシャープになる (= スマホカメラの読み取り
-        // 成功率が上がる)。
+        // The CIFilter returns a small image, typically around 23x23 pixels in size, for the purpose of...
+        // Scaling with integer scaling ratios for size. Keeping it as an integer ratio preserves the quality of the QR code.
+        // Module boundaries remain clear and sharp (smartphone camera reading)
+        // Success rate increases).
         let scale = max(1.0, Double(size) / Double(Int(raw.extent.width)))
         let scaled = raw.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
 

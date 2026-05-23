@@ -4,8 +4,8 @@ import FloatingMacroCore
 
 // MARK: - Key recorder & special key catalog
 
-/// macOS の virtual key code → KeyCombo パーサが理解するキー名。
-/// `KeyCombo.keyCodeMap` の逆引きを正規名で行う。
+/// Virtual key codes understood by KeyCombo parser in macOS.
+/// Reverse lookup for `KeyCombo.keyCodeMap` in canonical names.
 enum KeyNameLookup {
     static func name(forKeyCode code: UInt16) -> String? {
         switch code {
@@ -40,15 +40,15 @@ enum KeyNameLookup {
         }
     }
 
-    /// 特殊キーのドロップダウン用一覧（label = 表示名, value = KeyCombo 名）。
-    /// 真実のソースは `KeyCombo.specialKeys` + `KeyCombo.functionKeys`。
+    /// List for special keys dropdown (label = display name, value = KeyCombo name).
+    /// The true source is `KeyCombo.specialKeys` + `KeyCombo.functionKeys`.
     static var specialKeys: [(label: String, value: String)] {
         (KeyCombo.specialKeys + KeyCombo.functionKeys).map { ($0.label, $0.name) }
     }
 }
 
-/// クリックすると次の 1 キー入力を吸い取り、修飾キー＋ベースキーを書き戻す。
-/// Esc で記録キャンセル。
+/// Clicking will absorb the next key input and restore the modified key plus base key.
+/// Cancel recording with Esc.
 struct KeyRecorderButton: View {
     @Binding var modCmd: Bool
     @Binding var modShift: Bool
@@ -79,7 +79,7 @@ struct KeyRecorderButton: View {
         isRecording = true
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             handleKey(event)
-            return nil // イベントを消費（Delete キー等が他フィールドに伝播しない）
+            return nil // Consume event (delete key etc. does not propagate to other fields)
         }
     }
 
@@ -93,7 +93,7 @@ struct KeyRecorderButton: View {
 
     private func handleKey(_ event: NSEvent) {
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        // Esc 単独はキャンセル扱い（修飾なし）
+        // Esc alone is treated as cancel (no modifier)
         if event.keyCode == 0x35 && mods.subtracting([.capsLock]).isEmpty {
             stopRecording()
             return
@@ -111,7 +111,7 @@ struct KeyRecorderButton: View {
     }
 }
 
-/// 特殊キー（矢印・F1〜・Delete 等）を一覧から選んで `baseKey` に流し込むメニュー。
+/// Menu to select special keys (arrow, F1-~delete) from a list and paste them into `baseKey`.
 struct SpecialKeyMenu: View {
     @Binding var baseKey: String
 
@@ -131,7 +131,7 @@ struct SpecialKeyMenu: View {
     }
 }
 
-/// マクロステップ用：1 個の combo 文字列バインディングに直接記録するボタン。
+/// Button for recording directly into a single combo string binding for macro steps.
 struct ComboKeyRecorderButton: View {
     @Binding var combo: String
     @State private var isRecording = false
@@ -189,7 +189,7 @@ struct ComboKeyRecorderButton: View {
     }
 }
 
-/// マクロステップ用：特殊キー選択メニュー（combo 文字列を直接上書き）。
+/// Macrostep: Special key selection menu (directly overwrite combo string).
 struct ComboSpecialKeyMenu: View {
     @Binding var combo: String
 

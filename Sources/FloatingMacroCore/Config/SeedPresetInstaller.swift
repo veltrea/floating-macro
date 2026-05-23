@@ -1,6 +1,6 @@
 import Foundation
 
-/// Copies "seed" presets (e.g. MidJourney 用, note.com ハッシュタグ) into the
+/// Presets "seed" (e.g., MidJourney used, note.com hashtag) copied into the
 /// user's presets directory on first launch. Two sources are supported:
 ///
 /// - **Bundled**: JSON files shipped inside the app bundle under

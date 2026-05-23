@@ -2,7 +2,7 @@ import XCTest
 import ImageIO
 @testable import FloatingMacroCore
 
-/// Phase 5 (P5-8): QR コード生成の単体テスト。
+/// Unit test for QR code generation (P5-8).
 final class QRCodeGeneratorTests: XCTestCase {
 
     func testGeneratesPNGForURL() throws {
@@ -11,7 +11,7 @@ final class QRCodeGeneratorTests: XCTestCase {
             sizeInPixels: 320
         )
         XCTAssertGreaterThan(png.count, 256, "実 PNG が出力されること")
-        // PNG マジックバイト
+        // PNG magic byte
         XCTAssertEqual(Array(png.prefix(4)), [0x89, 0x50, 0x4E, 0x47])
     }
 
@@ -23,7 +23,7 @@ final class QRCodeGeneratorTests: XCTestCase {
 
     func testSizeIsAtLeastRequested() throws {
         let png = try QRCodeGenerator.pngData(content: "test", sizeInPixels: 256)
-        // ImageIO で読み戻して幅・高さを検査。
+        // Check width and height by reading back with ImageIO.
         guard let src = CGImageSourceCreateWithData(png as CFData, nil),
               let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] else {
             XCTFail("PNG ヘッダを読めない"); return
@@ -35,14 +35,14 @@ final class QRCodeGeneratorTests: XCTestCase {
     }
 
     func testTinySizeClampsToMinimum() throws {
-        // 64 未満を渡しても 64 にクランプされる (内部実装の保険)。
+        // Passed less than 64 will be clamped to 64 (internal implementation safety).
         let png = try QRCodeGenerator.pngData(content: "x", sizeInPixels: 16)
         XCTAssertGreaterThan(png.count, 0)
     }
 
     func testCorrectionLevelEnumStrings() {
-        // CIFilter は文字列の "L"/"M"/"Q"/"H" を要求する。enum の rawValue
-        // が壊れていないことを保証する。
+        // CIFilter requires a string of "L"/"M"/"Q"/"H", which is the enum's rawValue.
+        // Guarantees that the window is not broken.
         XCTAssertEqual(QRCodeGenerator.CorrectionLevel.L.rawValue, "L")
         XCTAssertEqual(QRCodeGenerator.CorrectionLevel.M.rawValue, "M")
         XCTAssertEqual(QRCodeGenerator.CorrectionLevel.Q.rawValue, "Q")

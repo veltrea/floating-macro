@@ -45,24 +45,24 @@ public struct FileSystemAppListProvider: AppListProvider {
         for root in searchRoots {
             guard FileManager.default.fileExists(atPath: root.path) else { continue }
 
-            // 再帰スキャン。`/Applications/Utilities/` のようなサブフォルダ
-            // 内のアプリも拾うために `enumerator` を使う。
-            // `.skipsPackageDescendants` で `.app` バンドルの中には入らない
-            // (helper や Frameworks 配下の入れ子 .app を誤って候補に入れない)。
-            // `.skipsHiddenFiles` でドット始まりの隠しフォルダを除外。
+            // Recursive scan. Subfolders like `/Applications/Utilities/`.
+            // Use `enumerator` to include apps in the category/type of.
+            // Skips package descendants, does not include within .app bundle
+            // Do not mistakenly include nested .apps under helper or frameworks.
+            // Skip hidden folders starting with a dot using `.skipsHiddenFiles`.
             guard let enumerator = FileManager.default.enumerator(
                 at: root,
                 includingPropertiesForKeys: nil,
                 options: [.skipsHiddenFiles, .skipsPackageDescendants],
                 errorHandler: { _, _ in
-                    // 読めないサブフォルダは無視して続行 (権限・race condition
-                    // で全体の列挙が止まるより、取れるものを返す方が UX よい)。
+                    // Ignore unreadable subfolders and continue (permissions/race condition)
+                    // Returning what can be obtained is better for UX than stopping the entire enumeration.)。
                     return true
                 }
             ) else { continue }
 
-            // 走査結果は OS のディレクトリ列挙順で安定しないため、root 単位で
-            // 一旦集めてからファイル名昇順に並べ、dedup-winner を確定的にする。
+            // The scan results are not stable in the order of directories enumerated by the OS, so it is done at the root level.
+            // Once collected, sort by file name in ascending order and deterministically determine the dedup-winner.
             var appURLs: [URL] = []
             while let url = enumerator.nextObject() as? URL {
                 guard url.pathExtension.lowercased() == "app" else { continue }

@@ -2,36 +2,36 @@ import AppKit
 import SwiftUI
 import FloatingMacroCore
 
-/// Phase 5 (P5-9): メニューバー「📱 デバイスに送信」から開く小窓。
+/// Phase 5 (P5-9): Open window from menu bar "📱 Send to device".
 ///
-/// 表示要素:
-///   - 大きな QR コード (Web Panel URL を埋め込み)
-///   - 同じ URL のテキスト (コピーできる)
-///   - LAN 公開モードの ON/OFF トグル (= ControlAPIConfig.lanExposureEnabled)
-///   - 「再発行」ボタン (= EphemeralLANTokenStore.rotate)
+/// display elements
+/// Large QR code (embed Web Panel URL)
+/// Text with the same URL (copyable)
+/// LAN public mode on/off toggle (ControlAPIConfig.lanExposureEnabled)
+/// "EphemeralLANTokenStore.rotate" button
 ///
-/// LAN OFF のときは QR / URL を出さず、「ON にする」CTA だけ出す。LAN を
-/// ON にするには ControlAPI が enabled でなければならないので、ControlAPI が
-/// disabled のときも CTA で誘導する。
+/// When LAN OFF, display only the 'ON to' CTA without showing QR / URL. When LAN is
+/// To enable ON, the ControlAPI must be enabled.
+/// Guide to lead when disabled.
 final class DeviceSendWindowController: NSWindowController {
 
     private let presetManager: PresetManager
     private let onLANToggle: (Bool) -> Void
-    /// 「このウィンドウは現在どの preset 用に描画されているか」を保持する。
-    /// LAN トグル / token rotate での再描画時に同じ preset を維持するために
-    /// AppDelegate.refreshDeviceSendWindowIfOpen が読み取る。
-    /// nil = メニュー経由 (= active preset の URL)。
+    /// This window holds which preset it is currently being drawn for.
+    /// Maintain the same preset during redraw when using LAN toggle and token rotation.
+    /// AppDelegate.refreshDeviceSendWindowIfOpen reads.
+    /// nil = menu via (= active preset's URL).
     private(set) var presetName: String?
 
-    /// 軽量な ObservableObject。ウィンドウを開くたびに再生成する。
+    /// Lightweight ObservableObject. Regenerate on window opening.
     fileprivate final class Model: ObservableObject {
         @Published var lanExposed: Bool
         @Published var url: String
         @Published var qrPNG: Data?
         @Published var token: String
         @Published var bonjourReady: Bool
-        /// UI に「このパネル専用 QR」と表示するときの preset 表示名。
-        /// nil なら「現在のプリセット (active)」を出す。
+        /// Preset display name when displaying "This panel-specific QR" in the UI.
+        /// If nil, output the current preset (active).
         @Published var presetDisplay: String?
 
         init(lanExposed: Bool, url: String, qrPNG: Data?, token: String,
@@ -84,8 +84,8 @@ final class DeviceSendWindowController: NSWindowController {
 
     required init?(coder: NSCoder) { fatalError() }
 
-    /// メニューバーから複数回呼ばれても 1 つのウィンドウを再利用する想定で、
-    /// 表示内容を更新できる API を出しておく。
+    /// Assuming the menu bar is called multiple times, reuse one window.
+    /// Leave an API that allows updating the displayed content.
     func update(lanExposed: Bool, url: String, qrPNG: Data?, token: String,
                 bonjourReady: Bool, presetName: String?) {
         self.presetName = presetName
@@ -98,7 +98,7 @@ final class DeviceSendWindowController: NSWindowController {
                                                   presetName: presetName)
     }
 
-    /// preset 内部名から UI 表示名を解決する。読み込めなかった場合は内部名をそのまま返す。
+    /// Resolve the display name from the internal name in preset. If it cannot be loaded, return the internal name as-is.
     fileprivate static func resolveDisplay(presetManager: PresetManager,
                                            presetName: String?) -> String? {
         guard let name = presetName else { return nil }
@@ -131,7 +131,7 @@ private struct DeviceSendView: View {
                 }
             }
 
-            // LAN 公開モード トグル。OFF→ON で QR が現れる。
+            // LAN public mode toggle. OFF to ON, QR appears.
             HStack {
                 Toggle(L("LAN_公開モード_e6f2a7"),
                        isOn: Binding(get: { model.lanExposed },
@@ -146,7 +146,7 @@ private struct DeviceSendView: View {
             }
 
             if model.lanExposed {
-                // QR コード
+                // QR code
                 Group {
                     if let png = model.qrPNG, let nsImage = NSImage(data: png) {
                         Image(nsImage: nsImage)
@@ -169,7 +169,7 @@ private struct DeviceSendView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
 
-                // URL テキスト + コピー
+                // Copy URL text
                 VStack(alignment: .leading, spacing: 6) {
                     Text("URL").font(.caption).foregroundStyle(.secondary)
                     HStack {
@@ -189,7 +189,7 @@ private struct DeviceSendView: View {
                     }
                 }
 
-                // Token 再発行
+                // reissue
                 HStack {
                     Text("ephemeral token: \(String(model.token.prefix(8)))…")
                         .font(.caption)

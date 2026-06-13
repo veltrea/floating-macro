@@ -246,8 +246,8 @@ extension ControlHandlers {
               let type = dict["type"] as? String else {
             return HTTPResponse.badRequest("body must be {\"type\": String}")
         }
-        guard ["text", "key", "launch", "terminal"].contains(type) else {
-            return HTTPResponse.badRequest("type must be one of: text, key, launch, terminal")
+        guard ["text", "key", "launch", "terminal", "delay", "macro"].contains(type) else {
+            return HTTPResponse.badRequest("type must be one of: text, key, launch, terminal, delay, macro")
         }
         presetManager.externalActionTypeRequest = type
         return HTTPResponse.json(["type": type])

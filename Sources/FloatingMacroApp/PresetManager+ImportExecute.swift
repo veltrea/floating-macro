@@ -74,9 +74,20 @@ extension PresetManager {
     }
 
     func deletePreset(name: String) -> Bool {
-        let url = loader.presetsURL.appendingPathComponent("\(name).json")
+        let fm = FileManager.default
+        // Duplicate presets can exist on both the user side and the seed side.
+        // (copy-on-write shadow during seed editing). All actual copies
+        // If not removed, the remaining side will continue to appear in listPresets() and be deleted.
+        // Seems to be not working.
+        let candidates = [loader.userPresetsURL, loader.seedPresetsURL]
+            .map { $0.appendingPathComponent("\(name).json") }
+        let existing = candidates.filter { fm.fileExists(atPath: $0.path) }
         do {
-            try FileManager.default.removeItem(at: url)
+            // When there are zero items, the `removeItem` to the head candidate should be treated as "non-existent".
+            // Cause an error and switch back to the traditional display.
+            for url in existing.isEmpty ? [candidates[0]] : existing {
+                try fm.removeItem(at: url)
+            }
         } catch {
             showTransientError(L_("preset_delete_failed", error.localizedDescription))
             return false
@@ -91,8 +102,16 @@ extension PresetManager {
     }
 
     func executeButton(_ button: ButtonDefinition) {
+        // Treat a button that is pressed again while running as a stop request (toggle).
+        // Repeated pressing of the same macro can run in parallel, preventing key interleaving accidents.
+        // Task.sleep immediately responds to cancellation even during long delays.
+        if let running = runningButtonTasks[button.id] {
+            running.cancel()
+            return
+        }
+
         let blacklist = appConfig?.commandBlacklist
-        Task.detached {
+        let task = Task.detached {
             do {
                 let onBlocked: MacroRunner.BlockedCommandHandler = { pattern, text in
                     await MainActor.run {
@@ -100,6 +119,9 @@ extension PresetManager {
                     }
                 }
                 try await Self.executeAction(button.action, blacklist: blacklist, onBlocked: onBlocked)
+            } catch is CancellationError {
+                // Stop by user. Since it's a normal case, do not display an error message.
+                LoggerContext.shared.info("Execute", "Button stopped by user", ["id": button.id])
             } catch {
                 let msg: String
                 if case ActionError.commandBlocked(let pattern) = error {
@@ -109,6 +131,37 @@ extension PresetManager {
                 }
                 await MainActor.run {
                     self.showTransientError(msg, clearAfter: 3)
+                }
+            }
+            await MainActor.run {
+                self.runningButtonTasks[button.id] = nil
+                self.runningButtonIds.remove(button.id)
+            }
+        }
+        runningButtonTasks[button.id] = task
+        runningButtonIds.insert(button.id)
+    }
+
+    /// Run the currently editing action without saving it.
+    /// Typically runs through the same blacklist path as a confirmation dialog.
+    /// Canceling the returned task allows it to be aborted even while running.
+    @discardableResult
+    func testRunAction(_ action: Action) -> Task<Void, Never> {
+        let blacklist = appConfig?.commandBlacklist
+        return Task.detached {
+            do {
+                let onBlocked: MacroRunner.BlockedCommandHandler = { pattern, text in
+                    await MainActor.run {
+                        CommandConfirmation.askProceed(pattern: pattern, text: text)
+                    }
+                }
+                try await Self.executeAction(action, blacklist: blacklist, onBlocked: onBlocked)
+            } catch is CancellationError {
+                // Stop test execution. No output for normal case.
+            } catch {
+                await MainActor.run {
+                    self.showTransientError(
+                        L_("test_run_failed", String(describing: error)), clearAfter: 3)
                 }
             }
         }
@@ -219,7 +272,7 @@ extension PresetManager {
             )
 
         case .delay(let ms):
-            try await Task.sleep(nanoseconds: UInt64(ms) * 1_000_000)
+            try await DelayActionExecutor.execute(ms: ms)
 
         case .macro(let actions, let stopOnError):
             try await MacroRunner.run(actions: actions, stopOnError: stopOnError,

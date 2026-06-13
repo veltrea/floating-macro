@@ -2,7 +2,7 @@
 
 > A macOS floating macro launcher with a built-in HTTP control API designed for AI-assisted operation.
 
-[日本語版はこちら](README.ja.md) · [AI Protocol](docs/AI_PROTOCOL.md) · [Specification](SPEC.md) · [Design system](DESIGN.md) · [Changelog](CHANGELOG.md)
+[日本語版はこちら](README.ja.md) · [AI Protocol](manual/AI_PROTOCOL.md) · [Specification](SPEC.md) · [Design system](DESIGN.md) · [Changelog](CHANGELOG.md)
 
 ---
 
@@ -120,7 +120,7 @@ curl -s -X POST http://127.0.0.1:17430/tools/call \
   -d '{"name":"window_opacity","arguments":{"value":0.7}}'
 ```
 
-> Hitting individual endpoints like `/window/opacity` directly works but is the lower layer. From AIs, **always go through `/tools/call`**. See [CLAUDE.md](CLAUDE.md) and [docs/AI_PROTOCOL.md](docs/AI_PROTOCOL.md) for the full story.
+> Hitting individual endpoints like `/window/opacity` directly works but is the lower layer. From AIs, **always go through `/tools/call`**. See [CLAUDE.md](CLAUDE.md) and [AI_PROTOCOL.md](manual/AI_PROTOCOL.md) for the full story.
 
 ---
 
@@ -136,12 +136,12 @@ Open the AI integration window from the ⚙ in the floating panel (or the menu b
 
 Pressing the button reads the Bearer token from Keychain and writes the entry into the client's config (`~/.claude.json` / `~/.cursor/mcp.json` / `~/.gemini/settings.json` / etc.). Existing MCP entries are kept.
 
-Per-client guides are in [docs/mcp/](docs/mcp/):
-- [Claude Code](docs/mcp/claude-code.md)
-- [Claude Desktop](docs/mcp/claude-desktop.md)
-- [Cursor](docs/mcp/cursor.md)
-- [Gemini CLI](docs/mcp/gemini-cli.md)
-- [ACP (via curl)](docs/mcp/acp.md)
+Per-client guides are in [manual/mcp/](manual/mcp/):
+- [Claude Code](manual/mcp/claude-code.md)
+- [Claude Desktop](manual/mcp/claude-desktop.md)
+- [Cursor](manual/mcp/cursor.md)
+- [Gemini CLI](manual/mcp/gemini-cli.md)
+- [ACP (via curl)](manual/mcp/acp.md)
 
 ### Writing the MCP config by hand
 
@@ -174,7 +174,7 @@ Completions / Responses API call.
 
 ### Plain REST from scripts
 
-See [docs/AI_PROTOCOL.md](docs/AI_PROTOCOL.md) for the full endpoint
+See [AI_PROTOCOL.md](manual/AI_PROTOCOL.md) for the full endpoint
 reference.
 
 ---
@@ -307,9 +307,8 @@ See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for full attribution.
 
 ## See also
 
-- [AI Protocol Manual](docs/AI_PROTOCOL.md) — how AI agents talk to this app
-- [MCP per-client guides](docs/mcp/) — Claude Code / Cursor / Gemini CLI / etc.
-- [Manual Test Checklist](docs/manual_test.md) — items that aren't auto-tested
+- [AI Protocol Manual](manual/AI_PROTOCOL.md) — how AI agents talk to this app
+- [MCP per-client guides](manual/mcp/) — Claude Code / Cursor / Gemini CLI / etc.
 - [Full Specification](SPEC.md)
 - [Design System](DESIGN.md)
 - [Changelog](CHANGELOG.md)

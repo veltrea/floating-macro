@@ -1,5 +1,7 @@
 # FloatingMacro — 仕様書
 
+**他の言語で読む:** [English](SPEC.md)
+
 最終更新: 2026-04-16
 
 ---

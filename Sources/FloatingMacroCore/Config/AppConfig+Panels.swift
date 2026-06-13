@@ -117,6 +117,12 @@ extension AppConfig {
         return updatingPanel(id: id) { panel in
             var p = panel
             p.dockBarPosition = DockBarPosition(x: x, y: y, edge: edge ?? p.dockedEdge)
+            // If dragged to another edge, also follow the dock state edge.
+            // If not aligned, dockBarPosition and dockedEdge will be misaligned.
+            // Re-docking causes the old orientation to reappear.
+            if let edge, p.dockedEdge != nil {
+                p.dockedEdge = edge
+            }
             return p
         }
     }

@@ -8,7 +8,7 @@
 #   - swift build has produced fm-test-target
 #
 # What it does:
-#   1. Launch fm-test-target on :17431
+#   1. Launch fm-test-target on :17435
 #   2. For each test case: focus harness, clear text, fire run_action,
 #      wait for paste to settle, read /text, diff vs expected.
 #   3. Print PASS / FAIL with a summary at the end.
@@ -19,7 +19,7 @@ set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FM_PORT="${FM_PORT:-17430}"
-TARGET_PORT="${TARGET_PORT:-17431}"
+TARGET_PORT="${TARGET_PORT:-17435}"
 PASTE_SETTLE_SEC="${PASTE_SETTLE_SEC:-0.6}"
 
 # --- Screenshot capture --------------------------------------------------- #

@@ -1,80 +1,82 @@
 # FloatingMacro — Specification
 
+**Read this in other languages:** [日本語](SPEC.ja.md)
+
 Last updated: 2026-04-16
 
 ---
 
 ## 1. Overview
 
-**FloatingMacro** is a floating macro launcher for macOS. From a small window that stays on screen at all times, users can execute the following with a single click:
+**FloatingMacro** is a floating macro launcher for macOS. From a small persistent window on screen, the following can be executed with a single click:
 
-- Send keyboard shortcuts
-- Paste arbitrary text (via clipboard)
-- Launch apps / files / URLs
-- Open terminal + auto-type commands
-- **Macros** combining any of the above (sequential execution)
+- Keyboard shortcut emission
+- Arbitrary text pasting (via clipboard)
+- Launching apps / files / URLs
+- Launching a terminal and auto-typing commands into it
+- **Macros** — sequential execution of combinations of the above
 
-This project takes inspiration from a similar Windows application (FloatingButton by Trifolium Studio) using a clean-room approach, redesigned natively for Mac. No source code from the original software is referenced. Only observable behavior and screenshots are used as reference.
+This project takes a clean-room approach inspired by similar software for Windows (FloatingButton by Trifolium Studio), but redesigned natively for Mac. We do not reference the original software's code at all. Only externally observable behavior and screenshots are used as references.
 
-### AI-Oriented Design — Treating AI Agents as First-Class Users
+### AI-oriented design — treating AI agents as first-class users
 
-FloatingMacro has as a design requirement from the outset that **AI agents can observe, configure, and operate the app end-to-end**. Rather than retrofitting AI onto an existing app, this project explores **what design looks like when AI is treated as a first-class user**, within the scope of a small utility:
+FloatingMacro is designed from the start with **AI agents being able to observe, configure, and operate the app end-to-end** as a requirement. Rather than bolting AI onto an existing app, this is a project that explores **what design emerges when you assume AI as a first-class user** within the scope of a small utility:
 
-- Logs are in JSON, one event per line (AI can pipe-read them)
-- Built-in HTTP control API (localhost only, zero external dependencies)
-- API is compatible with standard protocols equivalent to ACP / MCP / A2A
-- CLI (`fmcli`) can be invoked directly by AI from bash
-
----
-
-## 2. Target Users and Primary Use Cases
-
-### Target Users
-- Users who primarily use pen tablets / trackpads and find it difficult to frequently invoke keyboard shortcuts
-- Developers who want to quickly feed prompts to AI agents (Claude Code / Claude CLI, etc.)
-- Developers who want to open multiple terminals + navigate directories + launch commands in one shot
-- **Developers who want to experiment with AI-first workflows where AI agents are the primary operators**
-
-### Primary Use Cases
-1. **AI Prompt Injection** — Paste boilerplate prompts like "think with ultrathink" with a single button press
-2. **One-Shot Dev Environment Setup** — Open 4–5 terminals with one button, `cd` to each directory and launch `claude`
-3. **Work Scene Switching** — Switch presets to swap button sets for "writing mode" / "dev mode" / "debug mode"
-4. **App Launcher** — Group and arrange frequently used apps / folders / URLs (with automatic app icon retrieval)
-5. **Remote Operation by AI** — Claude / Gemini adds/edits buttons, moves windows, and executes actions via the control API
+- Logs are JSON one-event-per-line (AI can pipe and read them)
+- Built-in HTTP Control API (localhost only, zero external dependencies)
+- The API is compatible with standard protocols equivalent to ACP / MCP / A2A
+- The CLI (`fmcli`) is invokable directly from bash by AI
 
 ---
 
-## 3. Non-Goals
+## 2. Target users and primary use cases
+
+### Assumed users
+- Users who use pen tablets / trackpads primarily and find keyboard shortcuts hard to invoke frequently
+- Developers who want to quickly inject prompts into AI agents (Claude Code / Claude CLI / etc.)
+- Developers who want to open multiple terminals + change directories + start commands in one shot
+- **Developers exploring AI-first workflows where AI agents are the primary operators of the app**
+
+### Primary use cases
+1. **AI prompt injection** — paste boilerplate prompts like "Think with ultrathink" with one button press
+2. **One-shot dev environment expansion** — one button opens 4–5 terminals, `cd`s each to a directory, and launches `claude`
+3. **Work scene switching** — switch presets to swap button sets like "Writing mode" / "Dev mode" / "Debug mode"
+4. **App launcher** — group and place frequently used apps / folders / URLs (with auto-fetched app icons)
+5. **Remote operation by AI** — Claude / Gemini operates buttons via the Control API: add/edit, move the window, execute actions
+
+---
+
+## 3. Non-goals
 
 - Windows / Linux support (Mac only)
-- Detailed multi-monitor position memory (deferred to v2+)
+- Detailed multi-monitor position memory (under consideration for v2+)
 - Cloud sync (local config only)
 - OCR / image recognition-based automation
-- Script language execution engine (single shell commands are fine, but no JS/Python VM)
-- Full replacement of existing macro tools (Keyboard Maestro, BetterTouchTool)
+- Script language execution engine (one-shot shell commands are fine, but no JS/Python VM)
+- Full replacement for existing macro tools (Keyboard Maestro, BetterTouchTool)
 
 ---
 
-## 4. Platform / Tech Stack
+## 4. Platform / tech stack
 
-| Item | Selection |
+| Item | Choice |
 |---|---|
 | Language | Swift 5.9 |
-| UI | SwiftUI + AppKit (NSPanel) hybrid |
+| UI | Hybrid SwiftUI + AppKit (NSPanel) |
 | Minimum OS | macOS 13 (Ventura) |
 | Build | Swift Package Manager |
 | Binary | universal (arm64 + x86_64) |
 | Dependencies | Standard frameworks only (AppKit / SwiftUI / Carbon / ApplicationServices / Network.framework) |
 
 ### Why Swift 5.9
-Taking on Swift 6's strict concurrency in the MVP would consume time resolving conflicts between UI and async processing. Migration to 6 is deferred to v2+.
+Carrying Swift 6's strict concurrency from the MVP would burn time on UI / async conflict handling. Migration to 6 is deferred to v2+.
 
-### Why No External Dependencies
-Resident tools prioritize launch speed / security / maintainability. Since everything is implementable with standard frameworks alone, we maintain a minimal configuration. The HTTP server is also self-implemented using `Network.framework`'s `NWListener` (swift-nio / Vapor are not introduced).
+### Why no external dependencies
+For persistent tools, startup speed / security / maintainability matter. Since implementation is possible with standard frameworks alone, we maintain a minimal configuration. The HTTP server is also implemented in-house using `Network.framework`'s `NWListener` (swift-nio / Vapor are not introduced).
 
 ---
 
-## 5. Project Structure
+## 5. Project layout
 
 ```
 floatingmacro/
@@ -82,13 +84,13 @@ floatingmacro/
 ├── SPEC.md                       # This document
 ├── README.md                     # (later)
 ├── Sources/
-│   ├── FloatingMacroCore/        # Pure logic (UI / AppKit dependencies only in Platform/)
+│   ├── FloatingMacroCore/        # Pure logic (UI / AppKit deps are only in Platform/)
 │   │   ├── Config/
 │   │   │   ├── ButtonDefinition.swift
 │   │   │   ├── Preset.swift                  # Preset / ButtonGroup / WindowConfig / ControlAPIConfig / AppConfig
 │   │   │   ├── ConfigLoader.swift
 │   │   │   ├── ConfigWriter.swift
-│   │   │   └── PresetEditor.swift            # CRUD pure logic for preset/group/button
+│   │   │   └── PresetEditor.swift            # Pure CRUD logic for preset/group/button
 │   │   ├── Actions/
 │   │   │   ├── Action.swift
 │   │   │   ├── KeyCombo.swift
@@ -108,7 +110,7 @@ floatingmacro/
 │   │   │   ├── AccessibilityChecker.swift
 │   │   │   └── AutomationChecker.swift
 │   │   ├── Icons/
-│   │   │   └── IconResolver.swift            # Path resolution logic (no AppKit dependency)
+│   │   │   └── IconResolver.swift            # Path resolution logic (AppKit-independent)
 │   │   ├── Logging/
 │   │   │   ├── LogLevel.swift
 │   │   │   ├── LogEvent.swift
@@ -119,9 +121,9 @@ floatingmacro/
 │   │       ├── HTTPMessage.swift             # HTTPRequest / HTTPResponse
 │   │       ├── HTTPParser.swift              # Raw HTTP/1.1 parser (not JSON)
 │   │       ├── ControlServer.swift           # NWListener wrapper
-│   │       ├── SystemPrompt.swift            # Self-introduction prompt for AI + manifest()
-│   │       ├── ToolCatalog.swift             # All tool definitions + MCP/OpenAI/Anthropic 3-format conversion
-│   │       ├── OpenAPIGenerator.swift        # OpenAPI 3.1 JSON auto-generation
+│   │       ├── SystemPrompt.swift            # Self-intro prompt for AI + manifest()
+│   │       ├── ToolCatalog.swift             # All tool definitions + MCP/OpenAI/Anthropic 3-format conversions
+│   │       ├── OpenAPIGenerator.swift        # Auto-generate OpenAPI 3.1 JSON
 │   │       ├── AgentCard.swift               # A2A Agent Card output
 │   │       └── MCPAdapter.swift              # JSON-RPC 2.0 over HTTP (Anthropic MCP)
 │   ├── FloatingMacroCLI/
@@ -129,34 +131,34 @@ floatingmacro/
 │   └── FloatingMacroApp/
 │       ├── App.swift                         # AppDelegate
 │       ├── FloatingPanel.swift               # NSPanel subclass
-│       ├── ButtonView.swift                  # SwiftUI button rendering + icons
-│       ├── PresetManager.swift               # ObservableObject + editing API
+│       ├── ButtonView.swift                  # SwiftUI button render + icon
+│       ├── PresetManager.swift               # ObservableObject + edit API
 │       ├── IconLoader.swift                  # NSImage cache + NSWorkspace icon retrieval
 │       ├── Settings/
-│       │   ├── SettingsView.swift            # SwiftUI settings window root
-│       │   ├── SettingsDetail.swift          # Button attribute editing form
+│       │   ├── SettingsView.swift            # Root of SwiftUI settings window
+│       │   ├── SettingsDetail.swift          # Button attribute editor form
 │       │   └── SettingsWindowController.swift
 │       └── ControlAPI/
-│           └── ControlHandlers.swift         # HTTP endpoint implementations (REST + /tools/call + /mcp)
+│           └── ControlHandlers.swift         # HTTP endpoint implementation (REST + /tools/call + /mcp)
 ├── Tests/
 │   └── FloatingMacroCoreTests/               # 226 tests (as of 2026-04-16)
 ├── scripts/
-│   ├── fmcli_smoke.sh                        # fmcli automated smoke tests (31 items)
+│   ├── fmcli_smoke.sh                        # Automated smoke for fmcli (31 items)
 │   └── control_api_smoke.sh                  # E2E with real GUI process + curl (78 items)
 └── docs/
-    ├── manual_test.md                        # Visual confirmation checklist for humans
-    └── AI_PROTOCOL.md                        # Connection manual for AI agents
+    ├── manual_test.md                        # Human visual verification list
+    └── AI_PROTOCOL.md                        # AI agent connection manual
 ```
 
-**Design Principles**:
-- `FloatingMacroCore` has no dependency on UI / AppKit. `import AppKit` is restricted to `Platform/` and below
-- All Executors have DI-capable static singletons (`synthesizer`, `clipboard`, `launcher`, `scriptRunner`) that can be swapped with mocks during testing
-- All logic can be tested from `FloatingMacroCLI`
-- 4-layer testing: unit tests + `fmcli` smoke + control API smoke + manual testing
+**Design principles**:
+- `FloatingMacroCore` does not depend on UI / AppKit. `import AppKit` is limited to `Platform/`.
+- All Executors have DI-capable static singletons (`synthesizer`, `clipboard`, `launcher`, `scriptRunner`) for mock substitution during testing.
+- All logic is testable from `FloatingMacroCLI`.
+- 4-layer test: unit tests + `fmcli` smoke + Control API smoke + manual tests.
 
 ---
 
-## 6. Configuration File Specification
+## 6. Configuration file specification
 
 ### 6.1 Location
 
@@ -169,12 +171,12 @@ floatingmacro/
 │   └── writing.json
 └── logs/
     ├── floatingmacro.log
-    └── floatingmacro.log.old   # Rotated when exceeding 10MB
+    └── floatingmacro.log.old   # Rotates above 10MB
 ```
 
-Can be overridden with the environment variable `FLOATINGMACRO_CONFIG_DIR` (for testing / external disk use).
+Override with the `FLOATINGMACRO_CONFIG_DIR` environment variable (for testing / external disk operations).
 
-### 6.2 `config.json` Schema
+### 6.2 `config.json` schema
 
 ```json
 {
@@ -199,18 +201,18 @@ Can be overridden with the environment variable `FLOATINGMACRO_CONFIG_DIR` (for 
 }
 ```
 
-`presetOrder` defines the display order in the preset picker. Presets not in the array (e.g., files dropped from external sources) are appended alphabetically at the end, and non-existent presets in the array are automatically removed (self-heal). Falls back to full alphabetical order when the array is empty or missing.
+`presetOrder` is the order shown in the preset picker. Presets not in the array (e.g., files dropped externally) are appended alphabetically at the end, and presets in the array that don't exist are auto-removed (self-heal). Falls back to pure alphabetical order if missing or empty.
 
-For backward compatibility, all missing fields fall back to default values (`decodeIfPresent`-based).
+For backward compatibility, all missing fields fall back to defaults (based on `decodeIfPresent`).
 
-### 6.3 Preset File (`presets/*.json`) Schema
+### 6.3 Preset file (`presets/*.json`) schema
 
 ```json
 {
   "version": 1,
   "name": "default",
   "displayName": "Default",
-  "memo": "Usage assumptions:\n• Bring the target app to the foreground before pressing\n• Clipboard history will be briefly overwritten",
+  "memo": "Prerequisites:\n• Bring target app to front before pressing\n• Clipboard history is overwritten briefly",
   "groups": [
     {
       "id": "group-1",
@@ -227,7 +229,7 @@ For backward compatibility, all missing fields fall back to default values (`dec
           "height": 36,
           "action": {
             "type": "text",
-            "content": "Please work on the next task with ultrathink."
+            "content": "Please tackle the next task with ultrathink."
           }
         }
       ]
@@ -238,81 +240,81 @@ For backward compatibility, all missing fields fall back to default values (`dec
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `version` | int | No | Schema version (defaults to 1 if omitted) |
-| `name` | string | Yes | Internal id (matches filename) |
-| `displayName` | string | No | Display name shown in menus etc. (uses `name` if omitted) |
-| `memo` | string? | No | Free-text memo for the entire preset. For recording usage assumptions, OS settings, intended use cases, etc. Displayed as a collapsible block at the top of the panel. Treated as "no memo" when empty string or missing |
-| `groups` | Group[] | Yes | Array of groups |
+| `version` | int | × | Schema version (defaults to 1) |
+| `name` | string | ◯ | Internal id (matches filename) |
+| `displayName` | string | × | Display name in menus etc. (defaults to `name` if omitted) |
+| `memo` | string? | × | Free-form memo for the entire preset. Place to leave prerequisites, OS settings, intended use cases, etc. Shown as a collapsible block at the top of the panel. Empty string or missing means "no memo". |
+| `groups` | Group[] | ◯ | Group array |
 
-### 6.4 Button (`buttons[]`) Fields
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `id` | string | Yes | Unique within preset |
-| `label` | string | Yes | Display string |
-| `icon` | string? | No | Image file path (PNG/ICO/ICNS/JPEG) OR app bundle id OR `.app` absolute path |
-| `iconText` | string? | No | Emoji / 1–2 character display icon |
-| `thumbnail` | string? | No | Large image displayed when parent group has `displayType == "card"`. Absolute path recommended. Convention: save to `presets/<name>/images/<button-id>.{ext}` (added in v0.11) |
-| `backgroundColor` | string? | No | `#RRGGBB` or `#RRGGBBAA` hex |
-| `width` | number? | No | Explicit width (points). null for auto |
-| `height` | number? | No | Explicit height. null for auto |
-| `confirm` / `confirmMessage` / `confirmDestructive` | — | No | Confirmation dialog before execution (details in separate section) |
-| `action` | Action | Yes | Behavior when clicked |
-
-#### Automatic Icon Resolution
-Even when `icon` is not set, if `action.type == "launch"` and `target` is an app path / bundle id, **that target is automatically inferred as the icon** and the app icon is retrieved via `NSWorkspace.icon(forFile:)`. Results are cached in-process.
-
-### 6.5 Group (`groups[]`) Fields
+### 6.4 Button (`buttons[]`) fields
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `id` | string | Yes | Unique within preset |
-| `label` | string | Yes | Group heading |
-| `collapsed` | boolean | No | Collapsed state (default false) |
-| `displayType` | string? | No | Button rendering style. `icon` (default) / `wide` / `card`. Treated as `icon` when field is missing (added in v0.11) |
-| `buttons` | Button[] | Yes | Array of buttons |
+| `id` | string | ◯ | Unique within preset |
+| `label` | string | ◯ | Display string |
+| `icon` | string? | × | Image file path (PNG/ICO/ICNS/JPEG) OR app bundle id OR `.app` absolute path |
+| `iconText` | string? | × | Emoji / 1–2 character display icon |
+| `thumbnail` | string? | × | Image for large display when parent group's `displayType == "card"`. Absolute path recommended. Save convention `presets/<name>/images/<button-id>.{ext}` (added v0.11) |
+| `backgroundColor` | string? | × | `#RRGGBB` or `#RRGGBBAA` hex |
+| `width` | number? | × | Explicit width (points). null for auto |
+| `height` | number? | × | Explicit height. null for auto |
+| `confirm` / `confirmMessage` / `confirmDestructive` | — | × | Pre-execution confirmation dialog (see separate section) |
+| `action` | Action | ◯ | Behavior on click |
 
-#### `displayType` Behavior (v0.11)
+#### Auto-resolution of `icon`
+Even when `icon` is not set, if `action.type == "launch"` and `target` is an app path / bundle id, **that target is auto-inferred as icon** and the app icon is retrieved via `NSWorkspace.icon(forFile:)`. The result is stored in an in-process cache.
 
-- **`icon`** (default): Existing compact icon + label. Compact vertical layout
-- **`wide`**: Full-width, large icon + label-centered horizontal cells. Labels wrap up to 2 lines
-- **`card`**: Thumbnails + titles arranged in a 2-column `LazyVGrid`. Displays `button.thumbnail` with priority, falling back to icon → iconText when missing
+### 6.5 Group (`groups[]`) fields
 
-Since `displayType=icon` is omitted during encoding, existing preset files produce zero diff when loaded/saved after Phase 2 release. Only groups with `wide` / `card` set will output `"displayType": "..."` in JSON.
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | ◯ | Unique within preset |
+| `label` | string | ◯ | Group header |
+| `collapsed` | boolean | × | Collapsed state (default false) |
+| `displayType` | string? | × | Button rendering style. `icon` (default) / `wide` / `card`. Treated as `icon` if missing (added v0.11) |
+| `buttons` | Button[] | ◯ | Button array |
+
+#### `displayType` behavior (v0.11)
+
+- **`icon`** (default): existing small icon + label. Compact vertical layout
+- **`wide`**: full-width, large-icon + label-centric horizontal cells. Labels wrap to 2 lines max
+- **`card`**: thumbnail + title in a 2-column `LazyVGrid`. Prioritizes `button.thumbnail`; if absent, falls back to icon → iconText in that order
+
+Because `displayType=icon` is omitted on encode, existing preset files have zero diff when loaded/saved after Phase 2's release. Only groups set to `wide` / `card` get `"displayType": "..."` written to JSON.
 
 ---
 
-## 7. Action Type Specification
+## 7. Action type specification
 
-All actions are tagged unions discriminated by the `type` field in JSON. Represented as `enum Action` on the Swift side. (Unchanged — details in §7.1–7.6 follow the original specification)
+All actions are a tagged union distinguished by the JSON `type` field. On the Swift side, represented as `enum Action`. (No changes — §7.1–7.6 details follow the original spec.)
 
-### 7.1 `key` — Key Combo Dispatch
+### 7.1 `key` — emit key combo
 
 ```json
 { "type": "key", "combo": "cmd+v" }
 ```
 
-Synthesizes keyDown + keyUp via `CGEventCreateKeyboardEvent`, dispatched with `CGEventPost(.cghidEventTap, event)`.
+Synthesizes keyDown + keyUp with `CGEventCreateKeyboardEvent` and dispatches via `CGEventPost(.cghidEventTap, event)`.
 
-**combo syntax** (`+` delimited):
+**combo syntax** (`+`-delimited):
 
 - Modifier keys: `cmd` (alias: `command`) / `shift` / `option` (alias: `alt`, `opt`) / `ctrl` (alias: `control`)
-- Character keys: `a-z`, `0-9`, US layout symbols (`=`, `-`, `[`, `]`, `;`, `'`, `\`, `,`, `.`, `/`, `` ` ``)
+- Character keys: `a-z`, `0-9`, US-layout symbols (`=`, `-`, `[`, `]`, `;`, `'`, `\`, `,`, `.`, `/`, `` ` ``)
 - Special keys: `delete` (alias: `backspace`), `forwarddelete`, `left`, `right`, `up`, `down`, `home`, `end`, `pageup`, `pagedown`, `return` (alias: `enter`), `tab`, `space`, `escape` (alias: `esc`)
 - Function keys: `f1`–`f20`
 
 Examples: `cmd+shift+v` / `f5` / `cmd+left` / `option+forwarddelete` / `delete`
 
-**Input from Settings UI** (v0.9.2): The key action editing panel in the edit window provides (a) a **"Press key to record" button** that generates the `combo` from a single physical key press, and (b) a **"Special key…" dropdown** that lists the above special keys with labels. Keys like Delete and arrow keys cannot be typed as characters in a TextField, so these input aids are essential for registration.
+**Input from Settings UI** (v0.9.2): the key-action editor panel in the edit window has (a) a **"Press a key to record" button** that generates `combo` from a single physical keypress, and (b) a **"Special Key…" pulldown** to pick the above special keys with labels. Delete / arrow keys etc. cannot be entered as characters into a TextField, so without these input aids they would be unregisterable.
 
-**Discovery via ACP** (v0.9.2): The `list_key_codes` tool (GET `/key-codes`) returns modifier keys, aliases, special keys, F1–F20, and examples in one response. This allows AI to dynamically reference the canonical catalog rather than relying on memorization.
+**Discovery from ACP** (v0.9.2): the `list_key_codes` tool (GET `/key-codes`) returns a complete normative catalog of modifier keys / aliases / special keys / F1–F20 / examples. Lets AI consult the catalog dynamically rather than memorizing it.
 
-### 7.2 `text` — Text Injection
+### 7.2 `text` — text injection
 
 ```json
 {
   "type": "text",
-  "content": "think with ultrathink",
+  "content": "Think with ultrathink",
   "pasteDelayMs": 120,
   "restoreClipboard": true,
   "appendMode": false
@@ -321,20 +323,20 @@ Examples: `cmd+shift+v` / `f5` / `cmd+left` / `option+forwarddelete` / `delete`
 
 Execution flow (`appendMode: false`, default):
 1. Save all clipboard items (all UTI types)
-2. Guarantee restoration via `defer` (clipboard is restored even on synth failure — prevents credential leakage)
-3. setString with text
-4. Wait for `pasteDelayMs`
+2. `defer` guarantees restoration (returns to original even on synth failure — prevents secrets leakage)
+3. setString the text
+4. Wait `pasteDelayMs`
 5. Dispatch Cmd+V via CGEvent synthesis
 
 Execution flow (`appendMode: true`, added in v0.10 — prompt builder):
-1. Get current clipboard string (treat as empty string if not string type)
-2. Append content to end (no separator — caller controls by including `", "` etc. in content)
-3. Write back with setString
-4. Do **not** paste, do **not** restore (maintain concatenated state)
+1. Get the current clipboard string (treats as empty string if not a string type)
+2. Concatenate `content` to the end (no separator inserted — the caller controls by including `", "` etc. in content)
+3. Write back via setString
+4. **Do not** paste, **do not** restore (keeps the concatenated state persistent)
 
-The purpose of `appendMode: true` is **prompt fragment composition** like Midjourney's "art style + pose + clothing + background". Multiple buttons are pressed sequentially to build up fragments, with the user manually pressing Cmd+V at the end. Through the backward-compatible decoder, existing preset JSON without the `appendMode` key is loaded as false.
+The use case for `appendMode: true` is **prompt fragment composition** like Midjourney's "style + pose + outfit + background". The user presses multiple buttons in order to stack fragments, then manually does Cmd+V at the end. Backward-compatible decoder loads existing preset JSON without `appendMode` key as false.
 
-### 7.3 `launch` — App / File / URL Launch
+### 7.3 `launch` — launch app / file / URL
 
 ```json
 { "type": "launch", "target": "..." }
@@ -347,25 +349,25 @@ target interpretation (priority order):
 4. Absolute path or `~/` → file/folder/app
 5. Otherwise → `launchTargetNotFound`
 
-### 7.4 `terminal` — Terminal Launch + Command Input
+### 7.4 `terminal` — launch terminal and inject command
 
-Terminal.app / iTerm2 use AppleScript; others use NSWorkspace + clipboard paste.
+Terminal.app / iTerm2 via AppleScript; otherwise NSWorkspace + clipboard-based paste.
 
-### 7.5 `delay` — Wait
+### 7.5 `delay` — wait
 
 ```json
 { "type": "delay", "ms": 500 }
 ```
 
-### 7.6 `macro` — Sequential Execution of Action Array
+### 7.6 `macro` — sequential execution of an action array
 
-Nesting is prohibited (rejected by parser). `stopOnError` controls abort/continue behavior.
+Nesting is forbidden (rejected by the parser). `stopOnError` controls abort/continue behavior.
 
 ---
 
-## 8. Window Specification
+## 8. Window specification
 
-### 8.1 Basic Properties
+### 8.1 Basic properties
 
 | Item | Specification |
 |---|---|
@@ -373,60 +375,60 @@ Nesting is prohibited (rejected by parser). `stopOnError` controls abort/continu
 | style mask | `.nonactivatingPanel`, `.titled`, `.closable`, `.resizable`, `.fullSizeContentView` |
 | level | `.floating` |
 | collection behavior | `.canJoinAllSpaces`, `.stationary`, `.fullScreenAuxiliary` |
-| Focus stealing | Does not steal focus (canBecomeKey/canBecomeMain = false) |
-| Drag movement | Long-press on blank area for free movement |
+| Focus stealing | None (canBecomeKey/canBecomeMain = false) |
+| Drag move | Long-press on blank area to move freely |
 | Always on top | Default ON |
-| Opacity | Default 1.0, variable 0.25–1.0 (4 levels via menu, any value via API) |
+| Opacity | Default 1.0, variable from 0.25 to 1.0 (4 levels in menu, any value via API) |
 | Position/size persistence | Written back to `config.json` on `applicationWillTerminate` |
 
 ### 8.2 Layout
 
-- **Direction**: Vertical stack (v0.1), horizontal layout in the future
-- **Grouping**: Small header + button column per group
-- **Collapsing**: Click group header to collapse
-- **Width/Height**: Default 200×300, user can resize by dragging, changeable via API
+- **Orientation**: vertical stack (v0.1), horizontal in the future
+- **Grouping**: each group has a small header + button column
+- **Collapsing**: click group header to collapse
+- **Width/height**: default 200×300, user-resizable by drag, also changeable via API
 
-### 8.3 Menu Bar
+### 8.3 Menu bar
 
-- Resident in menu bar via `NSStatusItem`
+- Persistent in menu bar via `NSStatusItem`
 - Menu items:
   - Show / Hide
-  - Preset switching (submenu)
+  - Preset switch (submenu)
   - **Opacity** (25% / 50% / 75% / 100% submenu, ✓ on current value)
-  - **Edit Buttons...** (settings window via `Cmd+E`)
-  - Open config folder
+  - **Button Edit...** (`Cmd+E` for the settings window)
+  - Open Settings Folder
   - Reload
   - Quit
-- Dock icon is not shown (`LSUIElement = YES`)
+- Dock icon not shown (`LSUIElement = YES`)
 
 ---
 
-## 9. Permission Requirements
+## 9. Permission requirements
 
-### 9.1 Accessibility Permission
-Required for key event synthesis via `CGEventPost`. Continuously checked with `AXIsProcessTrustedWithOptions`. When not authorized, guides user to settings via `AccessibilityChecker.openSystemPreferences()`.
+### 9.1 Accessibility permission
+Required for key event synthesis via `CGEventPost`. Checked continuously via `AXIsProcessTrustedWithOptions`. When not granted, `AccessibilityChecker.openSystemPreferences()` guides the user to the settings.
 
-### 9.2 Automation Permission
-Required for AppleScript dispatch to Terminal / iTerm. `AutomationChecker.check(bundleIdentifier:)` returns one of 4 states: `.authorized / .denied / .notDetermined / .targetUnavailable`.
+### 9.2 Automation permission
+Required for AppleScript dispatch to Terminal / iTerm. Get 4 states (`.authorized / .denied / .notDetermined / .targetUnavailable`) via `AutomationChecker.check(bundleIdentifier:)`.
 
-### 9.3 Code Signing
-- MVP: Functional with self-signing
+### 9.3 Code signing
+- MVP: a state where it can be verified to work with self-signing
 - v2: Developer ID signing + notarization
 
 ---
 
 ## 10. Logging
 
-### 10.1 Design Purpose
+### 10.1 Design intent
 
-**Foundation for AI observability.** Logs are designed primarily for **AI to tail and auto-evaluate**, not for users to visually inspect.
+**Foundation for AI observability**. Logs are designed for "AI to tail and auto-judge" as the primary purpose, not "humans to verify with their eyes".
 
-- Format: JSON, one event per line (JSONL / ndjson compliant)
+- Format: JSON one event per line (JSONL / ndjson compliant)
 - Location: `<ConfigDir>/logs/floatingmacro.log`
-- Rotation: Renamed to `.old` when exceeding 10MB
-- AI can pipe-read via `fmcli log tail --json`
+- Rotation: renamed to `.old` over 10MB
+- `fmcli log tail --json` lets AI read via pipe
 
-### 10.2 LogEvent Schema
+### 10.2 LogEvent schema
 
 ```json
 {
@@ -441,46 +443,46 @@ Required for AppleScript dispatch to Terminal / iTerm. `AutomationChecker.check(
 }
 ```
 
-Timestamps are ISO 8601 + fractional seconds (UTC). Keys use sorted output for stability (diff-friendly). `metadata` is `null` when empty.
+Timestamp is ISO 8601 + fractional seconds (UTC). Keys are stable in sorted output (diffable). `metadata` is `null` if empty.
 
 ### 10.3 LogLevel
 
-`debug` < `info` < `warn` < `error` (Comparable by severity). Each Logger has a `minimumLevel`; events below it are dropped.
+`debug` < `info` < `warn` < `error` (Comparable in severity order). Each Logger has a `minimumLevel`; entries below are dropped.
 
-### 10.4 Logger Types
+### 10.4 Logger types
 
-| Implementation | Purpose |
+| Implementation | Use case |
 |---|---|
-| `NullLogger` | Default, quiet implementation used until another is explicitly configured in production |
-| `InMemoryLogger` | For testing, assertions via `contains(category:messageContains:)` |
-| `FileLogWriter` | Production, serialized via DispatchQueue + rotation + `flush()` |
-| `ConsoleLogWriter` | For fmcli, human-readable text to stderr |
+| `NullLogger` | Default, silent implementation used until something else is explicitly configured in production |
+| `InMemoryLogger` | For tests; assertions via `contains(category:messageContains:)` |
+| `FileLogWriter` | Production, serialized on DispatchQueue + rotation + `flush()` |
+| `ConsoleLogWriter` | For fmcli; human-readable text on stderr |
 | `ComposedLogger` | Fan-out to multiple Loggers (file + console) |
 
-Global replacement: `LoggerContext.shared = ...`. In tests, InMemoryLogger is injected in setUp/tearDown.
+Global replacement: `LoggerContext.shared = ...`. Tests inject `InMemoryLogger` in setUp/tearDown.
 
-### 10.5 Log Output Points
+### 10.5 Log emission points
 
-- `MacroRunner`: Macro start / completion / error / abort
-- Each `*ActionExecutor`: Error details per dispatch / failure
-- `ConfigLoader`: Load success / failure
-- `ControlServer`: Connection / bind failure
-- `ControlAPI` handlers: Failure only
+- `MacroRunner`: macro start / completion / error / abort
+- Each `*ActionExecutor`: dispatch / error details per failure
+- `ConfigLoader`: load success / failure
+- `ControlServer`: connect / bind failure
+- Each `ControlAPI` handler: failure only
 
-### 10.6 Environment Variables
+### 10.6 Environment variables
 
-- `FLOATINGMACRO_CONFIG_DIR` — Override config/log directory
+- `FLOATINGMACRO_CONFIG_DIR` — override config/log directory
 - `FLOATINGMACRO_LOG_LEVEL` — `debug|info|warn|error` (equivalent to CLI `--log-level`)
 
 ---
 
 ## 11. CLI (`fmcli`)
 
-A command-line tool for validating logic without launching the UI.
+Command-line tool for verifying logic without launching the UI.
 
 ```
 fmcli action key "cmd+shift+4"
-fmcli action text "Hello World"
+fmcli action text "Hello world"
 fmcli action launch "/Applications/Slack.app"
 fmcli action terminal --app iTerm --command "ls -la"
 fmcli preset list
@@ -493,103 +495,103 @@ fmcli log tail [--level LEVEL] [--since DUR] [--limit N] [--json]
 fmcli --log-level debug action key "cmd+v"
 ```
 
-**Purpose**:
-- Test individual actions without UI dependency
-- **Minimal path for AI to access all features via bash**
-- Smoke tests in CI
+**Goals**:
+- Test single actions without UI dependencies
+- **Minimal path for AI to invoke all functionality via bash**
+- Smoke test in CI
 - Post-hoc analysis via log queries (`--since 5m --level warn --json | jq`)
 
 ---
 
 ## 12. HTTP Control API
 
-### 12.1 Design Purpose
+### 12.1 Design intent
 
-**Enable AI (Claude / Gemini / others) to observe internal state and execute all features** of the app. Maintains compatibility with agent-to-agent protocols equivalent to MCP / A2A / ACP, while implementing with zero external dependencies.
+Enable **AI (Claude / Gemini / others) to observe internal app state and execute all functionality**. Maintain compatibility with inter-agent protocols equivalent to MCP / A2A / ACP, while being implementable with zero external dependencies.
 
-### 12.2 Basic Properties
+### 12.2 Basic properties
 
 | Item | Specification |
 |---|---|
-| Implementation | `Network.framework`'s `NWListener` (no external dependencies) |
+| Implementation | `Network.framework`'s `NWListener` (no external deps) |
 | Bind | `127.0.0.1` (loopback) only, `requiredInterfaceType: .loopback` |
-| Authentication | None (localhost-restricted) |
-| Protocol | HTTP/1.1, no Keep-Alive (1 connection per request) |
+| Auth | None (since it's localhost-only) |
+| Protocol | HTTP/1.1, no Keep-Alive (1 request per connection) |
 | Format | JSON in / JSON out (UTF-8) |
-| Port | Default 17430, fallback +1 up to 10 times on conflict |
-| Startup | Only when `controlAPI.enabled` is set, binds on separate thread **within 1–2 seconds** |
+| Port | Default 17430, falls back +1 up to 10 times on conflict |
+| Startup | Only when `controlAPI.enabled` is set; binds **within 1–2 seconds** on a separate thread |
 
-### 12.3 Startup Guidelines (Avoiding MCP Server Pitfalls)
+### 12.3 Startup guidelines (avoiding MCP server pitfalls)
 
-Based on lessons learned from existing MCP server implementations, the following are strictly observed:
-- Do not block the main thread (start on DispatchQueue.global)
+Strict guidelines from prior MCP server implementation experience:
+- Do not block the main thread (launch via DispatchQueue.global)
 - Initialization completes within 1–2 seconds (`start(timeout: 2.0)`)
-- App continues normal startup even on failure (only logs)
-- Do not create new windows ("attach to" existing app model)
+- Even on failure, app keeps starting normally (only logs are left)
+- Don't create new windows ("attach to existing app" model)
 
-### 12.4 Endpoint List
+### 12.4 Endpoint list
 
-#### Self-Introduction / Discovery
+#### Self-intro / discovery
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/manifest` | Self-introduction AI reads first + full tool list + systemPrompt |
+| GET | `/manifest` | First read for AI: self-intro + full tool list + systemPrompt |
 | GET | `/help` | Alias for `/manifest` |
 | GET | `/ping` | Liveness check |
-| GET | `/openapi.json` | **OpenAPI 3.1** auto-generated documentation (ACP / REST compatible) |
-| GET | `/.well-known/agent.json` | **A2A Agent Card** (Google compatible) |
+| GET | `/openapi.json` | Auto-generated **OpenAPI 3.1** document (ACP / REST compatible) |
+| GET | `/.well-known/agent.json` | **A2A Agent Card** (Google-compatible) |
 | GET | `/tools?format=mcp\|openai\|anthropic` | Tool definitions in 3 dialects |
 
-#### Unified Dispatch
+#### Unified dispatch
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/tools/call` | Invoke any tool with `{name, arguments}` |
-| POST | `/mcp` | **JSON-RPC 2.0 / MCP HTTP transport** (Anthropic compatible) |
+| POST | `/mcp` | **JSON-RPC 2.0 / MCP HTTP transport** (Anthropic-compatible) |
 
-#### Window Operations
+#### Window operations
 - `POST /window/show | hide | toggle`
 - `POST /window/opacity` — `{value: 0.25..1.0}`
 - `POST /window/move` — `{x, y}`
 - `POST /window/resize` — `{width, height}`
 
 #### Observation
-- `GET /state` — Panel visibility + active preset + window coordinates + errors
-- `GET /log/tail?level=&since=&limit=` — JSON, one event per line
+- `GET /state` — panel visibility + active preset + window coords + errors
+- `GET /log/tail?level=&since=&limit=` — JSON one event per line
 - `GET /icon/for-app?bundleId= | path=` — base64 PNG
 
-#### Preset / Group / Button CRUD
+#### Preset / group / button CRUD
 - `GET /preset/list`, `GET /preset/current`
 - `POST /preset/switch | reload | create | rename | delete | reorder`
 - `POST /group/add | update | delete`
 - `POST /button/add | update | delete | reorder | move`
 
-#### Action Execution
-- `POST /action` — Send Action JSON for immediate execution (202 Accepted)
+#### Action execution
+- `POST /action` — send an Action JSON for immediate execution (202 Accepted)
 
-### 12.5 MCP JSON-RPC Support (`/mcp`)
+### 12.5 MCP JSON-RPC support (`/mcp`)
 
-The following methods can be sent to `POST /mcp` in a JSON-RPC 2.0 envelope:
-- `initialize` — Returns serverInfo + capabilities + protocolVersion
-- `tools/list` — All tool definitions
-- `tools/call` — Dispatches to REST handlers, wraps result as JSON string in `content[].text`
-- `ping` — Liveness check
+Methods accepted on `POST /mcp` with JSON-RPC 2.0 envelope:
+- `initialize` — returns serverInfo + capabilities + protocolVersion
+- `tools/list` — full tool definitions
+- `tools/call` — dispatches to REST handler; wraps the result in `content[].text` as a JSON string
+- `ping` — liveness check
 
 Errors use standard JSON-RPC codes: `-32700/-32600/-32601/-32602/-32603` + app-specific `-32000`.
 
 ### 12.6 Security
 
-- **Loopback only** — Unreachable from other hosts
-- Dangerous operations (`/action`'s `terminal`, etc.) depend on the user's context; callers should exercise judgment
-- Text paste with `restoreClipboard: true` restores the clipboard even on failure (prevents password leakage)
+- **Loopback only** — unreachable from other hosts
+- For dangerous operations (e.g., `/action` with `terminal`), the caller bears responsibility for considering the user's context
+- Text pasting with `restoreClipboard: true` restores the clipboard even on failure (prevents leakage of passwords etc.)
 
 ---
 
-## 13. Icon System
+## 13. Icon system
 
 ### 13.1 `IconResolver` (Core)
 
-Pure logic that resolves string references (`icon` field) into 3 case types:
+Pure logic resolving a string reference (the `icon` field) into one of 3 cases:
 
-| Case | Criteria | Result |
+| Case | Detection | Result |
 |---|---|---|
 | Image file | `.png / .jpg / .icns / .ico / ...` extension + exists | `.imageFile(URL)` |
 | `.app` bundle | `.app` extension + exists | `.appBundle(URL)` |
@@ -597,87 +599,87 @@ Pure logic that resolves string references (`icon` field) into 3 case types:
 
 ### 13.2 `IconLoader` (App)
 
-Converts `IconResolver` results to `NSImage`:
+Converts `IconResolver` results into `NSImage`:
 - `.imageFile` → `NSImage(contentsOf: URL)`
 - `.appBundle` → `NSWorkspace.icon(forFile:)`
 - `.bundleIdentifier` → `NSWorkspace.urlForApplication(withBundleIdentifier:)` + icon
 
-Includes in-process cache. Also retrievable externally as base64 PNG via API (`/icon/for-app`).
+With in-process cache. Also fetchable externally via the API (`/icon/for-app`) as base64 PNG.
 
-### 13.3 Button Rendering Priority
+### 13.3 Priority order at button rendering
 
-`MacroButtonView` displays icons in the following order:
+`MacroButtonView` displays the icon in this order:
 1. Explicitly set `icon`
 2. Auto-inferred from `target` when `action.type == "launch"`
 3. `iconText` (emoji)
 4. None
 
-### 13.4 `icon` Field Prefix Specification
+### 13.4 `icon` field prefix specification
 
-| Prefix | Example | Resolution Method |
+| Prefix | Example | Resolution |
 |---|---|---|
 | `sf:` | `sf:star.fill` | SF Symbol (Apple-provided, `NSImage(systemSymbolName:)`) |
 | `lucide:` | `lucide:folder` | **Bundled Lucide SVG** (`Bundle.module`, 1695 icons, ISC) |
 | `com.xxx.yyy` | `com.apple.Safari` | macOS app bundle identifier (`NSWorkspace`) |
-| Starts with `/` or `~/` | `/Applications/Slack.app` | Absolute path or tilde expansion |
+| Starts with `/` or `~/` | `/Applications/Slack.app` | Absolute path or tilde-expanded |
 
-### 13.5 Bundled Lucide
+### 13.5 Lucide bundling
 
-`Sources/FloatingMacroApp/Resources/lucide/` bundles **1695 Lucide SVG icons**
-(**ISC license**, `LICENSE` file also placed in the same directory).
+`Sources/FloatingMacroApp/Resources/lucide/` bundles **Lucide's 1695 SVG icons**
+(**ISC license**, `LICENSE` file also in the same directory).
 
-- Total: approximately 0.65 MB
-- macOS 13+'s `NSImage(contentsOf:)` interprets SVG natively (no external library needed)
-- Credit: See `DESIGN.md` §10
+- Total approx 0.65 MB
+- macOS 13+'s `NSImage(contentsOf:)` natively interprets SVG (no external library needed)
+- Credits: see `DESIGN.md` §10
 
 ---
 
-## 14. GUI Settings Screen
+## 14. GUI Settings window
 
 ### 14.1 Invocation
 
-Menu bar → "Edit Buttons..." or `Cmd+E`. Shares a single NSWindow via `SettingsWindowController.shared.show(presetManager:)`.
+Menu bar → "Button Edit..." or `Cmd+E`. Shares a single NSWindow via `SettingsWindowController.shared.show(presetManager:)`.
 
-### 14.2 Structure
+### 14.2 Composition
 
 2-column HSplitView:
 
-**Left Column** (`SettingsSidebar`):
-- Preset selection Picker + Add (+) / Delete (-)
+**Left column** (`SettingsSidebar`):
+- Preset selection Picker + add (+) / delete (-)
 - Group/button tree (folder icons + selection highlight)
-- Group add text field
-- Button add button (adds to selected group)
+- Group-add text field
+- Button-add button (adds to selected group)
 
-**Right Column** (`SettingsDetail`):
-- Detail editing form for selected button:
+**Right column** (`SettingsDetail`):
+- Detailed edit form for the selected button:
   - Label
   - iconText (emoji)
   - icon image / app (`NSOpenPanel` for browsing, clear)
-  - Background color (SwiftUI `ColorPicker` + bidirectional hex string binding)
-  - Width / Height (auto or numeric)
+  - Background color (SwiftUI `ColorPicker` + hex string two-way bind)
+  - Width / height (auto or number)
   - Action (segmented picker: text/key/launch/terminal)
-- Delete button / Save button (confirm with Enter)
+- Delete button / Save button (Enter to confirm)
 
-### 14.3 Consistency Guarantee
+### 14.3 Consistency guarantees
 
-GUI editing **internally calls PresetManager's CRUD methods**, so it follows the exact same code path as editing via HTTP API / fmcli.
+GUI edits go through **the same CRUD methods on PresetManager that HTTP API / fmcli edits use**, ensuring identical paths.
 
 ---
 
 ## 15. Testability
 
-### 15.1 4-Layer Test Structure
+### 15.1 4-layer test composition
 
-| Layer | Target | Count (2026-04-16) | Run Command |
+| Layer | Target | Count (2026-04-16) | Command |
 |---|---|---|---|
 | Unit | All logic in `FloatingMacroCore` | **226** | `swift test` |
-| fmcli smoke | CLI surface not requiring permissions | **31** | `bash scripts/fmcli_smoke.sh` |
-| Control API smoke | E2E with real GUI process + curl | **78** | `bash scripts/control_api_smoke.sh` |
-| Manual | Visual confirmation of GUI | — | `docs/manual_test.md` |
+| fmcli smoke | Permission-free CLI surface | **31** | `bash scripts/fmcli_smoke.sh` |
+| Control API smoke | Real GUI process + curl E2E | **78** | `bash scripts/control_api_smoke.sh` |
+| Manual | Visual verification of GUI | — | `docs/manual_test.md` |
 
-### 15.2 DI Pattern
+### 15.2 DI pattern
 
-All external dependencies (`EventSynthesizer` / `Clipboard` / `AppleScriptRunner` / `WorkspaceLauncher`) are implemented with `Protocol` + `static var`. Swapped in bulk with `TestMocks` during testing:
+All external dependencies (`EventSynthesizer` / `Clipboard` / `AppleScriptRunner` / `WorkspaceLauncher`) are implemented as `Protocol` + `static var`. Tests substitute mocks all at once via `TestMocks`:
 
 ```swift
 override func setUp() {
@@ -688,244 +690,244 @@ override func tearDown() {
 }
 ```
 
-### 15.3 Logger Replacement
+### 15.3 Logger substitution
 
-`LoggerContext.shared = InMemoryLogger()` captures logs in a buffer. Verify firing with `contains(category:messageContains:)`.
+`LoggerContext.shared = InMemoryLogger()` captures logs into a buffer. Confirm firing via `contains(category:messageContains:)`.
 
-### 15.4 HTTP API Testing
+### 15.4 HTTP API testing
 
-- **Unit**: Pure logic of `HTTPParser` / `ToolCatalog` / `MCPAdapter` / `OpenAPIGenerator` / `AgentCard`
-- **Integration**: Start `ControlServer` on a random port and access with URLSession
-- **E2E**: `scripts/control_api_smoke.sh` starts the real GUI binary and verifies all endpoints via curl
+- **Unit**: pure logic of `HTTPParser` / `ToolCatalog` / `MCPAdapter` / `OpenAPIGenerator` / `AgentCard`
+- **Integration**: launches `ControlServer` on a random port and hits it via real URLSession
+- **E2E**: `scripts/control_api_smoke.sh` launches the real GUI binary and verifies all endpoints via curl
 
 ---
 
-## 16. Runtime Environment and Environment Variables
+## 16. Runtime environment and environment variables
 
-| Variable | Purpose |
+| Variable | Use |
 |---|---|
 | `FLOATINGMACRO_CONFIG_DIR` | Override config/log directory |
 | `FLOATINGMACRO_LOG_LEVEL` | Minimum log level (equivalent to CLI `--log-level`) |
-| `DEVELOPER_DIR` | Reference Xcode.app when running `swift test` (XCTest is missing with CommandLineTools alone) |
+| `DEVELOPER_DIR` | Reference Xcode.app on `swift test` execution (XCTest missing with CommandLineTools only) |
 
 ---
 
-## 17. Milestones (Implementation Status as of 2026-04-16)
+## 17. Milestones (implementation status as of 2026-04-16)
 
 ### MVP (v0.1) — Implemented ✅
 
 - [x] `Package.swift` + 3 targets (Core / CLI / App)
-- [x] `Action` enum + JSON parser + nesting prohibition
+- [x] `Action` enum + JSON parser + nesting disallowed
 - [x] `KeyCombo` parser + CGEvent dispatch
 - [x] `TextActionExecutor` (clipboard save/restore + guaranteed restoration via defer)
-- [x] `LaunchActionExecutor` (shell/URL/bundle/path branching)
+- [x] `LaunchActionExecutor` (shell/URL/bundle/path branches)
 - [x] `TerminalActionExecutor` (Terminal / iTerm / generic)
-- [x] `MacroRunner` + logging
+- [x] `MacroRunner` + logs
 - [x] `ConfigLoader` / `ConfigWriter` + FLOATINGMACRO_CONFIG_DIR
 - [x] `AccessibilityChecker` + `AutomationChecker`
 - [x] `fmcli` (action / preset / permissions / config / log)
 - [x] SwiftUI + NSPanel floating window
-- [x] Vertical button rendering + drag movement
-- [x] Menu bar resident (`NSStatusItem`)
-- [x] Preset switching menu
-- [x] Opacity menu (4 levels)
-- [x] Button editing GUI (preset/group/button CRUD + icon/color picker)
-- [x] Automatic position/size save/restore
-- [x] Banner notification (3 seconds on error)
-- [x] Icon display (image file / automatic app inference)
-- [x] Structured logging (JSON one event per line + rotation)
-- [x] HTTP control API (REST + /tools + /tools/call)
-- [x] AI self-introduction `/manifest` + `/help`
+- [x] Vertical button rendering + drag move
+- [x] Persistent in menu bar (`NSStatusItem`)
+- [x] Preset switch menu
+- [x] Opacity menu (4 steps)
+- [x] Button edit GUI (preset/group/button CRUD + icon/color pickers)
+- [x] Auto save/restore of position and size
+- [x] Banner notifications (3 seconds on error)
+- [x] Icon display (image file / app auto-inference)
+- [x] Structured logging (JSON one-event-per-line + rotation)
+- [x] HTTP Control API (REST + /tools + /tools/call)
+- [x] AI self-intro `/manifest` + `/help`
 - [x] OpenAPI 3.1 auto-generation (`/openapi.json`)
 - [x] A2A Agent Card (`/.well-known/agent.json`)
 - [x] MCP JSON-RPC 2.0 HTTP transport (`POST /mcp`)
 
-### v0.2 (UI Enhancement)
+### v0.2 (UI hardening)
 - [ ] Drag reordering (SwiftUI `.onDrop`)
-- [ ] Horizontal layout toggle
+- [ ] Horizontal layout switch
 - [ ] Preset import / export
 - [ ] Window shape presets (small/medium/large)
-- [ ] GUI editor for macros (compound actions)
+- [ ] GUI editor for macros (composite actions)
 
-### v0.3 (Terminal Enhancement)
-- [ ] iTerm pane-splitting macros
-- [ ] Warp / Ghostty paste path optimization
+### v0.3 (Terminal enhancements)
+- [ ] iTerm pane-split macros
+- [ ] Optimized paste path for Warp / Ghostty
 - [ ] Terminal profile specification
 - [ ] tmux integration
 
-### v0.4 (AI Collaboration Enhancement) — Implemented ✅
-- [x] AI-integrated window-aware client extensions (Cursor / Gemini CLI / VS Code / Windsurf)
-- [x] MCP stdio transport (bundled `npm/floatingmacro-mcp` inside app bundle)
+### v0.4 (AI collaboration enhancements) — Implemented ✅
+- [x] Expanded AI integration window clients (Cursor / Gemini CLI / VS Code / Windsurf)
+- [x] MCP stdio transport (bundled in app as `npm/floatingmacro-mcp`)
 - [x] ACP manifest (`/agents`, `/runs`)
 
-### v0.5 (Accessibility Auto-Recovery + GUI E2E Test Foundation) — Implemented ✅
-- [x] BinaryIdentity for startup hash comparison + automatic `tccutil reset`
-- [x] Permission loss badge + one-click recovery (reset + System Settings open)
-- [x] AccessibilityChecker probe improvement (`AXIsProcessTrusted` + `.apiDisabled`-only counter-signal)
+### v0.5 (Accessibility auto-recovery + GUI E2E test foundation) — Implemented ✅
+- [x] Launch-time hash comparison via BinaryIdentity + auto `tccutil reset`
+- [x] Permission-lost badge + one-click recovery (reset + open System Settings)
+- [x] AccessibilityChecker probe improvements (`AXIsProcessTrusted` + `.apiDisabled`-limited counter-signal)
 - [x] fm-test-target harness + `text_inject_e2e.sh` (baseline + 2-axis verification)
 - [x] `button_press` tool (synthesized real click via AX + CGEvent)
-- [x] Bundled presets, import, and export (`SeedPresetInstaller` + ACP API)
-- [x] `PresetDirectoryWatcher` (external change detection)
+- [x] Preset bundling / import / export (`SeedPresetInstaller` + ACP API)
+- [x] `PresetDirectoryWatcher` (detect external changes)
 
-### v0.6 (UX Cleanup + Keychain Removal) — Implemented ✅
-- [x] Changed Control API token from Keychain → file-based (`~/Library/Application Support/FloatingMacro/control_api_token`, mode 0600)
-- [x] Streamlined accessibility repair flow (removed NSAlert → unified to OS `prompt:true` only, 0.8-second `openSystemPreferences` fallback, hardened via `/usr/bin/open`)
-- [x] Changed repair button to self-restart approach (relaunch with `--prompt-accessibility` argument for clean-state `prompt:true`)
-- [x] Eliminated TCC reset double-firing (removed pre-launch reset from `scripts/rebuild-and-relaunch.sh`, unified to single `BinaryIdentity` trigger)
-- [x] Right-click menu on mini icon (same as status bar)
-- [x] Right-click menu on group headers (delete, add new)
-- [x] Extended right-click hit-test to entire panel body
+### v0.6 (UX cleanup + Keychain removal) — Implemented ✅
+- [x] Changed Control API token from Keychain → file primary (`~/Library/Application Support/FloatingMacro/control_api_token`, mode 0600)
+- [x] Cleaned up Accessibility repair flow (removed NSAlert → unified into OS `prompt:true`, 0.8s `openSystemPreferences` fallback, hardened via `/usr/bin/open`)
+- [x] Changed Repair button to self-restart approach (re-launch with `--prompt-accessibility` argument; calls `prompt:true` from clean state)
+- [x] Resolved double-fire of TCC reset (removed launch-time reset in `scripts/rebuild-and-relaunch.sh`; unified into `BinaryIdentity` single-shot)
+- [x] Right-click menu on mini icon (parity with status bar)
+- [x] Right-click menu on group headers (delete / add new)
+- [x] Expanded panel body right-click hit-test to fill the entire area
 
-### v0.7 (Edit Window Integration and DnD Reordering) — Implemented ✅
-- [x] DnD reordering in edit window left pane (button movement within/across groups, group reordering)
-- [x] Renamed window from "Edit Buttons" → "Edit" (including tabs and menus)
-- [x] Unified group add UI with button add (one click for "New Group", pencil button on row for rename)
-- [x] Unified preset/group right-click menus to "Edit..." and "Delete...", changed preset "Edit..." to open edit window
-- [x] Added pencil icon to the left of gear icon on floating panel for edit window access
-- [x] Group/button right-click "Duplicate" (`PresetManager.duplicateGroup` added, buttons also duplicated with fresh ids)
-- [x] Relocated delete button next to save button (ButtonEditor / GroupEditor)
+### v0.7 (Edit window unification and DnD reorder) — Implemented ✅
+- [x] DnD reorder in edit window's left pane (buttons: same/different group move; groups: reorder)
+- [x] Renamed window from "Button Edit" to "Edit" (tabs / menus included)
+- [x] Unified group-add UI with button-add (one-click "New Group", rename via row's pencil button)
+- [x] Unified preset / group right-click menus into "Edit..." / "Delete...". Preset's "Edit..." now opens the edit window.
+- [x] Added a pencil icon to the left of the gear icon on the floating panel (link to edit window)
+- [x] Group / button right-click "Duplicate" (`PresetManager.duplicateGroup` added; buttons also duplicated with fresh ids)
+- [x] Repositioned delete button to the left of save button (ButtonEditor / GroupEditor)
 
-### v0.8 (Accessibility Permission Flow Fix and Preset Ordering) — Implemented ✅
-- [x] Structurally fixed accessibility permission dialog infinite loop (removed automatic `tccutil reset` on startup, `prompt: true` only called via `--prompt-accessibility`, removed custom `openSystemPreferences()` and explanatory NSAlert)
-- [x] User-configurable preset ordering (right-click "Reorder...", `presetOrder` persistence in `config.json`, Control API `preset_reorder`)
-- [x] Added knowledge document `macos_accessibility_permission.md` (Sequoia TCC daemon behavior and workarounds)
+### v0.8 (Accessibility permission flow fix and preset ordering) — Implemented ✅
+- [x] Structural fix for infinite-loop in Accessibility permission dialog (removed launch-time auto `tccutil reset`, `prompt: true` only via `--prompt-accessibility`, removed our own `openSystemPreferences()` and explanation NSAlert)
+- [x] User-configurable preset ordering (right-click "Reorder…", persisted in `config.json` `presetOrder`, Control API `preset_reorder`)
+- [x] Added knowledge doc `macos_accessibility_permission.md` (Sequoia's TCC daemon behavior and workarounds)
 
-### v0.10 (Visual Expansion Phase 1) — Implemented ✅
-- [x] Added `appendMode: Bool` to `Action.text` (append mode for prompt builder). Backward-compatible decoder leaves existing presets unchanged
-- [x] Added `appendMode` parameter to `TextActionExecutor.execute`. When true, appends content to end of current clipboard, does not paste or restore
-- [x] Added "Append Mode (Prompt Builder)" checkbox to button edit panel
-- [x] Control API: Added `appendMode` field to `text` action schema (default false)
-- [x] Drag & drop onto floating panel auto-generates buttons (`.app` → bundle id-based launch, other files → absolute path launch)
-- [x] Extracted dropped app/file icons via `NSWorkspace.icon(forFile:)`, saved as `presets/<name>/icons/<button-id>.png`
+### v0.10 (Visual expansion Phase 1) — Implemented ✅
+- [x] Added `appendMode: Bool` to `Action.text` (append mode for prompt builder). Backward-compatible decoder keeps existing presets working.
+- [x] Added `appendMode` parameter to `TextActionExecutor.execute`. When true, concatenates content to end of current clipboard; does not paste or restore.
+- [x] Added "Append Mode (Prompt Builder)" checkbox to the button editor panel
+- [x] Control API: added `appendMode` field to `text` action schema (default false)
+- [x] Auto-generated buttons via drag & drop onto the floating panel (`.app` → bundle-id-based launch; other files → absolute-path launch)
+- [x] Extracted icons of dropped apps/files via `NSWorkspace.icon(forFile:)` and saved as `presets/<name>/icons/<button-id>.png`
 - [x] Visual feedback during drag (accent-colored thick border)
-- [x] Confirmation dialog showing "Add N items to group" before batch registration
-- [x] Added roadmap `docs/plans/visual-expansion-roadmap.md` (phased expansion plan, Phases 1–5)
+- [x] Confirmation dialog "Add N items to group" before bulk registration
+- [x] Added roadmap `docs/plans/visual-expansion-roadmap.md` (Phase 1–5 staged expansion plan)
 
-### v0.10.5 (Phase 1.5: Icon Extraction Foundation Rebuild + App Picker) — Implemented ✅
-- [x] New `ImageIOIconExtractor` (`FloatingMacroCore/Icons/`). Directly reads `.icns` via `CGImageSource` and converts to PNG, with both sync + async APIs. Zero AppKit dependency
-- [x] New `AppEntry` / `AppEntryResolver` / `FileSystemAppListProvider` (`FloatingMacroCore/Apps/`). Enumerates `/Applications` / `/System/Applications` / `~/Applications`, directly reads Info.plist to extract `CFBundleIdentifier` / `CFBundleDisplayName` / `CFBundleName`, deduplicates by Bundle ID, sorts by displayName
-- [x] New `AppDropClassifier` / `IconAssetSaver`. Consolidates DnD classification and icon PNG saving into Core. Testable with temp directories via `applicationSupportDirectory:` injection
-- [x] Migrated `PanelDropHandler` to Core logic (removed `NSWorkspace.icon`). Remaining AppKit dependency is only the NSAlert confirmation dialog
-- [x] New **"Add from App..."** button in the settings screen's button edit tab, with dedicated sheet `AppLauncherPickerSheet.swift`. Search (app name / Bundle ID), async preview of selected icon, instant add via double-click / Enter
-- [x] Rejected qlmanage path after real-world testing. Tested 4 patterns in `scripts/spikes/qlmanage-pipe-spike/` (anti-pattern / null device / readabilityHandler / background readToEnd), reproduced 20-second hang against Calculator.app (Quick Look daemon issue, unimproved even after daemon restart). Pivoted to ImageIO approach
-- [x] **NSWorkspace path** added to UI layer (`FloatingMacroApp/Settings/NSWorkspaceIconFallback.swift`). For Catalyst / modern apps like UTM (Assets.car-only) and Books (empty .icns placeholder). Core remains Foundation + ImageIO only, AppKit dependency confined to UI layer. Uses community-standard `NSWorkspace.shared.icon(forFile:)` (orchetect Gist, etc.)
-- [x] **AppIconCache** (Core actor) — two-tier memory + disk cache. Saves to disk at `~/Library/Caches/FloatingMacro/AppIcons/<bundleId>.png`, aligns file mtime with app mtime for automatic invalidation. Thread-safe guarantees via `contains()` for lightweight hit checks and `get()/put()`
-- [x] **AppIconPrewarmer** (Core) — parallel prewarm of all app icons from `/Applications` at startup (default parallelism 4). Uses `Task.detached(priority: .utility)` to avoid blocking UI. Called from `applicationDidFinishLaunching`, so nearly all apps are cached by the time the picker is displayed
-- [x] **IconContentValidator** (Core) — inspects PNG bytes / CGImage at the pixel level to verify content. Early return on first pixel with `alpha > 8` or `RGB > 8`. Reliably rejects "succeeded but empty PNG" like Books.app's icns
-- [x] Converted AppLauncherPickerSheet, PanelDropHandler, and AppIconPrewarmer to `async` for cache lookup and content validation. Cascade: shared cache → ImageIO → NSWorkspace. Each stage passes through `IconContentValidator`, and thin PNGs (from empty .icns) are passed to the next stage for auto-repair loop
-- [x] Resolved Phase 1 P1-12 "DnD button creation E2E test infeasibility". Covered Core logic (8 files) with **46 unit tests** (`AppEntryResolverTests` 7, `FileSystemAppListProviderTests` 7, `AppDropClassifierTests` 6, `IconAssetSaverTests` 4, `ImageIOIconExtractorTests` 5, `AppIconCacheTests` 6, `AppIconPrewarmerTests` 3, `IconContentValidatorTests` 8)
-- [x] Codified design principle "**Foundation APIs > GUI APIs**" in roadmap Phase 1.5 section and memory (`feedback_prefer_foundation_over_gui_apis`). Used as decision framework for API selection in Phase 2+
+### v0.10.5 (Phase 1.5: Icon extraction foundation rebuild + app picker) — Implemented ✅
+- [x] Added `ImageIOIconExtractor` (`FloatingMacroCore/Icons/`). Direct read of `.icns` via `CGImageSource` to PNG, sync + async APIs. Zero AppKit dependency.
+- [x] Added `AppEntry` / `AppEntryResolver` / `FileSystemAppListProvider` (`FloatingMacroCore/Apps/`). Enumerates `/Applications` / `/System/Applications` / `~/Applications`, extracts `CFBundleIdentifier` / `CFBundleDisplayName` / `CFBundleName` via direct Info.plist read, dedups by Bundle ID, sorts by displayName
+- [x] Added `AppDropClassifier` / `IconAssetSaver`. DnD classification and icon PNG saving centralized in Core. With `applicationSupportDirectory:` injection, tests can write to a temporary directory.
+- [x] Moved `PanelDropHandler` onto Core logic (removed `NSWorkspace.icon`). Remaining AppKit dependency is just the NSAlert confirmation dialog.
+- [x] Added an "**Add from App…**" button to the button editor tab in Settings; implemented a dedicated sheet `AppLauncherPickerSheet.swift`. Search (app name / Bundle ID), async preview of the selected icon, double-click / Enter for instant add.
+- [x] Rejected qlmanage-based path via real verification. `scripts/spikes/qlmanage-pipe-spike/` tested 4 patterns (anti-pattern / null device / readabilityHandler / background readToEnd) and reproduced a 20-second hang against Calculator.app (Quick Look daemon problem, not resolved by daemon restart). Changed direction to ImageIO.
+- [x] Added an **NSWorkspace path** to the UI layer (`FloatingMacroApp/Settings/NSWorkspaceIconFallback.swift`). For Catalyst / modern apps like UTM (Assets.car-only) or Books (empty .icns placeholder). Core stays Foundation + ImageIO only; AppKit dependency is contained in the UI layer. Uses the community-standard `NSWorkspace.shared.icon(forFile:)` (orchetect's Gist, etc.).
+- [x] **AppIconCache** (Core actor) — memory + disk two-stage cache. Disk save at `~/Library/Caches/FloatingMacro/AppIcons/<bundleId>.png`; file mtime aligned to app mtime for auto invalidation. Lightweight hit check via `contains()`, thread-safe `get()/put()`.
+- [x] **AppIconPrewarmer** (Core) — parallel prewarm of all `/Applications` apps at launch (default parallelism 4). Uses `Task.detached(priority: .utility)` to not block UI. Called from `applicationDidFinishLaunching`, so by the time the picker is shown, nearly all apps are cached.
+- [x] **IconContentValidator** (Core) — decodes PNG bytes / CGImage and inspects "has content" at the pixel level. Early-returns true upon finding any pixel with `alpha > 8` or `RGB > 8`. Reliably rejects icons that are "successful but empty PNGs" (like Books.app's icns).
+- [x] Made AppLauncherPickerSheet, PanelDropHandler, AppIconPrewarmer `async`-aware for cache reference and content inspection. Cascade: shared cache → ImageIO → NSWorkspace. Runs `IconContentValidator` at each stage; thin PNGs (from empty .icns) are dropped to the next stage, forming the auto-repair loop.
+- [x] Resolved Phase 1's P1-12 "DnD button-creation E2E untestable". Core logic (8 files) covered by **46 unit tests** (`AppEntryResolverTests` 7, `FileSystemAppListProviderTests` 7, `AppDropClassifierTests` 6, `IconAssetSaverTests` 4, `ImageIOIconExtractorTests` 5, `AppIconCacheTests` 6, `AppIconPrewarmerTests` 3, `IconContentValidatorTests` 8).
+- [x] Made the design principle **"Foundation-class API > GUI-class API"** explicit in the roadmap Phase 1.5 chapter and memory (`feedback_prefer_foundation_over_gui_apis`). Used as the API selection criterion for Phase 2 and beyond.
 
-### v0.10.6 (Phase 1.5 Finalization: App Picker UI Refresh + Internal Stabilization) — Implemented ✅
-- [x] Restructured app picker sheet (`AppLauncherPickerSheet`) from "list + right preview pane" to **Launchpad-style grid** with `LazyVGrid` 96px cells. Single click to select, double-click (or "Add" button) for instant add, selected app details shown in bottom footer
-- [x] Enlarged sheet size from 640×500 → 880×620, 8–9 column display. `LazyVGrid` doesn't trigger icon extraction for off-screen cells, maintaining the startup prewarm cache-first design
-- [x] Added `AppIconCache.mtimeStillValid(cached:app:)` with **1.0-second tolerance** for mtime comparison in `get()` / `contains()`. Resolved flakiness in `testDiskCachePromotesToMemoryAcrossInstances` caused by APFS sub-second truncation and clock jitter
-- [x] Updated `ConfigIOTests.testWriteDefaultConfigCreatesConfigAndDefaultPreset` default preset first button expectation from `btn-ultrathink` → `btn-ai-copy-prompt`
+### v0.10.6 (Phase 1.5 finishing: App picker UI overhaul + internal stabilization) — Implemented ✅
+- [x] Reworked app picker sheet (`AppLauncherPickerSheet`) from "list + right-side preview" to **Launchpad-style grid** in `LazyVGrid` 96px cells. Single-click selects, double-click (or "Add" button) adds immediately; selected app details shown in the footer.
+- [x] Sheet size grew from 640×500 to 880×620, 8–9 columns. Since it uses `LazyVGrid`, off-screen cells don't trigger icon extraction (kept the design assuming prewarm cache at launch).
+- [x] Added `AppIconCache.mtimeStillValid(cached:app:)` and applied **1.0-second tolerance** to `get()` / `contains()` mtime comparison. Resolved flakiness in `testDiskCachePromotesToMemoryAcrossInstances` caused by APFS sub-second truncation and clock jitter.
+- [x] Updated `ConfigIOTests.testWriteDefaultConfigCreatesConfigAndDefaultPreset` to expect the new default preset's first button: `btn-ultrathink` → `btn-ai-copy-prompt`.
 
-### v0.13.0 (Phase 5: Multi-Device) — Implemented ✅
-- [x] **LAN Exposure Mode**: `ControlAPIConfig.lanExposureEnabled` toggle. When enabled, expands bind scope to `0.0.0.0`, authenticated with ephemeral LAN token (expires on restart)
-- [x] **Web Panel** (`/webpanel`): SSR + HTML/CSS/JS panel UI for mobile browsers. Auto-detects card / icon-card layout, critical CSS inline + skeleton for immediate first paint
-- [x] **QR / Bonjour / mDNS**: Menu bar "📱 Send to Device..." + floating top-right QR button. Zero-config detection via `_floatingmacro._tcp.` advertisement
-- [x] **WebP Delivery**: Thumbnail encoding via libwebp (SwiftPM, BSD-3). Transfer size approximately 1/100 of original PNG
-- [x] **Parallel Processing**: Independent queue per connection + main bypass fast path. App Nap suppression
-- [x] **`WebPanelToolWhitelist`**: Limits tools callable from Web Panel to safe ones like `button_press` (destructive tools return 403)
-- [x] **`preset_get` tool added**: Read-only retrieval of non-active presets
-- [x] **Management Endpoints**: `GET /lan-token`, `POST /lan-token/rotate`
-- [x] **Tests**: 421 tests passing (+62 added in Phase 5)
-- [x] **Version bump**: Info.plist `0.13.0` / build `24`, `SystemPrompt.version`, `CHANGELOG.md` v0.13.0 section added
+### v0.13.0 (Phase 5: Multi-device) — Implemented ✅
+- [x] **LAN exposure mode**: `ControlAPIConfig.lanExposureEnabled` toggle. When enabled, widens bind scope to `0.0.0.0`; auth via ephemeral LAN token (expires on restart).
+- [x] **Web Panel** (`/webpanel`): mobile-browser-oriented SSR + HTML/CSS/JS panel UI. Auto-detects card / icon-card; instant first paint via critical CSS inline + skeleton.
+- [x] **QR / Bonjour / mDNS**: menu bar "📱 Send to Device..." + QR button in floating panel's top-right. Advertises `_floatingmacro._tcp.` for zero-config discovery.
+- [x] **WebP delivery**: libwebp (via SwiftPM, BSD-3) encodes thumbnails. Transfer size is approx 1/100 of original PNG.
+- [x] **Parallelism**: per-connection independent queues + main bypass fast path. App Nap suppression.
+- [x] **`WebPanelToolWhitelist`**: tools callable from Web Panel are restricted to safe ones like `button_press` (destructive tools return 403).
+- [x] **Added `preset_get` tool**: read-only retrieval of non-active presets.
+- [x] **Management endpoints**: `GET /lan-token`, `POST /lan-token/rotate`.
+- [x] **Tests**: 421 tests pass (+62 added in Phase 5).
+- [x] **Version bump**: Info.plist `0.13.0` / build `24`, `SystemPrompt.version`, `CHANGELOG.md` v0.13.0 chapter.
 
-### v0.16.3 (Localization Foundation: Tool Description & Manifest Externalization) — Implemented ✅
-- [x] **Tool description JSON externalization**: Separated descriptions for 50 tools + approximately 70 parameters into `tool_descriptions.json`. `ToolCatalog.swift` uses JSON loading → fallback two-tier structure
-- [x] **Bilingual manifest & ACP**: EN/JP dual descriptions in `SystemPrompt.swift` endpoints table, helpTool description, and `ACPManifest.swift` agent description, tool_invocation_format
-- [x] **UI dialog L() conversion**: Converted 12 hardcoded confirmation dialog locations in `ButtonView.swift` to `L()` / `L_()` calls
-- [x] **Version bump**: Info.plist `0.16.3` / build `33`, `SystemPrompt.version`, `CHANGELOG.md` v0.16.3 section added
+### v0.16.3 (Localization foundation: Externalize tool descriptions and manifests) — Implemented ✅
+- [x] **JSON externalization of tool descriptions**: separated 50 tools + ~70 parameter descriptions into `tool_descriptions.json`. `ToolCatalog.swift` is now 2-stage: JSON load → fallback.
+- [x] **Bilingual manifests / ACP**: made endpoints table / helpTool description in `SystemPrompt.swift`, agent description / tool_invocation_format in `ACPManifest.swift` EN/JP-bilingual.
+- [x] **L()-ification of UI dialogs**: converted 12 hardcoded confirmation dialog strings in `ButtonView.swift` to `L()` / `L_()` calls.
+- [x] **Version bump**: Info.plist `0.16.3` / build `33`, `SystemPrompt.version`, `CHANGELOG.md` v0.16.3 chapter.
 
-### v0.16.2 (Internal Refactoring: Large File Splitting) — Implemented ✅
-- [x] **Split `ControlHandlers.swift` (2,235 lines) into 7 files**: Main body (613 lines) + 6 extensions for WebPanel / Panel / Settings / Preset / ButtonGroup / ACP. Due to Swift constraints, stored properties remain in main body, only methods moved to extensions
-- [x] **Split `App.swift` (1,736 lines) into 5 files**: Main body (623 lines) + `ContentHostView` standalone file + 3 AppDelegate extensions for ContextMenu / Dock / LANBonjour. `@objc` methods kept in main body for selector binding safety
-- [x] **Split `SettingsDetail.swift` (1,676 lines) into 5 files**: Main body (121 lines) + ButtonEditor / GroupEditor / MacroStep / KeyRecorders separated
-- [x] **Split `PresetManager.swift` (1,194 lines) into 6 files**: Main body (266 lines) + 5 extensions for PresetIO / ExternalRequest / PanelOps / Editing / ImportExecute. `@Published` and other stored properties consolidated in main body
-- [x] **Split `SettingsView.swift` (1,181 lines) into 5 files**: Main body (129 lines) + SecuritySettingsView / SettingsSidebar / PresetReorderSheet / RowDropDelegate separated
-- [x] **Maximum line count reduced from 2,235 → 778**. No changes to public API / protocols / behavior. Verified with `swift build`, smoke tested with `/ping` `/state` `/preset/list`
-- [x] **Version bump**: Info.plist `0.16.2` / build `32`, `SystemPrompt.version`, `CHANGELOG.md` v0.16.2 section added
+### v0.16.2 (Internal refactoring: oversized file split) — Implemented ✅
+- [x] **Split `ControlHandlers.swift` (2,235 lines) into 7 files**: main (613 lines) + 6 extensions: WebPanel / Panel / Settings / Preset / ButtonGroup / ACP. Due to Swift constraint, stored properties stay in the main body; only methods are in extensions.
+- [x] **Split `App.swift` (1,736 lines) into 5 files**: main (623 lines) + `ContentHostView` extraction + 3 AppDelegate extensions: ContextMenu / Dock / LANBonjour. `@objc` methods stay in main for selector binding safety.
+- [x] **Split `SettingsDetail.swift` (1,676 lines) into 5 files**: main (121 lines) + ButtonEditor / GroupEditor / MacroStep / KeyRecorders.
+- [x] **Split `PresetManager.swift` (1,194 lines) into 6 files**: main (266 lines) + 5 extensions: PresetIO / ExternalRequest / PanelOps / Editing / ImportExecute. `@Published` etc. stored properties consolidated into main.
+- [x] **Split `SettingsView.swift` (1,181 lines) into 5 files**: main (129 lines) + SecuritySettingsView / SettingsSidebar / PresetReorderSheet / RowDropDelegate.
+- [x] **Max line count reduced from 2,235 to 778**. No changes to public API / protocols / behavior. `swift build` passes; smoke-tested with `/ping` `/state` `/preset/list`.
+- [x] **Version bump**: Info.plist `0.16.2` / build `32`, `SystemPrompt.version`, `CHANGELOG.md` v0.16.2 chapter.
 
-### v0.16.1 (Card Layout Top Alignment Fix) — Implemented ✅
-- [x] **Card top alignment**: Fixed label text area to fixed height so card tops align per row within WaterfallGrid
-- [x] **Version bump**: Info.plist `0.16.1` / build `31`, `SystemPrompt.version`, `CHANGELOG.md` v0.16.1 section added
+### v0.16.1 (Card layout top-edge alignment fix) — Implemented ✅
+- [x] **Card top-edge alignment**: fixed label text area to a fixed height so cards align at the top within each row in WaterfallGrid.
+- [x] **Version bump**: Info.plist `0.16.1` / build `31`, `SystemPrompt.version`, `CHANGELOG.md` v0.16.1 chapter.
 
-### v0.16.0 (Grid Display + i18n + Preset Storage Separation) — Implemented ✅
-- [x] **Grid display type added**: `GroupDisplayType.grid` (Finder/Launchpad-style icon layout)
-- [x] **Column count specification**: `ButtonGroup.columns` for selecting `auto` / `fixed(1/2/3)` (CSS Grid minmax equivalent)
-- [x] **Icon size selection**: `IconSize` enum (small 16pt / medium 32pt / large 48pt / xlarge 64pt)
-- [x] **Label display toggle**: `ButtonGroup.showLabels` controls label visibility for icon/grid
-- [x] **i18n foundation**: `L10n.swift` helper, `Localizable.strings` (en/ja) 335 entries each, `scripts/localize.py` for automatic hardcoded string extraction and replacement
-- [x] **Preset storage separation**: Physically separated into seed (`~/Library/Application Support/FloatingMacro/presets/`) and user (`~/Documents/FloatingMacro/presets/`). Copy-on-write when editing
-- [x] **Environment variable added**: `FLOATINGMACRO_USER_DIR` for overriding user directory
-- [x] **Basic manual**: `docs/manual-basic.md` (with screenshots)
-- [x] **Card/grid scroll area calculation fix**: Replaced `LazyVGrid` with `paololeonardi/WaterfallGrid` (MIT). Height aggregation to NSScrollView now works correctly, enabling proper vertical scrolling even with many image thumbnail cards
-- [x] **Panel header long preset name handling**: Released horizontal pinning on Menu label, showing end truncation (…)
-- [x] **Version bump**: Info.plist `0.16.0` / build `30`, `SystemPrompt.version`, `CHANGELOG.md` v0.16.0 section added
+### v0.16.0 (Grid display + i18n + preset storage separation) — Implemented ✅
+- [x] **Grid display type added**: `GroupDisplayType.grid` (Finder/Launchpad-style icon grid).
+- [x] **Column count specification**: `ButtonGroup.columns` lets you choose `auto` / `fixed(1/2/3)` (equivalent to CSS Grid minmax).
+- [x] **Icon size selection**: `IconSize` enum (small 16pt / medium 32pt / large 48pt / xlarge 64pt).
+- [x] **Label visibility toggle**: `ButtonGroup.showLabels` controls label visibility for icon/grid.
+- [x] **i18n foundation**: `L10n.swift` helper, `Localizable.strings` (en/ja) 335 entries each, `scripts/localize.py` for auto-extraction / substitution of hardcoded strings.
+- [x] **Preset storage separation**: physically separated seed (`~/Library/Application Support/FloatingMacro/presets/`) and user (`~/Documents/FloatingMacro/presets/`). Copy-on-write on edit.
+- [x] **Added environment variable**: `FLOATINGMACRO_USER_DIR` can override user directory.
+- [x] **Basic manual**: `docs/manual-basic.md` (with screenshots).
+- [x] **Fixed scroll region calculation in card/grid**: replaced `LazyVGrid` with `paololeonardi/WaterfallGrid` (MIT). Height aggregation to NSScrollView is now correct, so vertical scrolling works even when many thumbnail-bearing cards are placed.
+- [x] **Panel header support for long preset names**: released horizontal anchoring on Menu label; long names truncate with ellipsis.
+- [x] **Version bump**: Info.plist `0.16.0` / build `30`, `SystemPrompt.version`, `CHANGELOG.md` v0.16.0 chapter.
 
-### v0.15.1 (Bug Fix: Dock Bar Direction Detection) — Implemented ✅
-- [x] **DockBarPosition edge retention**: Saves direction during drag movement, prioritizes saved edge when re-docking
-- [x] **EdgeDetector clamp fix**: Fixed bug where distance became negative when panel center was outside visibleFrame, causing unintended edge selection
+### v0.15.1 (Bug fix: dock bar orientation) — Implemented ✅
+- [x] **Edge field in DockBarPosition**: stores orientation during drag-to-move; prefers saved edge on re-dock.
+- [x] **EdgeDetector clamp fix**: fixed a bug where the distance went negative when the panel center was outside visibleFrame, selecting an unintended edge.
 
-### v0.15.0 (Phase 3.5 Enhancement + Panel Background Color) — Implemented ✅
-- [x] **Panel background color customization**: Per-preset panel background color (stored as `#RRGGBB` hex in `WindowConfig.backgroundColor`). Right-click menu "Background Color ▸", color picker added to settings screen panel tab. Control API: `panel_background_color` tool added
-- [x] **Dock transition animation**: Added border-framed rectangle overlay slide + fade animation for panel → dock bar transition (`DockTransitionAnimator`)
-- [x] **Dock bar drag movement**: Dock bars freely movable by dragging. Position persisted in `PanelConfig.dockBarPosition`. Custom position retained on expand → re-dock. Drag clamp prevents off-screen overflow
-- [x] **Changed panel restore to double-click**: Prevents unintended expansion from accidental taps
-- [x] **× button vs. yellow button differentiation**: × button collapses to round icon, yellow button for Edge Dock
-- [x] **Recovery operations**: Added "Reset Position" and "Gather Dock Bars" to right-click menu "Panel ▸". Control API: `panel_reset_dock_position` / `panel_gather_dock_bars` tools added
-- [x] **Tests**: All 445 tests passing
+### v0.15.0 (Phase 3.5 enhancements + panel background color) — Implemented ✅
+- [x] **Customizable panel background color**: per preset (`WindowConfig.backgroundColor` stores `#RRGGBB` hex). Right-click menu "Background Color ▸", added a color picker to the Settings panel tab. Control API: `panel_background_color` tool.
+- [x] **Dock transition animation**: added a slide + fade animation with bordered rectangular overlay for the panel-to-dock-bar transition (`DockTransitionAnimator`).
+- [x] **Dock bar drag-to-move**: dock bars can now be moved freely. Position is persisted in `PanelConfig.dockBarPosition`. Custom position is kept across expand → re-dock. Clamps during drag to keep all edges inside the visible screen.
+- [x] **Panel restore changed to double-click**: prevents accidental expansion from misclicks.
+- [x] **Differentiated × and yellow buttons**: × collapses to circular icon, yellow uses Edge Dock.
+- [x] **Rescue operations**: added "Reset Position" and "Gather Dock Bars" to right-click menu "Panel ▸". Control API: `panel_reset_dock_position` / `panel_gather_dock_bars`.
+- [x] **Tests**: all 445 pass.
 
-### v0.14.0 (Phase 3.5: Edge Dock Minimization) — Implemented ✅
-- [x] **`DockEdge` enum** (left/right/top/bottom) added to `Preset.swift`
-- [x] **`PanelConfig.minimizedToEdge: Bool`** → **`PanelConfig.dockedEdge: DockEdge?`** type change. Legacy JSON with `minimizedToEdge: true` auto-migrated to `.right` by decoder. Only `dockedEdge` written on encode; legacy key not retained
-- [x] **`AppConfig+Panels`** added `dockingPanel(id:edge:)` / `undockingPanel(id:)`. Removed legacy `settingPanelMinimizedToEdge`
-- [x] **`EdgeDetector`** (Core layer): Pure function determining nearest edge from panel center coordinates
-- [x] **`EdgeDockLayout`** (Core layer): Pure function calculating center-aligned positions for bars on the same edge
-- [x] **`EdgeDockBar`** (App layer): Thin bar attached to screen edge. Purple gradient background, icon + label, left-click to expand, right-click for menu
-- [x] **PanelManager extension**: `collapseToDock` / `expandFromDock` / `relayoutDockBars`, `dockBar` added to Entry
-- [x] **× button** behavior changed from MiniIconPanel to edge docking
-- [x] **Menu bar** "Dock to Edge ▸" submenu added, docked panels get "Expand" and "Move to Another Edge ▸"
-- [x] **Control API**: `panel_dock` / `panel_undock` handlers added, `panel_list` response `minimizedToEdge` → `dockedEdge`
-- [x] **Startup restoration**: Docked panels restored as `EdgeDockBar`
-- [x] **Tests**: EdgeDetectorTests (6), EdgeDockLayoutTests (7), legacy compat migration tests (3), dock operation tests (3), ToolCatalog (3). All 445 tests passing
+### v0.14.0 (Phase 3.5: Dock-to-edge minimization) — Implemented ✅
+- [x] **`DockEdge` enum** (left/right/top/bottom) added to `Preset.swift`.
+- [x] **`PanelConfig.minimizedToEdge: Bool`** → **`PanelConfig.dockedEdge: DockEdge?`** (type change). Legacy JSON `minimizedToEdge: true` is auto-migrated to `.right` by the decoder. On encode, only `dockedEdge` is written; the legacy key is not kept.
+- [x] **`AppConfig+Panels`**: added `dockingPanel(id:edge:)` / `undockingPanel(id:)`. Removed legacy `settingPanelMinimizedToEdge`.
+- [x] **`EdgeDetector`** (Core layer): pure function that determines the nearest edge from panel center coordinates.
+- [x] **`EdgeDockLayout`** (Core layer): pure function that calculates positions of bars sharing an edge, centered.
+- [x] **`EdgeDockBar`** (App layer): a thin bar that sticks to the screen edge. Purple gradient background, icon + label, left-click expands and right-click opens a menu.
+- [x] **PanelManager extension**: added `collapseToDock` / `expandFromDock` / `relayoutDockBars`, added `dockBar` to Entry.
+- [x] **× button** behavior changed from MiniIconPanel to edge dock.
+- [x] **Menu bar**: added "Dock to Edge ▸" submenu; for docked panels, "Expand" and "Move to Another Edge ▸".
+- [x] **Control API**: added `panel_dock` / `panel_undock` handlers; changed `minimizedToEdge` → `dockedEdge` in `panel_list` response.
+- [x] **Launch restore**: docked panels are restored as `EdgeDockBar`.
+- [x] **Tests**: EdgeDetectorTests (6), EdgeDockLayoutTests (7), legacy migration tests (3), dock operation tests (3), ToolCatalog (3). All 445 pass.
 
-### v0.12.0 (Phase 3: Multi-Panel) — Implemented ✅
-- [x] **`PanelConfig`** struct and **`AppConfig.panels: [PanelConfig]`** field added (`Sources/FloatingMacroCore/Config/Preset.swift`). 1 panel = id (UUID) + presetName + WindowConfig + visible + minimizedToEdge
-- [x] **v1 → v2 auto-migration**: JSON with legacy `activePreset` + single `window` triggers decoder to generate `panels[0]` and write back. Legacy fields are also written in sync with `panels[0]`, allowing both formats to coexist during Phase 3 transition
-- [x] **`AppConfig+Panels.swift`** extension provides pure functions (addingPanel / removingPanel / updatingPanelFrame / updatingPanelOpacity / settingPanelPreset / settingPanelVisible / withSyncedLegacyFields). Unit-testable without AppKit dependency
-- [x] **`PanelManager`** class (`Sources/FloatingMacroApp/PanelManager.swift`): Manages id → (FloatingPanel, MiniIconPanel) map. openInitial / openNew / close / collapseToMini / expandFromMini / toggle / setOpacity / currentFrames, internalizes `floatingPanelWantsCollapse` notification subscription
-- [x] **AppDelegate reconcile sink**: Monitors `presetManager.$appConfig.panels` via Combine sink, automatically reflecting additions/deletions as NSWindow creation/destruction. Unified regardless of whether panel operations come from menu bar, settings screen, or Control API
-- [x] **Per-panel preset rendering**: Refactored `ContentHostView` to accept `panelID`. Each panel can display a different preset via `presetManager.panelPreset(forPanelID:)`
-- [x] **`PresetManager.loadedPresets`** multi-preset cache (`@Published`) with `preset(named:)` / `panelPreset(forPanelID:)` / `switchPanelPreset(panelID:to:)` / `setEditTarget(panelID:)`
-- [x] **Menu bar "Panels" submenu**: Add new panel / visibility toggle / close and delete
-- [x] **Settings screen "Panels" tab** (`PanelsSettingsView.swift`): Panel list + preset switching + delete
-- [x] **Control API panel_* tools** 5 types added to ToolCatalog: `panel_list` / `panel_create` / `panel_close` / `panel_show` / `panel_hide`. `window_*` relabeled "DEPRECATED: prefer panel_*" and semantically redirected to primary panel
-- [x] **Tests**: 6 Phase 3 cases in `ConfigLoaderTests` (PanelConfig round-trip, minimal JSON, auto-generated id, v1 migration, empty array migration, multiple panels, explicit panels priority). 14 cases in `AppConfigPanelOpsTests` (add/remove/update/legacy sync). panel_* registration, window_* deprecation, and panel_create schema verification added to `ControlAPICatalogTests`. All 349 tests passing
-- [x] **Version bump**: Info.plist `0.12.0` / build `21`, `SystemPrompt.version`, `CHANGELOG.md` v0.12.0 section added
+### v0.12.0 (Phase 3: Multi-panel) — Implemented ✅
+- [x] Added **`PanelConfig`** struct and **`AppConfig.panels: [PanelConfig]`** field (`Sources/FloatingMacroCore/Config/Preset.swift`). 1 panel = id (UUID) + presetName + WindowConfig + visible + minimizedToEdge.
+- [x] **v1 → v2 auto migration**: JSON with legacy `activePreset` + single `window` is decoded into `panels[0]` and written back. Legacy fields are also written in sync with `panels[0]` during Phase 3 transition.
+- [x] **`AppConfig+Panels.swift`** extension provides pure functions (addingPanel / removingPanel / updatingPanelFrame / updatingPanelOpacity / settingPanelPreset / settingPanelVisible / withSyncedLegacyFields). AppKit-independent and unit-testable.
+- [x] **`PanelManager`** class (`Sources/FloatingMacroApp/PanelManager.swift`): manages an id → (FloatingPanel, MiniIconPanel) map. openInitial / openNew / close / collapseToMini / expandFromMini / toggle / setOpacity / currentFrames; encapsulates `floatingPanelWantsCollapse` notification subscription.
+- [x] **AppDelegate reconcile sink**: watches `presetManager.$appConfig.panels` via Combine sink; auto-reflects add/remove into NSWindow creation/destruction. Unifies panel operation across menu bar, Settings, and Control API.
+- [x] **Per-panel preset rendering**: refactored `ContentHostView` to accept `panelID`. With `presetManager.panelPreset(forPanelID:)`, each panel can display a different preset.
+- [x] **`PresetManager.loadedPresets`** multi-preset cache (`@Published`) and `preset(named:)` / `panelPreset(forPanelID:)` / `switchPanelPreset(panelID:to:)` / `setEditTarget(panelID:)`.
+- [x] **Menu bar "Panels" submenu**: add a new panel / visibility toggle / close-and-delete.
+- [x] **Settings "Panels" tab** (`PanelsSettingsView.swift`): panel list + preset switch + delete.
+- [x] **Control API panel_* tools** 5 added to ToolCatalog: `panel_list` / `panel_create` / `panel_close` / `panel_show` / `panel_hide`. `window_*` marked "DEPRECATED: prefer panel_*"; re-targeted to the primary panel.
+- [x] **Tests**: added 6 Phase 3 cases to `ConfigLoaderTests` (PanelConfig roundtrip, minimal JSON, auto id generation, v1 migration, empty array migration, multiple panels, explicit panels priority). Added 14 cases to `AppConfigPanelOpsTests` (add/remove/update/legacy sync). Added panel_* registration / window_* deprecation / panel_create schema validation to `ControlAPICatalogTests`. All 349 tests pass.
+- [x] **Version bump**: Info.plist `0.12.0` / build `21`, `SystemPrompt.version`, `CHANGELOG.md` v0.12.0 chapter.
 
-### v0.11.0 (Phase 2: Expressiveness Expansion) — Implemented ✅
-- [x] **`GroupDisplayType`** enum (`icon` / `wide` / `card`) and `ButtonGroup.displayType` field added. Backward-compatible decoder automatically treats legacy presets as `.icon`. `.icon` is omitted during encoding (zero diff)
-- [x] **`ButtonDefinition.thumbnail`** field added. Path for large images used in card type. Falls back to icon → iconText when null
-- [x] **Wide / Card renderers** implemented as `buttonContent` branches in `MacroButtonView`. `.wide` is full-width large cell, `.card` arranges "thumbnail + title" vertically in `LazyVGrid(adaptive: 96)` gallery
-- [x] **State reflection indicator** (P2-9/P2-10): `ExecutionFeedback` state machine animates press → yellow border (executing, 250ms) → green border (success, 800ms) → idle. Failure (red) to be wired after `executeButton` return value cleanup
-- [x] **`IconAssetSaver`** gains `imagesDirectory(presetName:)` and `saveThumbnail(_, buttonId:, ext:)`. Provides `presets/<name>/images/<button-id>.<ext>` storage convention
-- [x] **Settings UI**: `GroupEditor` gets `displayType` segmented picker, `ButtonEditor` gets thumbnail input + file browser + preview frame
-- [x] **Control API**: `group_add` / `group_update` gain `displayType` (`icon`|`wide`|`card`), `button_add` / `button_update` gain `thumbnail` (string | null)
-- [x] **Existing bug fix**: Fixed path where `applyPatch` was not passing `confirm` / `confirmMessage` / `confirmDestructive` to `updateButton`. Phase 2's `thumbnail` also passes through the same path
-- [x] **Tests**: Added `testButtonGroupDisplayTypeRoundTrip` / `testButtonGroupDefaultDisplayTypeOmittedFromEncoding` / `testButtonGroupLegacyJSONWithoutDisplayType` / `testButtonDefinitionThumbnailRoundTrip` to `ConfigLoaderTests`. Added `testSaveThumbnailWritesToImagesDirectory` / `testImagesDirectoryPath` to `IconAssetSaverTests`. All 317 tests passing
-- [x] **Version bump**: Info.plist `0.11.0` / build `19`, `SystemPrompt.version`, `CHANGELOG.md` v0.11.0 section added
+### v0.11.0 (Phase 2: Expressive expansion) — Implemented ✅
+- [x] Added **`GroupDisplayType`** enum (`icon` / `wide` / `card`) and `ButtonGroup.displayType` field. Backward-compatible decoder treats legacy presets as `.icon`. `.icon` is omitted on encode (zero diff).
+- [x] Added **`ButtonDefinition.thumbnail`** field. Path to large image used in card type. null falls back to icon → iconText.
+- [x] Implemented **wide / card renderers** as `buttonContent` branches in `MacroButtonView`. `.wide` is a full-width large cell; `.card` arranges "thumbnail + title" vertically in a `LazyVGrid(adaptive: 96)` gallery.
+- [x] **State feedback indicator** (P2-9/P2-10): `ExecutionFeedback` state machine for press → yellow border (in-progress, 250ms) → green border (success 800ms) → idle animation. Failure (red) display will be wired up after sorting out the return value of `executeButton`.
+- [x] Added `imagesDirectory(presetName:)` and `saveThumbnail(_, buttonId:, ext:)` to **`IconAssetSaver`**. Provides the save convention `presets/<name>/images/<button-id>.<ext>`.
+- [x] **Settings UI**: added a segmented picker for `displayType` to `GroupEditor`; added thumbnail input + file picker + preview frame to `ButtonEditor`.
+- [x] **Control API**: added `displayType` (`icon`|`wide`|`card`) to `group_add` / `group_update`; added `thumbnail` (string | null) to `button_add` / `button_update`.
+- [x] **Fixed existing bug**: fixed a path where `applyPatch` was not passing `confirm` / `confirmMessage` / `confirmDestructive` to `updateButton`. Phase 2's `thumbnail` passes through the same route.
+- [x] **Tests**: added `testButtonGroupDisplayTypeRoundTrip` / `testButtonGroupDefaultDisplayTypeOmittedFromEncoding` / `testButtonGroupLegacyJSONWithoutDisplayType` / `testButtonDefinitionThumbnailRoundTrip` to `ConfigLoaderTests`. Added `testSaveThumbnailWritesToImagesDirectory` / `testImagesDirectoryPath` to `IconAssetSaverTests`. All 317 tests pass.
+- [x] **Version bump**: Info.plist `0.11.0` / build `19`, `SystemPrompt.version`, `CHANGELOG.md` v0.11.0 chapter.
 
-### Future (Unassigned)
+### Future (unassigned)
 - [ ] A2A Task API + SSE streaming (for long-running macros)
-- [ ] `fmcli remote` subcommand (thin wrapper around control API)
-- [ ] Log OpenTelemetry OTLP export
-- [ ] Horizontal layout toggle
-- [ ] iTerm pane-splitting macros
-- [ ] Warp / Ghostty paste path optimization
+- [ ] `fmcli remote` subcommand (thin wrapper for Control API)
+- [ ] OpenTelemetry OTLP export of logs
+- [ ] Horizontal layout switch
+- [ ] iTerm pane-split macros
+- [ ] Optimized paste path for Warp / Ghostty
 - [ ] tmux integration
 
 ### v1.0
@@ -935,46 +937,46 @@ override func tearDown() {
 
 ---
 
-## 18. Known Design Decisions
+## 18. Known design decisions
 
-### Why Swift Instead of Tauri
-- Cross-platform capability unnecessary since this is Mac-only
-- `NSPanel` non-activation behavior is one line in Swift; Tauri would need objc bridging
-- `NSAppleScript` / `NSWorkspace` / `CGEvent` / `AXIsProcessTrusted` / `NWListener` are all immediately accessible natively
+### Why Swift instead of Tauri
+- Cross-platform support is unnecessary since we're targeting Mac only
+- `NSPanel`'s non-activating behavior is one line in Swift; Tauri would need an objc bridge
+- `NSAppleScript` / `NSWorkspace` / `CGEvent` / `AXIsProcessTrusted` / `NWListener` all accessible natively and instantly
 
-### Why No swift-nio / Vapor
-- Don't want to increase startup time of a resident tool
-- Adding dependencies complicates maintenance
-- `NWListener` is sufficient for implementing an HTTP/1.1 localhost server
+### Why no swift-nio / Vapor
+- Don't want to increase startup time of a persistent tool
+- More dependencies complicate maintenance
+- `NWListener` is sufficient for HTTP/1.1 localhost server implementation
 
-### Keyboard Input via Keycode Dispatch, Text via Clipboard Paste
-- No garbling with Japanese / symbols
-- No dependency on IME state
-- No key repeat accidents
+### Keyboard input via keycode dispatch, text via clipboard paste
+- Japanese / symbols don't get garbled
+- Doesn't depend on IME state
+- No key-repeat accidents
 
-### Logs as JSON, One Event Per Line
+### Logs as JSON one event per line
 - AI can pipe-process with `tail -f | jq`
-- Line-based format makes rotation simple
-- Easy migration to OTLP
+- Line-based makes rotation simple
+- OTLP migration is also easy
 
-### HTTP Control API Supports Multiple Protocol Specifications
-- ACP (OpenAPI): REST-native, immediately usable with Postman / curl
-- A2A (Agent Card): Discoverable from Google / ADK ecosystem
-- MCP (JSON-RPC 2.0): Registerable as MCP server from Claude Desktop / Claude Code
-- All auto-generated from the same `ToolCatalog`, so implementation is one set / distribution is multiple formats
+### HTTP Control API supports multiple protocol specs
+- ACP (OpenAPI): REST-native, usable immediately with Postman / curl
+- A2A (Agent Card): discoverable from Google / ADK ecosystem
+- MCP (JSON-RPC 2.0): registerable as MCP server from Claude Desktop / Claude Code
+- All auto-generated from the same `ToolCatalog`, so it's 1 implementation / multiple distribution formats
 
 ---
 
-## 19. Clean-Room Design Policy
+## 19. Clean-room design policy
 
-This project aims to create the Mac equivalent of FloatingButton (Windows, Trifolium Studio), while strictly adhering to the following:
+This project aims to make a Mac equivalent of Windows-side FloatingButton (Trifolium Studio), but the following are strictly observed:
 
-- **Do not view** the original software's code / binaries
-- **Do not disassemble** or reverse-engineer the original software
-- Reference sources are **limited to official website screenshots and feature descriptions only**
-- Name / UI color scheme / icon design are **intentionally different**
+- **Do not look at** the original software's code / binary
+- **Do not** disassemble / reverse-engineer the original
+- References are limited to **the official website's screenshots and feature descriptions**
+- Naming / UI colors / icon designs are **intentionally different**
 
-Changing the name to `FloatingMacro` is also part of the differentiation from the original software.
+Renaming to `FloatingMacro` is part of differentiating from the original.
 
 ---
 
@@ -982,14 +984,14 @@ Changing the name to `FloatingMacro` is also part of the differentiation from th
 
 | Term | Definition |
 |---|---|
-| Preset | A set of buttons. Switched per scene |
-| Group | A unit for organizing buttons within a preset |
-| Action | A single operation executed by a button |
+| Preset | A set of buttons. Switch between them per scene |
+| Group | A unit for bundling buttons within a preset |
+| Action | One operation that a button executes |
 | Macro | Sequential execution of multiple actions |
-| Combo | Combination string of modifier key(s) + main key |
-| Control API | Operation interface via localhost HTTP server |
-| Tool Catalog | Feature definition list expressible in MCP/OpenAI/Anthropic 3 dialects |
-| Agent Card | A2A specification self-introduction JSON (`/.well-known/agent.json`) |
+| Combo | A string combining modifier keys + base key |
+| Control API | Operation interface via the localhost HTTP server |
+| Tool catalog | Function definition list expressible in 3 dialects: MCP/OpenAI/Anthropic |
+| Agent Card | A2A spec self-intro JSON (`/.well-known/agent.json`) |
 | MCP | Model Context Protocol (proposed by Anthropic) |
 | A2A | Agent-to-Agent protocol (proposed by Google) |
 | ACP | Agent Communication Protocol (IBM / BeeAI, REST-based) |
@@ -1006,12 +1008,12 @@ Changing the name to `FloatingMacro` is also part of the differentiation from th
 - [NSPasteboard](https://developer.apple.com/documentation/appkit/nspasteboard)
 - [NWListener](https://developer.apple.com/documentation/network/nwlistener)
 
-### Protocol Specs
+### Protocol specs
 - MCP (Anthropic): https://modelcontextprotocol.io/specification
 - A2A (Google): https://a2aproject.github.io/A2A/specification/
 - OpenAPI 3.1: https://spec.openapis.org/oas/v3.1.0
 - JSON-RPC 2.0: https://www.jsonrpc.org/specification
 
-### Related Tools (inspiration, not implementation reference)
+### Related tools (inspiration, not implementation reference)
 - Keyboard Maestro / BetterTouchTool / Hammerspoon
-- FloatingButton (Windows, Trifolium Studio) — external feature specification only as reference
+- FloatingButton (Windows, Trifolium Studio) — external feature specs only

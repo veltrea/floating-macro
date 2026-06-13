@@ -285,4 +285,12 @@ final class PresetManager: ObservableObject {
     /// Per-panel debouncers for scroll-position persistence.
     var scrollYSaveDebouncers: [String: DispatchWorkItem] = [:]
 
+    /// Set of IDs for the running button (for displaying running status in UI).
+    /// Update must be performed on the main thread.
+    @Published var runningButtonIds: Set<String> = []
+
+    /// Button ID → Running task. Cancel with another click of the same button.
+    /// To prevent toggling off and to prevent concurrent execution due to rapid successive calls, hold.
+    var runningButtonTasks: [String: Task<Void, Never>] = [:]
+
 }

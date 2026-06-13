@@ -7,10 +7,15 @@ import XCTest
 final class ConfigIOTests: XCTestCase {
 
     private var tempBase: URL!
+    /// Stands in for ~/Documents/FloatingMacro (the user-presets area). Must
+    /// be injected into every loader/writer — one built without it falls back
+    /// to the real user directory and the test stops being isolated.
+    private var userBase: URL!
 
     override func setUpWithError() throws {
         tempBase = FileManager.default.temporaryDirectory
             .appendingPathComponent("fmcfg-\(UUID().uuidString)")
+        userBase = tempBase.appendingPathComponent("user-docs")
         try FileManager.default.createDirectory(at: tempBase, withIntermediateDirectories: true)
     }
 
@@ -19,10 +24,11 @@ final class ConfigIOTests: XCTestCase {
             try FileManager.default.removeItem(at: base)
         }
         tempBase = nil
+        userBase = nil
     }
 
-    private func makeLoader() -> ConfigLoader { ConfigLoader(baseURL: tempBase) }
-    private func makeWriter() -> ConfigWriter { ConfigWriter(baseURL: tempBase) }
+    private func makeLoader() -> ConfigLoader { ConfigLoader(baseURL: tempBase, userBaseURL: userBase) }
+    private func makeWriter() -> ConfigWriter { ConfigWriter(baseURL: tempBase, userBaseURL: userBase) }
 
     // MARK: - Directory scaffolding
 

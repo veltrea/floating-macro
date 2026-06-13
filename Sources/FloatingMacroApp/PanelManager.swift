@@ -202,16 +202,16 @@ final class PanelManager {
         entries[id]?.dockBar?.orderOut(nil)
 
         let dockBar = EdgeDockBar(edge: edge, label: label, iconName: iconName)
-        dockBar.onExpand = { [weak self] in self?.onExpandRequested(id) }
-        dockBar.onShowMenu = { [weak self] event in self?.onMiniMenuRequested(id, event) }
-        dockBar.onDragEnd = { [weak self] origin in
-            self?.onDockBarDragged?(id, origin, edge)
-        }
+        wireDockBar(dockBar, id: id)
         entries[id]?.dockBar = dockBar
 
         if let customPosition {
             dockBar.hasCustomPosition = true
-            dockBar.setFrameOrigin(customPosition)
+            // Previous versions that save the "floating position from the edge" also keep...
+            // Always adsorb edges during restoration (also clamps size change).
+            dockBar.setFrameOrigin(Self.snappedBarOrigin(
+                customPosition, size: dockBar.frame.size,
+                edge: edge, screen: NSScreen.main?.visibleFrame))
         }
         relayoutDockBars()
 
@@ -255,6 +255,68 @@ final class PanelManager {
 
     /// Returns the dock bar for the specified ID.
     func dockBar(id: String) -> EdgeDockBar? { entries[id]?.dockBar }
+
+    /// Event wiring for the dock bar. Common to both creation and recreation.
+    private func wireDockBar(_ bar: EdgeDockBar, id: String) {
+        bar.onExpand = { [weak self] in self?.onExpandRequested(id) }
+        bar.onShowMenu = { [weak self] event in self?.onMiniMenuRequested(id, event) }
+        bar.onDragEnd = { [weak self] _ in self?.handleDockBarDragEnd(id: id) }
+    }
+
+    /// Drag completion processing for the dock bar. From the drop position, find the nearest screen edge.
+    /// Re-evaluate and if the edges are different, draw a bar in the new orientation (vertical/horizontal).
+    /// After refactoring, attach the judged edge. If not done this way,
+    /// The vertically folded horizontal bar remains fixed in its position while moving to the left or right end.
+    /// Old edges remain even in saving.
+    private func handleDockBarDragEnd(id: String) {
+        guard let bar = entries[id]?.dockBar else { return }
+        let center = CGPoint(x: bar.frame.midX, y: bar.frame.midY)
+        let screen = bar.screen?.visibleFrame ?? NSScreen.main?.visibleFrame
+        var edge = bar.edge
+        if let screen {
+            edge = EdgeDetector.nearestEdge(panelCenter: center, screenFrame: screen)
+        }
+
+        let resultOrigin: NSPoint
+        if edge != bar.edge {
+            let newBar = EdgeDockBar(edge: edge, label: bar.label, iconName: bar.iconName)
+            newBar.hasCustomPosition = true
+            wireDockBar(newBar, id: id)
+            // Adhere to the center, reposition at a new size, then adhere to the edge.
+            let size = newBar.frame.size
+            let origin = NSPoint(x: center.x - size.width / 2,
+                                 y: center.y - size.height / 2)
+            newBar.setFrameOrigin(Self.snappedBarOrigin(origin, size: size, edge: edge, screen: screen))
+            bar.orderOut(nil)
+            entries[id]?.dockBar = newBar
+            newBar.orderFront(nil)
+            resultOrigin = newBar.frame.origin
+        } else {
+            // If the edges are the same, but dropped from the edge, stick it to the floating position
+            bar.setFrameOrigin(Self.snappedBarOrigin(bar.frame.origin, size: bar.frame.size,
+                                                     edge: edge, screen: screen))
+            resultOrigin = bar.frame.origin
+        }
+        onDockBarDragged?(id, resultOrigin, edge)
+    }
+
+    /// Returns the origin attached to the specified edge. The edges and vertical axes are stretched to the ends.
+    /// Same coordinates as EdgeDockLayout, the axis along the edge remains at the drop position.
+    /// Clamp within the screen.
+    static func snappedBarOrigin(_ origin: NSPoint, size: NSSize,
+                                 edge: DockEdge, screen: NSRect?) -> NSPoint {
+        guard let screen = screen ?? NSScreen.main?.visibleFrame else { return origin }
+        var p = origin
+        switch edge {
+        case .left:   p.x = screen.minX
+        case .right:  p.x = screen.maxX - size.width
+        case .top:    p.y = screen.maxY - size.height
+        case .bottom: p.y = screen.minY
+        }
+        p.x = max(screen.minX, min(p.x, screen.maxX - size.width))
+        p.y = max(screen.minY, min(p.y, screen.maxY - size.height))
+        return p
+    }
 
     /// Recalculate the positions of all EdgeDockBars. Skip bars with custom positions.
     func relayoutDockBars() {

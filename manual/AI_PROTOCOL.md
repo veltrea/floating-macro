@@ -1,8 +1,7 @@
 # FloatingMacro — AI Agent Protocol Manual
 
 **Audience**: AI agents (Claude / Gemini / GPT etc.) and the developers who
-host them. Human-facing design docs live in `SPEC.md`. Manual QA items live
-in `docs/manual_test.md`.
+host them. Human-facing design docs live in `SPEC.md`.
 
 > 日本語版: [AI_PROTOCOL.ja.md](AI_PROTOCOL.ja.md)
 

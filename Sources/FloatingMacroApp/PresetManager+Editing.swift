@@ -209,8 +209,9 @@ extension PresetManager {
     /// (mostly used by ACP `preset_create` so AI agents can write the memo
     /// at the same time they create the preset).
     func createPreset(name: String, displayName: String, memo: String? = nil) -> Bool {
-        let url = loader.presetsURL.appendingPathComponent("\(name).json")
-        if FileManager.default.fileExists(atPath: url.path) {
+        // Either side, treat as "existing". Only for seed.
+        // When viewed, the preset is silently overwritten by a similarly named file on the user side.
+        if loader.presetSource(name: name) != nil {
             showTransientError(L_("preset_create_failed_exists", name))
             return false
         }

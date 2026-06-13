@@ -357,7 +357,7 @@ public final class ConfigWriter {
 
     public func writeDefaultConfigIfNeeded() throws {
         let fm = FileManager.default
-        let loader = ConfigLoader(baseURL: baseURL)
+        let loader = ConfigLoader(baseURL: baseURL, userBaseURL: userBaseURL)
         try loader.ensureDirectories()
 
         let configURL = baseURL.appendingPathComponent("config.json")

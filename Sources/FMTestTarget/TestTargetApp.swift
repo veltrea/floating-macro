@@ -49,11 +49,13 @@ final class TestTargetDelegate: NSObject, NSApplicationDelegate {
 
     override init() {
         // Allow override via FM_TEST_TARGET_PORT for parallel runs.
+        // Default 17435: The default port for the LAN server has been changed from 17431 starting with v0.16.6.
+        // Moved to avoid collision because it became.
         if let v = ProcessInfo.processInfo.environment["FM_TEST_TARGET_PORT"],
            let n = UInt16(v) {
             self.port = n
         } else {
-            self.port = 17431
+            self.port = 17435
         }
         super.init()
     }

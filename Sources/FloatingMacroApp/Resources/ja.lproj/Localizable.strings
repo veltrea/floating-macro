@@ -354,3 +354,30 @@
 /* About window (v0.16+) */
 "FloatingMacro_について_about_title" = "FloatingMacro について";
 "FloatingMacro_について_about_menu" = "FloatingMacro について…";
+
+/* Macro editor: step validation & delay editing (v0.16.7+) */
+"macro_issue_empty_key" = "キーが入力されていません";
+"macro_issue_empty_launch" = "起動対象が入力されていません";
+"macro_issue_empty_terminal" = "コマンドが入力されていません";
+"macro_issue_invalid_delay" = "待機時間は 1〜3600000 の整数（ミリ秒）で入力してください";
+"macro_issue_unknown_type" = "不明なステップ種別です";
+"ステップ種別_テキスト_4c21aa" = "テキスト";
+"ステップ種別_キー_8eb301" = "キー";
+"ステップ種別_起動_5f0e22" = "起動";
+"ステップ種別_ターミナル_c30d11" = "ターミナル";
+"ステップ種別_待機_a47f90" = "待機";
+"macro_delay_field_label" = "待機時間（次のアクションまで待つ）";
+"macro_delay_display_name" = "待機（delay）";
+"validation_key_combo_missing" = "キーが設定されていないため保存できません";
+"validation_delay_invalid" = "待機時間が不正なため保存できません（1〜3600000 ms）";
+"validation_macro_invalid_steps" = "不完全なステップが %d 件あるため保存できません。⚠ の行を修正するか削除してください";
+
+/* Macro editor: test run & step utilities (v0.16.7+) */
+"test_run_start" = "3秒後にテスト実行";
+"test_run_cancel" = "テスト中止";
+"test_run_countdown" = "%d 秒後に実行します。対象アプリに切り替えてください";
+"test_run_running" = "実行中…";
+"test_run_help" = "保存せずに今の編集内容を実行して動作を確かめます";
+"test_run_failed" = "テスト実行に失敗しました: %@";
+"ステップを複製_71c8d2" = "ステップを複製";
+"delay_quick_pick_help" = "よく使う待機時間から選ぶ";

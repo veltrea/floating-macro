@@ -354,3 +354,30 @@
 /* About window (v0.16+) */
 "FloatingMacro_について_about_title" = "About FloatingMacro";
 "FloatingMacro_について_about_menu" = "About FloatingMacro…";
+
+/* Macro editor: step validation & delay editing (v0.16.7+) */
+"macro_issue_empty_key" = "No key combo entered";
+"macro_issue_empty_launch" = "No launch target entered";
+"macro_issue_empty_terminal" = "No command entered";
+"macro_issue_invalid_delay" = "Delay must be an integer between 1 and 3600000 (ms)";
+"macro_issue_unknown_type" = "Unknown step type";
+"ステップ種別_テキスト_4c21aa" = "Text";
+"ステップ種別_キー_8eb301" = "Key";
+"ステップ種別_起動_5f0e22" = "Launch";
+"ステップ種別_ターミナル_c30d11" = "Terminal";
+"ステップ種別_待機_a47f90" = "Delay";
+"macro_delay_field_label" = "Delay (wait before the next action)";
+"macro_delay_display_name" = "Delay";
+"validation_key_combo_missing" = "Cannot save: no key is set";
+"validation_delay_invalid" = "Cannot save: delay must be 1–3600000 ms";
+"validation_macro_invalid_steps" = "Cannot save: %d incomplete step(s). Fix or remove the rows marked with ⚠";
+
+/* Macro editor: test run & step utilities (v0.16.7+) */
+"test_run_start" = "Test run in 3 s";
+"test_run_cancel" = "Cancel test";
+"test_run_countdown" = "Runs in %d s — switch to the target app";
+"test_run_running" = "Running…";
+"test_run_help" = "Runs the current draft without saving";
+"test_run_failed" = "Test run failed: %@";
+"ステップを複製_71c8d2" = "Duplicate step";
+"delay_quick_pick_help" = "Pick a common delay";

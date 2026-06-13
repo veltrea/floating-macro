@@ -31,6 +31,9 @@ public enum MacroRunner {
         var failureCount = 0
 
         for (idx, action) in actions.enumerated() {
+            // Responding to user stop requests (Task.cancel) at each step boundary.
+            // During execution, Task.sleep itself is canceled and interrupted by delay.
+            try Task.checkCancellation()
             do {
                 log.debug(category, "Executing action", [
                     "index": String(idx),
@@ -92,12 +95,20 @@ public enum MacroRunner {
                     )
 
                 case .delay(let ms):
-                    try await Task.sleep(nanoseconds: UInt64(ms) * 1_000_000)
+                    try await DelayActionExecutor.execute(ms: ms)
 
                 case .macro:
                     throw ActionError.nestedMacroNotAllowed
                 }
                 successCount += 1
+            } catch is CancellationError {
+                // The user's stop request is not because of a "step failure".
+                // Always interrupt the entire macro regardless of the stopOnError setting.
+                log.info(category, "Macro cancelled", [
+                    "completed": String(successCount),
+                    "remaining": String(actions.count - idx - 1),
+                ])
+                throw CancellationError()
             } catch {
                 failureCount += 1
                 log.warn(category, "Action failed", [

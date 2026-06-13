@@ -177,7 +177,7 @@ final class ConfigLoaderTests: XCTestCase {
                     ButtonDefinition(
                         id: "b1",
                         label: "Card B",
-                        thumbnail: "/tmp/sample.png",
+                        icon: "/tmp/sample.png",
                         action: .text(content: "hi", pasteDelayMs: 100,
                                        restoreClipboard: true, appendMode: false)
                     )
@@ -186,7 +186,7 @@ final class ConfigLoaderTests: XCTestCase {
             let data = try JSONEncoder().encode(group)
             let decoded = try JSONDecoder().decode(ButtonGroup.self, from: data)
             XCTAssertEqual(decoded.displayType, type)
-            XCTAssertEqual(decoded.buttons.first?.thumbnail, "/tmp/sample.png")
+            XCTAssertEqual(decoded.buttons.first?.icon, "/tmp/sample.png")
         }
     }
 
@@ -240,28 +240,41 @@ final class ConfigLoaderTests: XCTestCase {
         XCTAssertEqual(btn.cardThumbnailMode, .fill)
     }
 
-    /// The `ButtonDefinition.thumbnail` is preserved during the JSON round trip.
-    /// Old preset (without thumbnail field) is loaded as nil.
-    func testButtonDefinitionThumbnailRoundTrip() throws {
-        let original = ButtonDefinition(
-            id: "b1",
-            label: "L",
-            thumbnail: "~/Pictures/x.jpg",
-            action: .key(combo: "cmd+a")
-        )
-        let data = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(ButtonDefinition.self, from: data)
-        XCTAssertEqual(decoded.thumbnail, "~/Pictures/x.jpg")
+    /// The old preset's `thumbnail` field is migrated to `icon` when loaded.
+    /// If `icon` already exists, it takes precedence; otherwise, nil.
+    func testLegacyThumbnailMigratesToIcon() throws {
+        let withThumbnail = """
+        {
+            "id": "b1",
+            "label": "L",
+            "thumbnail": "~/Pictures/x.jpg",
+            "action": {"type": "key", "combo": "cmd+a"}
+        }
+        """.data(using: .utf8)!
+        let migrated = try JSONDecoder().decode(ButtonDefinition.self, from: withThumbnail)
+        XCTAssertEqual(migrated.icon, "~/Pictures/x.jpg")
+
+        let withBoth = """
+        {
+            "id": "b2",
+            "label": "L",
+            "icon": "/tmp/icon.png",
+            "thumbnail": "~/Pictures/x.jpg",
+            "action": {"type": "key", "combo": "cmd+a"}
+        }
+        """.data(using: .utf8)!
+        let iconWins = try JSONDecoder().decode(ButtonDefinition.self, from: withBoth)
+        XCTAssertEqual(iconWins.icon, "/tmp/icon.png")
 
         let legacy = """
         {
-            "id": "b2",
+            "id": "b3",
             "label": "Legacy",
             "action": {"type": "key", "combo": "cmd+v"}
         }
         """.data(using: .utf8)!
         let legacyDecoded = try JSONDecoder().decode(ButtonDefinition.self, from: legacy)
-        XCTAssertNil(legacyDecoded.thumbnail)
+        XCTAssertNil(legacyDecoded.icon)
     }
 
     func testAppConfigRoundTrip() throws {

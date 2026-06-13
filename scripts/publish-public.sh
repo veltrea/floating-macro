@@ -51,6 +51,7 @@ INCLUDE_DIRS=(
     "App"              # Info.plist (build-app.sh reads it as a template)
     "npm"              # Bundled MCP stdio package — AI 連携 CLI 登録に必要
     "manual"           # User-facing manuals (basic + AI examples + images)
+    "assets"           # Icon assets (build-app.sh が hero PNG を参照)
     ".github"          # GitHub Actions workflows
 )
 
@@ -61,21 +62,18 @@ INCLUDE_FILES=(
     "README.md"
     "README.ja.md"
     "SPEC.md"
+    "SPEC.ja.md"
     "DESIGN.md"
     "CHANGELOG.md"
+    "CHANGELOG.ja.md"
     # "CLAUDE.md"  — AI internal instructions, not published
     ".gitignore"
-    # build-app.sh references only one file for generating AppIcon.icns.
-    # When the entire directory in assets/ is published, Stitch's intermediate files (zip / candidates) are generated.
-    # Include files individually because the icon (20+) file is included.
-    "assets/icons/stitch-hero-v1-squircle-vector-1024.png"
 )
 
 # Intentionally NOT published:
 #   .build/ .swiftpm/ Package.resolved   -> build artifacts
 #   .claude/                              -> Claude Code local settings
 #   .git/                                 -> source repo history (private)
-# Stitch intermediate files (excluding hero PNG)
 # blog/ -> blog draft
 # docs/ -> Internal documents (HANDOVER, INCIDENT, plans)
 # TODO.md -> Work Memo
@@ -196,29 +194,6 @@ if [ "${SKIP_TRANSLATE:-0}" != "1" ]; then
     bash "$HERE/translate-comments.sh" "$TMP" || warn "Comment translation had errors (continuing)"
 else
     warn "SKIP_TRANSLATE=1 → skipping comment translation"
-fi
-
-# ------------------------------------------------------------------------- #
-# 3.7. Translate Markdown docs (Japanese → English + keep .ja.md copy)
-# ------------------------------------------------------------------------- #
-
-TRANSLATE_MD_FILES=("SPEC.md")
-
-if [ "${SKIP_TRANSLATE:-0}" != "1" ] && command -v claude >/dev/null 2>&1; then
-    for mdfile in "${TRANSLATE_MD_FILES[@]}"; do
-        if [ -f "$TMP/$mdfile" ] && grep -q '[ぁ-んァ-ヶ一-龥]' "$TMP/$mdfile"; then
-            base="${mdfile%.md}"
-            say "Translating $mdfile → English (keeping ${base}.ja.md)"
-            cp "$TMP/$mdfile" "$TMP/${base}.ja.md"
-            TRANSLATED=$(claude -p "Translate this Markdown document from Japanese to English. Keep all Markdown formatting, code blocks, file paths, version numbers, and technical terms intact. Output ONLY the translated document, nothing else." < "$TMP/$mdfile" 2>/dev/null) || true
-            if [ -n "$TRANSLATED" ]; then
-                printf '%s\n' "$TRANSLATED" > "$TMP/$mdfile"
-                ok "$mdfile translated to English"
-            else
-                warn "$mdfile translation failed, keeping original"
-            fi
-        fi
-    done
 fi
 
 # ------------------------------------------------------------------------- #

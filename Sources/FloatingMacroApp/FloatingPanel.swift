@@ -25,8 +25,14 @@ final class FloatingPanel: NSPanel {
         isOpaque = false
         backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.95)
 
-        // drag move
-        isMovableByWindowBackground = true
+        // Custom implementation for drag movement (mouseDragged + setFrameOrigin).
+        // macOS 15 (Sequoia) window tiling is triggered by OS-level drag movement
+        // Launches when touching the screen edge, and the floating panel takes over.
+        // Half-display and maximized will occur. Set isMovable to false to prevent the OS from moving it.
+        // Completely removing from the target of tiling by EdgeDockBar (same method).
+        // Moving by setFrameOrigin does not affect isMovable.
+        isMovableByWindowBackground = false
+        isMovable = false
 
         // Position/size are owned by config.json — the app loads them on
         // launch and writes them back on terminate via
@@ -37,6 +43,44 @@ final class FloatingPanel: NSPanel {
 
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
+
+    // MARK: - Custom drag movement
+
+    /// Difference between mouse position at drag start and window origin.
+    private var dragAnchor: NSPoint?
+
+    override func mouseDown(with event: NSEvent) {
+        // Only the click outside of SwiftUI buttons that was not consumed.
+        // Here reaches. The same grab area as the conventional isMovableByWindowBackground.
+        let loc = NSEvent.mouseLocation
+        dragAnchor = NSPoint(x: loc.x - frame.origin.x,
+                             y: loc.y - frame.origin.y)
+        super.mouseDown(with: event)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let anchor = dragAnchor else {
+            super.mouseDragged(with: event)
+            return
+        }
+        let loc = NSEvent.mouseLocation
+        let raw = NSPoint(x: loc.x - anchor.x, y: loc.y - anchor.y)
+        setFrameOrigin(Self.clampedOrigin(raw, size: frame.size))
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        dragAnchor = nil
+        super.mouseUp(with: event)
+    }
+
+    /// Clamp to prevent the panel from fully exiting the screen and becoming unoperable.
+    private static func clampedOrigin(_ origin: NSPoint, size: NSSize) -> NSPoint {
+        guard let screen = NSScreen.main?.visibleFrame else { return origin }
+        return NSPoint(
+            x: max(screen.minX, min(origin.x, screen.maxX - size.width)),
+            y: max(screen.minY, min(origin.y, screen.maxY - size.height))
+        )
+    }
 
     /// Convert `#RRGGBB` hex to NSColor. Return nil or default if string is invalid or nil.
     ///

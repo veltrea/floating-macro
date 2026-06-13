@@ -26,6 +26,9 @@ struct MacroButtonView: View {
     var iconSize: IconSize = .medium
     /// Whether to display labels in grid layout.
     var showLabel: Bool = true
+    /// Whether the action (macro, etc.) of this button is currently running.
+    /// Continue to display a yellow frame while true, and the click becomes "request stop."
+    var isRunning: Bool = false
     var onEdit: (() -> Void)? = nil
     var onCut: (() -> Void)? = nil
     var onDuplicate: (() -> Void)? = nil
@@ -76,13 +79,20 @@ struct MacroButtonView: View {
     }
 
     /// Frame border color for state feedback. When idle, do not draw the frame border with `.clear`.
+    /// During execution (isRunning), maintain yellow color priority over press feedback.
     private var feedbackBorderColor: Color {
+        if isRunning { return .yellow }
         switch feedback {
         case .idle:    return .clear
         case .running: return .yellow
         case .success: return .green
         case .failure: return .red
         }
+    }
+
+    /// Frame thickness. It is 2pt during execution or feedback display.
+    private var feedbackBorderWidth: CGFloat {
+        (isRunning || feedback != .idle) ? 2 : 0
     }
 
     var body: some View {
@@ -206,7 +216,12 @@ struct MacroButtonView: View {
     }
 
     /// If onTap is called directly, if ButtonDefinition.confirm is true, insert a confirmation dialog in between.
+    /// No confirmation or feedback animation is inserted during an ongoing click, as it is considered a "stop request".
     private func handleTap() {
+        if isRunning {
+            onTap()
+            return
+        }
         if button.confirm {
             confirmingExecute = true
         } else {
@@ -287,7 +302,7 @@ struct MacroButtonView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(feedbackBorderColor, lineWidth: feedback == .idle ? 0 : 2)
+                .strokeBorder(feedbackBorderColor, lineWidth: feedbackBorderWidth)
         )
     }
 
@@ -317,7 +332,7 @@ struct MacroButtonView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 6)
-                .strokeBorder(feedbackBorderColor, lineWidth: feedback == .idle ? 0 : 2)
+                .strokeBorder(feedbackBorderColor, lineWidth: feedbackBorderWidth)
         )
     }
 
@@ -354,7 +369,7 @@ struct MacroButtonView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .strokeBorder(feedbackBorderColor, lineWidth: feedback == .idle ? 0 : 2)
+                .strokeBorder(feedbackBorderColor, lineWidth: feedbackBorderWidth)
         )
     }
 
@@ -382,7 +397,7 @@ struct MacroButtonView: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
                         .strokeBorder(feedbackBorderColor,
-                                      lineWidth: feedback == .idle ? 0 : 2)
+                                      lineWidth: feedbackBorderWidth)
                 )
             Text(button.label)
                 .font(.system(size: 11, weight: .medium))
@@ -458,6 +473,7 @@ struct MacroButtonView: View {
 struct GroupView: View {
     let group: ButtonGroup
     let onButtonTap: (ButtonDefinition) -> Void
+    var runningButtonIds: Set<String> = []
     var onGroupEdit: (() -> Void)? = nil
     var onGroupCut: (() -> Void)? = nil
     var onGroupDuplicate: (() -> Void)? = nil
@@ -475,6 +491,7 @@ struct GroupView: View {
 
     init(group: ButtonGroup,
          onButtonTap: @escaping (ButtonDefinition) -> Void,
+         runningButtonIds: Set<String> = [],
          onGroupEdit: (() -> Void)? = nil,
          onGroupCut: (() -> Void)? = nil,
          onGroupDuplicate: (() -> Void)? = nil,
@@ -488,6 +505,7 @@ struct GroupView: View {
          onPasteButtonToGroup: ((String?) -> Void)? = nil) {
         self.group = group
         self.onButtonTap = onButtonTap
+        self.runningButtonIds = runningButtonIds
         self.onGroupEdit = onGroupEdit
         self.onGroupCut = onGroupCut
         self.onGroupDuplicate = onGroupDuplicate
@@ -675,6 +693,7 @@ struct GroupView: View {
             displayType: group.displayType,
             iconSize: group.iconSize,
             showLabel: group.showLabels,
+            isRunning: runningButtonIds.contains(btn.id),
             onEdit:       onButtonEdit.map      { cb in { cb(btn) } },
             onCut:        onButtonCut.map       { cb in { cb(btn) } },
             onDuplicate:  onButtonDuplicate.map { cb in { cb(btn) } },
@@ -688,6 +707,7 @@ struct GroupView: View {
 struct PresetView: View {
     let preset: Preset
     let onButtonTap: (ButtonDefinition) -> Void
+    var runningButtonIds: Set<String> = []
     var onGroupEdit: ((ButtonGroup) -> Void)? = nil
     var onGroupCut: ((ButtonGroup) -> Void)? = nil
     var onGroupDuplicate: ((ButtonGroup) -> Void)? = nil
@@ -706,6 +726,7 @@ struct PresetView: View {
                 GroupView(
                     group: group,
                     onButtonTap: onButtonTap,
+                    runningButtonIds: runningButtonIds,
                     onGroupEdit: onGroupEdit.map { cb in { cb(group) } },
                     onGroupCut: onGroupCut.map { cb in { cb(group) } },
                     onGroupDuplicate: onGroupDuplicate.map { cb in { cb(group) } },

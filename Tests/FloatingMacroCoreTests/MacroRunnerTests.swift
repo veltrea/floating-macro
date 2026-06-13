@@ -138,4 +138,123 @@ final class MacroRunnerTests: XCTestCase {
         XCTAssertEqual(mocks.launcher.openedURLs.count, 1)
         XCTAssertEqual(mocks.launcher.openedURLs.first?.absoluteString, "https://example.com")
     }
+
+    // MARK: - Cancellation (stop mechanism)
+
+    func testCancellationStopsRemainingSteps() async {
+        let task = Task {
+            try await MacroRunner.run(actions: [
+                .key(combo: "cmd+a"),
+                .delay(ms: 5_000),
+                .key(combo: "cmd+c"),   // Should not be executed because it is after the cancellation
+            ])
+        }
+        try? await Task.sleep(nanoseconds: 100_000_000) // 100ms: delay in progress
+        task.cancel()
+        let result = await task.result
+        if case .success = result {
+            XCTFail("Expected CancellationError")
+        }
+        XCTAssertEqual(mocks.synth.calls.count, 1,
+                       "steps after the cancelled delay must not run")
+    }
+
+    func testCancellationOverridesStopOnErrorFalse() async {
+        // stopOnError=false means "continue even if there's an error", but user stop requests are
+        // Since it's not a failure, the macro will always pass through and stop completely.
+        let task = Task {
+            try await MacroRunner.run(actions: [
+                .delay(ms: 5_000),
+                .key(combo: "cmd+c"),
+            ], stopOnError: false)
+        }
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        task.cancel()
+        _ = await task.result
+        XCTAssertEqual(mocks.synth.calls.count, 0)
+    }
+
+    // MARK: - Blacklist integration
+
+    private func blacklist(patterns: [String] = ["rm -rf"],
+                           autopilot: Bool = false) -> CommandBlacklist {
+        CommandBlacklist(enabled: true, patterns: patterns,
+                         autopilotEnabled: autopilot, autopilotPasswordHash: nil)
+    }
+
+    func testBlacklistedTextBlockedWithoutHandler() async {
+        // If there is no onBlocked handler, it will be executed immediately if matched.
+        do {
+            try await MacroRunner.run(actions: [
+                .text(content: "rm -rf /", pasteDelayMs: 0,
+                      restoreClipboard: true, appendMode: false),
+            ], blacklist: blacklist())
+            XCTFail("Expected commandBlocked")
+        } catch {
+            guard case ActionError.commandBlocked(let pattern) = error else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+            XCTAssertEqual(pattern, "rm -rf")
+        }
+        // Execution (clipboard operation) does not reach
+        XCTAssertEqual(mocks.clipboard.ops, [])
+    }
+
+    func testBlacklistOnBlockedDeclineAborts() async {
+        var asked: [(String, String)] = []
+        do {
+            try await MacroRunner.run(actions: [
+                .text(content: "sudo rm -rf /tmp/x", pasteDelayMs: 0,
+                      restoreClipboard: true, appendMode: false),
+            ], blacklist: blacklist(), onBlocked: { pattern, text in
+                asked.append((pattern, text))
+                return false  // User cancels
+            })
+            XCTFail("Expected commandBlocked after decline")
+        } catch {
+            guard case ActionError.commandBlocked = error else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+        }
+        XCTAssertEqual(asked.count, 1)
+        XCTAssertEqual(asked.first?.0, "rm -rf")
+        XCTAssertEqual(mocks.clipboard.ops, [])
+    }
+
+    func testBlacklistOnBlockedProceedExecutes() async throws {
+        try await MacroRunner.run(actions: [
+            .text(content: "rm -rf build/", pasteDelayMs: 0,
+                  restoreClipboard: true, appendMode: false),
+        ], blacklist: blacklist(), onBlocked: { _, _ in
+            true  // User selects "Execute"
+        })
+        // Executed after confirmation
+        XCTAssertEqual(mocks.clipboard.setStrings, ["rm -rf build/"])
+    }
+
+    func testAutopilotBypassesBlacklist() async throws {
+        var handlerCalled = false
+        try await MacroRunner.run(actions: [
+            .text(content: "rm -rf /", pasteDelayMs: 0,
+                  restoreClipboard: true, appendMode: false),
+        ], blacklist: blacklist(autopilot: true), onBlocked: { _, _ in
+            handlerCalled = true
+            return false
+        })
+        XCTAssertFalse(handlerCalled, "autopilot must skip the check entirely")
+        XCTAssertEqual(mocks.clipboard.setStrings, ["rm -rf /"])
+    }
+
+    func testNonMatchingTextRunsWithoutPrompt() async throws {
+        var handlerCalled = false
+        try await MacroRunner.run(actions: [
+            .text(content: "echo hello", pasteDelayMs: 0,
+                  restoreClipboard: true, appendMode: false),
+        ], blacklist: blacklist(), onBlocked: { _, _ in
+            handlerCalled = true
+            return true
+        })
+        XCTAssertFalse(handlerCalled)
+        XCTAssertEqual(mocks.clipboard.setStrings, ["echo hello"])
+    }
 }

@@ -20,9 +20,21 @@ extension AppDelegate {
         let savedEdge = panelConfig?.dockBarPosition?.edge
         let customPos = panelConfig?.dockBarPosition.map { NSPoint(x: $0.x, y: $0.y) }
 
+        let presetName = panelConfig?.presetName ?? "default"
+        let displayName = presetManager.preset(named: presetName)?.displayName ?? presetName
+        let iconName = presetManager.preset(named: presetName)?.groups.first?.buttons.first?.icon
+
         let resolvedEdge: DockEdge
         if let edge {
             resolvedEdge = edge
+        } else if let customPos, let screen = NSScreen.main?.visibleFrame {
+            // When there is a custom position, save the nearest edge instead of saved edges.
+            // Determine and re-evaluate edges. Past versions are still "stuck with old edges after moving".
+            // Saving data here to self-recover.
+            let sizeGuess = EdgeDockBar.barSize(edge: savedEdge ?? .right, label: displayName)
+            let center = CGPoint(x: customPos.x + sizeGuess.width / 2,
+                                 y: customPos.y + sizeGuess.height / 2)
+            resolvedEdge = EdgeDetector.nearestEdge(panelCenter: center, screenFrame: screen)
         } else if let savedEdge {
             resolvedEdge = savedEdge
         } else if let screen = NSScreen.main?.visibleFrame {
@@ -31,10 +43,6 @@ extension AppDelegate {
         } else {
             resolvedEdge = .right
         }
-
-        let presetName = panelConfig?.presetName ?? "default"
-        let displayName = presetManager.preset(named: presetName)?.displayName ?? presetName
-        let iconName = presetManager.preset(named: presetName)?.groups.first?.buttons.first?.icon
         panelManager?.collapseToDock(
             id: panelID,
             edge: resolvedEdge,

@@ -44,6 +44,10 @@ struct ButtonEditor: View {
     /// Existing content is concatenated to the clipboard. Assemble prompt fragments.
     /// mode for
     @State private var actionAppendMode: Bool = false
+    // UI-exposed parameters of text. Values set via Control API.
+    // Maintain to prevent reverting to default values during edit round trip.
+    @State private var actionPasteDelayMs: Int = 120
+    @State private var actionRestoreClipboard: Bool = true
     @State private var keyModCmd: Bool = false
     @State private var keyModShift: Bool = false
     @State private var keyModOption: Bool = false
@@ -51,8 +55,20 @@ struct ButtonEditor: View {
     @State private var keyBaseKey: String = ""
     @State private var launchTarget: String = ""
     @State private var terminalCommand: String = ""
+    // UI non-exposed parameters of terminal (for the same reason as above).
+    @State private var terminalApp: String = "Terminal"
+    @State private var terminalNewWindow: Bool = true
+    @State private var terminalExecute: Bool = true
+    @State private var terminalProfile: String? = nil
+    @State private var actionDelayMs: String = "500"
     @State private var macroSteps: [MacroStepDraft] = []
     @State private var macroStopOnError: Bool = true
+    /// Reason for interrupting save: Display above save button when not nil.
+    @State private var validationMessage: String? = nil
+    /// Test execution (without saving) progress task. nil = non-execution.
+    @State private var testRunTask: Task<Void, Never>? = nil
+    /// Seconds remaining until test execution. 0 = running or not running.
+    @State private var testRunCountdown: Int = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -201,6 +217,7 @@ struct ButtonEditor: View {
                             Text("key").tag("key")
                             Text("launch").tag("launch")
                             Text("terminal").tag("terminal")
+                            Text("delay").tag("delay")
                             Text("macro").tag("macro")
                         }
                         .pickerStyle(.segmented)
@@ -268,6 +285,17 @@ struct ButtonEditor: View {
                                 TextField("cd ~/dev && claude", text: $terminalCommand)
                                     .textFieldStyle(.roundedBorder)
                             }
+                        case "delay":
+                            labeled(L("macro_delay_field_label")) {
+                                HStack(spacing: 6) {
+                                    TextField("500", text: $actionDelayMs)
+                                        .textFieldStyle(.roundedBorder)
+                                        .frame(width: 80)
+                                    Text("ms")
+                                        .foregroundColor(.secondary)
+                                    DelayQuickPicker(delayMs: $actionDelayMs)
+                                }
+                            }
                         case "macro":
                             VStack(alignment: .leading, spacing: 6) {
                                 ForEach(macroSteps.indices, id: \.self) { i in
@@ -277,6 +305,11 @@ struct ButtonEditor: View {
                                         canMoveDown: i < macroSteps.count - 1,
                                         onMoveUp:   { macroSteps.swapAt(i, i - 1) },
                                         onMoveDown: { macroSteps.swapAt(i, i + 1) },
+                                        onDuplicate: {
+                                            var copy = macroSteps[i]
+                                            copy.id = UUID()
+                                            macroSteps.insert(copy, at: i + 1)
+                                        },
                                         onDelete:   { macroSteps.remove(at: i) }
                                     )
                                 }
@@ -309,6 +342,35 @@ struct ButtonEditor: View {
                             }
                             .buttonStyle(.borderedProminent)
                         }
+
+                        // Save without saving the current editing content to try. 3 seconds of grace time.
+                        // Focus is moved to the target app before execution.
+                        HStack(spacing: 8) {
+                            if testRunTask == nil {
+                                Button {
+                                    startTestRun()
+                                } label: {
+                                    Label(L("test_run_start"), systemImage: "play.circle")
+                                }
+                                .help(L("test_run_help"))
+                            } else {
+                                Button {
+                                    cancelTestRun()
+                                } label: {
+                                    Label(L("test_run_cancel"), systemImage: "stop.fill")
+                                }
+                                if testRunCountdown > 0 {
+                                    Text(L_("test_run_countdown", testRunCountdown))
+                                        .font(.caption)
+                                        .foregroundColor(.orange)
+                                } else {
+                                    Text(L("test_run_running"))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        .padding(.top, 2)
 
                         labeled(L("Tooltip displayed on hover for e40d98")) {
                             TextField(L("Button Purpose: Explain _ee7b98"), text: $tooltip)
@@ -344,6 +406,15 @@ struct ButtonEditor: View {
 
             Divider()
             HStack {
+                if let msg = validationMessage {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text(msg)
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                }
                 Spacer()
                 Button(role: .destructive) {
                     confirmingDelete = true
@@ -359,6 +430,7 @@ struct ButtonEditor: View {
             .padding(.vertical, 10)
         }
         .onAppear { loadFromButton() }
+        .onDisappear { cancelTestRun() }
         .onChange(of: presetManager.sfPickerRequestNonce) { _ in
             showingSFSymbolPicker = true
         }
@@ -489,16 +561,19 @@ struct ButtonEditor: View {
         confirmDestructive = button.confirmDestructive
 
         switch button.action {
-        case .text(let c, _, _, let append):
+        case .text(let c, let pasteDelay, let restore, let append):
             actionType = "text"; actionText = c; actionAppendMode = append
+            actionPasteDelayMs = pasteDelay; actionRestoreClipboard = restore
         case .key(let c):
             actionType = "key"; parseKeyCombo(c)
         case .launch(let t):
             actionType = "launch"; launchTarget = t
-        case .terminal(_, let c, _, _, _):
+        case .terminal(let app, let c, let newWindow, let execute, let profile):
             actionType = "terminal"; terminalCommand = c
+            terminalApp = app; terminalNewWindow = newWindow
+            terminalExecute = execute; terminalProfile = profile
         case .delay(let ms):
-            actionType = "text"; actionText = L_("delay_not_editable", ms)
+            actionType = "delay"; actionDelayMs = String(ms)
         case .macro(let actions, let stopOnError):
             actionType = "macro"
             macroSteps = actions.map { MacroStepDraft.from($0) }
@@ -507,28 +582,99 @@ struct ButtonEditor: View {
         viewingType = actionType
     }
 
-    private func commit() {
-        let widthVal = Double(width)
-        let heightVal = Double(height)
-
-        let newAction: Action
-        switch actionType {
+    /// Construct an action of the specified type from the current editing state.
+    /// If validation fails, set the `validationMessage` and return nil.
+    /// If saved as-is, it will silently disappear steps and won't execute until runtime.
+    /// Cannot miss the fact that it will become an accident, both saving and executing tests pass through here.
+    private func buildAction(for type: String) -> Action? {
+        switch type {
         case "text":
-            newAction = .text(content: actionText, pasteDelayMs: 120,
-                              restoreClipboard: true, appendMode: actionAppendMode)
+            return .text(content: actionText, pasteDelayMs: actionPasteDelayMs,
+                         restoreClipboard: actionRestoreClipboard,
+                         appendMode: actionAppendMode)
         case "key":
-            newAction = .key(combo: buildKeyCombo())
+            let combo = buildKeyCombo()
+            if combo.isEmpty {
+                validationMessage = L("validation_key_combo_missing")
+                return nil
+            }
+            return .key(combo: combo)
         case "launch":
-            newAction = .launch(target: launchTarget)
+            return .launch(target: launchTarget)
         case "terminal":
-            newAction = .terminal(app: "Terminal", command: terminalCommand,
-                                  newWindow: true, execute: true, profile: nil)
+            return .terminal(app: terminalApp, command: terminalCommand,
+                             newWindow: terminalNewWindow, execute: terminalExecute,
+                             profile: terminalProfile)
+        case "delay":
+            guard let ms = Int(actionDelayMs), DelayActionExecutor.allowedMs.contains(ms) else {
+                validationMessage = L("validation_delay_invalid")
+                return nil
+            }
+            return .delay(ms: ms)
         case "macro":
-            let steps = macroSteps.compactMap { $0.toAction() }
-            newAction = .macro(actions: steps, stopOnError: macroStopOnError)
+            let invalidCount = macroSteps.filter { $0.issue != nil }.count
+            if invalidCount > 0 {
+                validationMessage = L_("validation_macro_invalid_steps", invalidCount)
+                return nil
+            }
+            return .macro(actions: macroSteps.compactMap { $0.toAction() },
+                          stopOnError: macroStopOnError)
         default:
+            return nil
+        }
+    }
+
+    private static let editableActionTypes: Set<String> =
+        ["text", "key", "launch", "terminal", "delay", "macro"]
+
+    // MARK: - Test Run (Run Without Saving)
+
+    /// Execute the editing content of the currently displayed tab after a 3-second countdown.
+    /// During the intermission, users can switch focus to the destination app.
+    private func startTestRun() {
+        guard testRunTask == nil else { return }
+        guard let action = buildAction(for: viewingType) else { return }
+        validationMessage = nil
+        testRunTask = Task { @MainActor in
+            for i in stride(from: 3, through: 1, by: -1) {
+                testRunCountdown = i
+                do {
+                    try await Task.sleep(nanoseconds: 1_000_000_000)
+                } catch {
+                    testRunCountdown = 0
+                    return  // Cancel during countdown
+                }
+            }
+            testRunCountdown = 0
+            let run = presetManager.testRunAction(action)
+            await withTaskCancellationHandler {
+                _ = await run.result
+            } onCancel: {
+                run.cancel()
+            }
+            testRunTask = nil
+        }
+    }
+
+    private func cancelTestRun() {
+        testRunTask?.cancel()
+        testRunTask = nil
+        testRunCountdown = 0
+    }
+
+    private func commit() {
+        let newAction: Action
+        if Self.editableActionTypes.contains(actionType) {
+            // Return if validation fails and validationMessage is already set
+            guard let built = buildAction(for: actionType) else { return }
+            newAction = built
+        } else {
             newAction = button.action
         }
+        validationMessage = nil
+
+        let widthVal = Double(width)
+        let heightVal = Double(height)
 
         // When confirm is invalid, normalize related fields to default values and save.
         // At the moment when "confirmEnabled" is turned off in UI, "message" and "dangerous operation" appear.
@@ -789,6 +935,7 @@ struct ButtonEditor: View {
         case "key":      return L("keyInput_fdc0ab")
         case "launch":   return L("Launch application _d176e3")
         case "terminal": return L("terminal_3da5b3")
+        case "delay":    return L("macro_delay_display_name")
         case "macro":    return L("macro_07bc32")
         default:         return type
         }

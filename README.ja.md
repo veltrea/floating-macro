@@ -2,7 +2,7 @@
 
 > AI エージェントから操作できる HTTP 制御 API を内蔵した、macOS 向けのフローティング式マクロランチャー。
 
-[English](README.md) · [AI プロトコル](docs/AI_PROTOCOL.ja.md) · [仕様書](SPEC.md) · [デザインシステム](DESIGN.md) · [変更履歴](CHANGELOG.md)
+[English](README.md) · [AI プロトコル](manual/AI_PROTOCOL.ja.md) · [仕様書](SPEC.md) · [デザインシステム](DESIGN.md) · [変更履歴](CHANGELOG.md)
 
 ---
 
@@ -110,7 +110,7 @@ curl -s -X POST http://127.0.0.1:17430/tools/call \
   -d '{"name":"window_opacity","arguments":{"value":0.7}}'
 ```
 
-> 個別エンドポイント（`/window/opacity` 等）の直叩きは下層実装です。AI からは **`/tools/call` 経由**で呼んでください。詳細は [CLAUDE.md](CLAUDE.md) と [docs/AI_PROTOCOL.ja.md](docs/AI_PROTOCOL.ja.md)。
+> 個別エンドポイント（`/window/opacity` 等）の直叩きは下層実装です。AI からは **`/tools/call` 経由**で呼んでください。詳細は [CLAUDE.md](CLAUDE.md) と [AI_PROTOCOL.ja.md](manual/AI_PROTOCOL.ja.md)。
 
 ---
 
@@ -126,12 +126,12 @@ curl -s -X POST http://127.0.0.1:17430/tools/call \
 
 ボタンを押すと、Bearer トークンを Keychain から取り出して各クライアントの設定ファイル（`~/.claude.json` / `~/.cursor/mcp.json` / `~/.gemini/settings.json` 等）に追記します。既存の MCP 設定は壊しません。
 
-クライアント別の詳細は [docs/mcp/](docs/mcp/) を参照:
-- [Claude Code](docs/mcp/claude-code.md)
-- [Claude Desktop](docs/mcp/claude-desktop.md)
-- [Cursor](docs/mcp/cursor.md)
-- [Gemini CLI](docs/mcp/gemini-cli.md)
-- [ACP (curl 経由)](docs/mcp/acp.md)
+クライアント別の詳細は [manual/mcp/](manual/mcp/) を参照:
+- [Claude Code](manual/mcp/claude-code.md)
+- [Claude Desktop](manual/mcp/claude-desktop.md)
+- [Cursor](manual/mcp/cursor.md)
+- [Gemini CLI](manual/mcp/gemini-cli.md)
+- [ACP (curl 経由)](manual/mcp/acp.md)
 
 ### 手動で MCP 設定を書く場合
 
@@ -163,7 +163,7 @@ curl -s -H "Authorization: Bearer $TOKEN" \
 
 ### スクリプトから直接 REST
 
-全エンドポイントの仕様は [docs/AI_PROTOCOL.ja.md](docs/AI_PROTOCOL.ja.md) を参照。
+全エンドポイントの仕様は [AI_PROTOCOL.ja.md](manual/AI_PROTOCOL.ja.md) を参照。
 
 ---
 
@@ -288,9 +288,8 @@ CHANGELOG.md             変更履歴
 
 ## 関連ドキュメント
 
-- [AI プロトコルマニュアル](docs/AI_PROTOCOL.ja.md) — AI エージェントがこのアプリと話す方法
-- [MCP クライアント別ガイド](docs/mcp/) — Claude Code / Cursor / Gemini CLI / etc.
-- [手動テストチェックリスト](docs/manual_test.ja.md) — 自動テスト対象外の目視確認項目
+- [AI プロトコルマニュアル](manual/AI_PROTOCOL.ja.md) — AI エージェントがこのアプリと話す方法
+- [MCP クライアント別ガイド](manual/mcp/) — Claude Code / Cursor / Gemini CLI / etc.
 - [完全仕様書](SPEC.md)
 - [デザインシステム](DESIGN.md)
 - [変更履歴](CHANGELOG.md)

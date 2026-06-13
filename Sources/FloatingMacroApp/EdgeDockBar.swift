@@ -12,8 +12,10 @@ final class EdgeDockBar: NSPanel {
 
     let edge: DockEdge
 
-    private let label: String
-    private let iconName: String?
+    // When the edge changes by drag, PanelManager creates a new bar in the updated orientation.
+    // Keep parameters readable to recreate it.
+    let label: String
+    let iconName: String?
 
     init(edge: DockEdge, label: String, iconName: String?) {
         self.edge = edge

@@ -63,6 +63,15 @@ public enum Action: Codable, Equatable {
 
         case "delay":
             let ms = try container.decode(Int.self, forKey: .ms)
+            // Negative values cause runtime crashes during UInt64 conversion, and extremely large values cannot be stopped.
+            // Rejecting at the decoding point because it will take a long time to wait.
+            guard DelayActionExecutor.allowedMs.contains(ms) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .ms,
+                    in: container,
+                    debugDescription: "delay ms must be in \(DelayActionExecutor.allowedMs) (got \(ms))"
+                )
+            }
             self = .delay(ms: ms)
 
         case "macro":

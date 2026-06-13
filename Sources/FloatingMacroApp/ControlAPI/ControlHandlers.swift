@@ -542,7 +542,7 @@ final class ControlHandlers {
                 execute: execute, profile: profile
             )
         case .delay(let ms):
-            try await Task.sleep(nanoseconds: UInt64(ms) * 1_000_000)
+            try await DelayActionExecutor.execute(ms: ms)
         case .macro(let actions, let stopOnError):
             try await MacroRunner.run(actions: actions, stopOnError: stopOnError,
                                       blacklist: blacklist, onBlocked: onBlocked)

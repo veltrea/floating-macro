@@ -218,6 +218,7 @@ struct ContentHostView: View {
                             onButtonTap: { button in
                                 presetManager.executeButton(button)
                             },
+                            runningButtonIds: presetManager.runningButtonIds,
                             onGroupEdit: { group in
                                 openSettings(selectGroupId: group.id)
                             },

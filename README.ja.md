@@ -78,7 +78,20 @@ bash scripts/build-app.sh        # build/FloatingMacro.app に .app を生成
 open build/FloatingMacro.app
 ```
 
-初回起動時、macOS が Accessibility 権限を要求します。システム設定 → プライバシーとセキュリティ → アクセシビリティから許可してください。
+### 初回起動（Gatekeeper の警告）
+
+FloatingMacro は ad-hoc 署名（Apple の有償公証は受けていません）のため、ダウンロードしたアプリを**初回だけ** macOS が次の警告を出し、起動を止めます:
+
+<img src="manual/manual-images/gatekeeper-warning.png" width="360" alt="macOS Gatekeeper の警告: FloatingMacro は開いていません">
+
+これは ad-hoc 署名のアプリでは必ず出るもので、**マルウェアという意味ではありません**。「ゴミ箱に入れる」ではなく **「完了」** を押して閉じ、次のどちらかで一度だけ許可してください:
+
+- **システム設定** → **プライバシーとセキュリティ** を開き、下のほうの「"FloatingMacro" は…ブロックされました」の行で **「このまま開く」** を押す（マウス操作だけで済みます）
+- もしくはターミナルで `xattr -dr com.apple.quarantine /Applications/FloatingMacro.app`
+
+一度許可すれば、以降は毎回そのまま開けます。この足止めは、macOS がインターネット経由のファイルに付ける「ダウンロード印（検疫フラグ）」によるもので、アプリ本体は無傷です。
+
+起動すると、続けて macOS が Accessibility 権限（キー送出に必要）を要求します。システム設定 → プライバシーとセキュリティ → アクセシビリティから許可してください。
 
 ### CLI で試す
 

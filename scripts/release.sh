@@ -174,7 +174,8 @@ RELEASE_NOTES=$(cat <<NOTES
 
 1. DMG ファイルを開く
 2. FloatingMacro.app を Applications フォルダへドラッグ
-3. 初回起動時はアクセシビリティ権限を許可（システム設定 → プライバシーとセキュリティ → アクセシビリティ）
+3. 初回起動時に「"FloatingMacro" は開いていません」という警告が出ます。これは ad-hoc 署名アプリでは必ず出るもので、マルウェアという意味ではありません。「ゴミ箱に入れる」ではなく **「完了」** を押し、**システム設定 → プライバシーとセキュリティ** の「このまま開く」で一度だけ許可してください（または \`xattr -dr com.apple.quarantine /Applications/FloatingMacro.app\`）。手順とスクリーンショットは [README の「初回起動」](https://github.com/${PUBLIC_REPO}#first-launch-gatekeeper) を参照。
+4. 続けてアクセシビリティ権限を許可（システム設定 → プライバシーとセキュリティ → アクセシビリティ）
 
 **動作環境**
 

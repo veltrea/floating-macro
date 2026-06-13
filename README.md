@@ -87,8 +87,29 @@ bash scripts/build-app.sh        # produces build/FloatingMacro.app
 open build/FloatingMacro.app
 ```
 
-On first launch, macOS will ask for Accessibility permission. Grant it from
-System Settings → Privacy & Security → Accessibility.
+### First launch (Gatekeeper)
+
+FloatingMacro is signed ad-hoc (it is not paid Apple notarization), so the
+**first** time you open the downloaded app macOS shows this warning and refuses
+to launch it:
+
+<img src="manual/manual-images/gatekeeper-warning.png" width="360" alt="macOS Gatekeeper warning: FloatingMacro is not opened">
+
+This is expected for any ad-hoc–signed app — it does **not** mean the app is
+malware. Click **Done** (not "Move to Trash"), then allow it once with either
+method:
+
+- **System Settings** → **Privacy & Security**, scroll down to the
+  "FloatingMacro was blocked…" line and click **Open Anyway**. (Easiest —
+  mouse only.)
+- Or in Terminal: `xattr -dr com.apple.quarantine /Applications/FloatingMacro.app`
+
+Once allowed, it opens normally every time after that. The block comes from a
+download flag macOS attaches to files from the internet; the app itself is
+untouched.
+
+After it opens, macOS asks for Accessibility permission (needed to send
+keystrokes). Grant it from System Settings → Privacy & Security → Accessibility.
 
 ### Explore with the CLI
 

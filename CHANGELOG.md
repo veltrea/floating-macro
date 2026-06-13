@@ -2,6 +2,35 @@
 
 **Read this in other languages:** [日本語](CHANGELOG.ja.md)
 
+## v0.16.7 (2026-06-13)
+
+### Bug fix — Macro editing silently corrupted action parameters
+
+- When a `text` or `terminal` step was edited in the button editor and saved, parameters not exposed in the UI (`pasteDelayMs`, `restoreClipboard`, `appendMode`, terminal `app`, etc.) were silently reset to defaults. Settings configured via the Control API were lost just by opening and saving the button. Now all fields round-trip intact. The conversion logic was extracted into `MacroStepDraft` in the core so it is unit-tested.
+- A standalone `delay` button could not be edited and was mis-rendered as a `text` step. Added a `delay` action tab so it is editable directly.
+- Invalid macro steps (empty key combo, non-numeric delay, …) used to be dropped silently on save via `compactMap`. They now show an inline ⚠ warning and block the save with a reason, instead of vanishing.
+- A negative `delay` value crashed at runtime (`UInt64` conversion trap). Guarded with decode-time range validation (1 ms – 1 hour) and a runtime clamp.
+
+### Improvement — Macro stop control and test run
+
+- A running macro can now be stopped by clicking its button again (toggle). Rapid clicks no longer launch parallel runs that interleave key events. `MacroRunner` checks for cancellation at each step boundary, and a stop request always takes precedence even when `stopOnError` is false.
+- Added a "Test run in 3 s" button to the action editor so a draft can be tried without saving. The countdown lets you switch focus to the target app; the button turns into a stop control while running.
+- Added a step-duplicate button, a quick-pick menu for common delay values, and Japanese labels for the step type picker.
+
+### Bug fix — Floating panel caught by macOS 15 window tiling
+
+- Dragging a floating panel toward a screen edge triggered macOS 15 (Sequoia) window tiling, which would forcibly half-tile or maximize the panel. Disabled OS-driven window moves (`isMovable` / `isMovableByWindowBackground`) and replaced them with a self-managed drag, so the panel is structurally excluded from tiling.
+
+### Bug fix — Dock bar orientation and edge snapping
+
+- A dock bar collapsed at the top edge (horizontal text) stayed horizontal even after being dragged to a left/right edge, and re-collapsing did not fix it. The orientation is now re-derived from the drop position: if the nearest edge changed, the bar is rebuilt in the new orientation (vertical/horizontal). Older config data with a mismatched edge is self-healed on load.
+- After changing edges, the bar was left floating at the drop position instead of snapping to the edge. It now snaps to the detected edge while keeping the along-edge position.
+
+### Internal
+
+- Fixed `preset_create` / `preset_delete` not resolving user-side presets (`~/Documents/FloatingMacro`), which left API-created presets undeletable.
+- Test suite expanded to 490 tests (Action Codable round-trip, macro step conversion, delay range validation, blacklist integration, cancellation), all passing.
+
 ## v0.16.6 (2026-05-21)
 
 ### Bug fix — ACP / LAN server port conflict and zombie listeners

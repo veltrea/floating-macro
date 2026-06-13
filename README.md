@@ -277,7 +277,7 @@ CHANGELOG.md             Release history
 
 ## Project status
 
-Latest release: **v0.16.5** (2026-05-17). See [CHANGELOG.md](CHANGELOG.md) for the change history and [SPEC.md §17](SPEC.md) for the roadmap. Public release, but the author makes no guarantees of stability.
+Latest release: **v0.16.7** (2026-06-13). See [CHANGELOG.md](CHANGELOG.md) for the change history and [SPEC.md §17](SPEC.md) for the roadmap. Public release, but the author makes no guarantees of stability.
 
 > **Note on pull requests:** The codebase is currently under heavy active development — typically 1,000–5,000 lines change per day. Pull requests are very likely to conflict before they can be reviewed. Please hold off on PRs until the project enters maintenance mode. Issue reports and feature suggestions are welcome.
 

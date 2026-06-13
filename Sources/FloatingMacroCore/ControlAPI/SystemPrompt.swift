@@ -16,7 +16,7 @@ public enum SystemPrompt {
 
     /// Short machine-readable identity card.
     public static let product = "FloatingMacro"
-    public static let version = "0.16.5"
+    public static let version = "0.16.7"
 
     // MARK: - Prompt loading
 
